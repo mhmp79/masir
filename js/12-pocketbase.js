@@ -1,11 +1,13 @@
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۰.۰)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۱.۰)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
-   - ارسال خودکار پس از هر تغییر (با تأخیر کوتاه) و دریافت دوره‌ای کم‌حجم
-   - هر سینک اول فهرست سبک سرور را می‌خواند و فقط تغییرات را اعمال می‌کند
-   - اگر تغییری برای ارسال نباشد، هیچ درخواستی به سرور فرستاده نمی‌شود
+   - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
+   - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
+     خوانده می‌شوند (فیلتر سمت سرور)، نه فهرست کامل مجموعه
+   - حذف‌ها با مقایسهٔ تعداد رکوردهای سرور تشخیص داده می‌شوند
+   - اگر تغییری برای ارسال یا دریافت نباشد، عملاً هیچ داده‌ای جابه‌جا نمی‌شود
    - اولین سینک دستگاه تازه اول دریافت می‌کند تا دادهٔ سرور بازنویسی نشود
    ============================================================ */
 
@@ -14,9 +16,11 @@ const PB_URL_KEY = 'konkur-pb-url-v1';
 const LAST_SYNC_KEY = 'konkur-last-sync-v1';
 const AUTH_TOKEN_KEY = 'konkur-pb-auth-v1';
 const PB_SYNC_META_KEY = 'konkur-pb-sync-meta-v1';
-const PB_SYNC_META_VERSION = 2;
+const PB_SYNC_META_VERSION = 3;
 const PB_SYNC_META_LIMIT = 3;
 const PB_MANIFEST_FIELDS = 'id,localId,updated';
+const PB_DELETE_CHECK_GAP = 20 * 60 * 1000;
+const PB_DEFAULT_PAGE_SIZE = 200;
 
 let pocketBaseClient = null;
 let pocketBaseClientUrl = '';
@@ -182,10 +186,28 @@ function readSyncMetaStore() {
 function syncMetaKey(server, owner) {
   return `${normalizeBaseUrl(server)}|${owner}`;
 }
+/* ارتقای فرادادهٔ نسخهٔ قبل بدون وادار کردن دستگاه به دریافت کامل دوباره */
+function migrateSyncMeta(meta) {
+  if (!meta || meta.version === PB_SYNC_META_VERSION) return meta;
+  if (meta.version === 2 && meta.remote && typeof meta.remote === 'object') {
+    const floor = {};
+    Object.keys(meta.remote).forEach(collection => {
+      const map = meta.remote[collection] || {};
+      let max = '';
+      Object.keys(map).forEach(localId => {
+        const value = map[localId];
+        if (value && value > max) max = value;
+      });
+      if (max) floor[collection] = max;
+    });
+    return { ...meta, version: PB_SYNC_META_VERSION, floor, counts: {}, countsAt: 0 };
+  }
+  return null;
+}
 function loadSyncMeta(server, owner) {
   if (!owner) return null;
   try {
-    const meta = readSyncMetaStore()[syncMetaKey(server, owner)];
+    const meta = migrateSyncMeta(readSyncMetaStore()[syncMetaKey(server, owner)]);
     if (!meta || meta.version !== PB_SYNC_META_VERSION) return null;
     if (!meta.remote || typeof meta.remote !== 'object') return null;
     return meta;
@@ -365,20 +387,66 @@ async function fetchOwnerManifest(pb, collection, ownerId) {
 }
 
 /* رکوردهای تغییرکرده را با شناسهٔ سرور می‌خوانیم، نه کل مجموعه */
-async function fetchRecordsByIds(pb, collection, ids) {
-  const result = [];
-  const chunkSize = 40;
-  for (let start = 0; start < ids.length; start += chunkSize) {
-    const chunk = ids.slice(start, start + chunkSize);
-    const filter = chunk.map(id => `id="${pbFilterValue(id)}"`).join(' || ');
+async function fetchRemoteIdMap(pb, collection, ownerId, localIds) {
+  const map = new Map();
+  if (!localIds || !localIds.length) return map;
+  const chunkSize = 20;
+  for (let start = 0; start < localIds.length; start += chunkSize) {
+    const chunk = localIds.slice(start, start + chunkSize);
+    const localFilter = chunk.map(id => `localId="${pbFilterValue(id)}"`).join(' || ');
+    const filter = `owner="${pbFilterValue(ownerId)}" && (${localFilter})`;
     const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, chunk.length, {
       filter,
+      fields: 'id,localId,updated',
       skipTotal: true,
       requestKey: null
     }));
-    ((res && res.items) || []).forEach(item => result.push(item));
+    ((res && res.items) || []).forEach(item => map.set(String(item.localId), item));
   }
-  return result;
+  return map;
+}
+
+/* فقط رکوردهایی که از یک زمان مشخص به بعد تغییر کرده‌اند (فیلتر سمت سرور) */
+async function fetchChangedSince(pb, collection, ownerId, since) {
+  const items = [];
+  const perPage = PB_DEFAULT_PAGE_SIZE;
+  const filter = `owner="${pbFilterValue(ownerId)}" && updated >= "${pbFilterValue(since)}"`;
+  for (let page = 1; page < 500; page++) {
+    const res = await withRateLimitRetry(() => pb.collection(collection).getList(page, perPage, {
+      filter,
+      sort: 'updated,id',
+      skipTotal: true,
+      requestKey: null
+    }));
+    const batch = (res && res.items) || [];
+    batch.forEach(item => items.push(item));
+    if (batch.length < perPage) break;
+  }
+  return items;
+}
+
+/* تعداد رکوردهای سرور؛ برای تشخیص حذف (که در فیلتر updated دیده نمی‌شود) */
+async function fetchOwnerCount(pb, collection, ownerId) {
+  const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, 1, {
+    filter: `owner="${pbFilterValue(ownerId)}"`,
+    skipTotal: false,
+    requestKey: null
+  }));
+  if (res && typeof res.totalItems === 'number') return res.totalItems;
+  return ((res && res.items) || []).length;
+}
+
+function maxUpdatedTimestamp(records) {
+  let max = '';
+  (records || []).forEach(record => {
+    const value = pbManifestTimestamp(record);
+    if (value && value > max) max = value;
+  });
+  return max;
+}
+
+function pbStoreForCollection(collection) {
+  return collection === pbCollectionName('app-meta') ? 'app-meta' : collection;
 }
 
 /* در مجموعهٔ settings همه‌چیز به‌جز شمارنده به شناسهٔ اصلی نگاشت می‌شود */
@@ -403,28 +471,6 @@ function pbManifestUpdatedMap(store, records) {
     map[localId] = pbManifestTimestamp(record);
   });
   return map;
-}
-
-/* مقایسهٔ فهرست تازه با فهرست آخرین سینک.
-   اگر زمان تغییر نامعلوم باشد، رکورد «تغییرکرده» حساب می‌شود تا تغییری از دست نرود. */
-function pbManifestDiff(store, previousMap, freshRecords) {
-  const fresh = new Map();
-  (freshRecords || []).forEach(record => {
-    const localId = pbCanonicalLocalId(store, record.localId);
-    if (!localId) return;
-    fresh.set(localId, record);
-  });
-  const previous = previousMap || {};
-  const changed = [];
-  fresh.forEach((record, localId) => {
-    const current = pbManifestTimestamp(record);
-    const previousValue = previous[localId];
-    if (previousValue === undefined || current === null || current !== previousValue) {
-      changed.push({ localId, record });
-    }
-  });
-  const deleted = Object.keys(previous).filter(localId => !fresh.has(localId));
-  return { changed, deleted, fresh };
 }
 
 /* شمارندهٔ تست بیرون از state است و جداگانه ارسال می‌شود */
@@ -585,6 +631,38 @@ async function upsertRemoteRecord(pb, item, ownerId, remoteByLocalId) {
 }
 
 /*
+ * در ارسال تدریجی به فهرست کامل مجموعه نیاز نیست؛ فقط شناسهٔ سرور
+ * همان رکوردهایی را می‌گیریم که تغییر محلی دارند. مجموعهٔ settings
+ * (که فقط چند رکورد دارد) مثل قبل کامل خوانده می‌شود تا نگاشت شناسه‌ها درست بماند.
+ */
+async function resolveUploadRemoteMaps(pb, ops, ownerId, meta) {
+  const touched = new Map();
+  ops.forEach(op => {
+    const collection = op.collection || (op.item && op.item.collection);
+    const store = op.store || (op.item && op.item.store);
+    if (!collection || !store) return;
+    if (!touched.has(collection)) touched.set(collection, { store, localIds: new Set(), full: false });
+    const entry = touched.get(collection);
+    const localId = op.localId != null ? op.localId : (op.item && op.item.localId);
+    if (localId != null) entry.localIds.add(String(localId));
+    if (store === 'app-meta') entry.full = true;
+    if (!meta || !meta.remote || !meta.remote[collection]) entry.full = true;
+  });
+
+  const maps = new Map();
+  for (const [collection, entry] of touched) {
+    const records = entry.full
+      ? await fetchOwnerManifest(pb, collection, ownerId)
+      : [...(await fetchRemoteIdMap(pb, collection, ownerId, [...entry.localIds])).values()];
+    maps.set(collection, new Map(records.map(record => [
+      pbCanonicalLocalId(entry.store, record.localId),
+      record
+    ])));
+  }
+  return maps;
+}
+
+/*
  * ارسال تدریجی: اول تغییرات محلی خوانده می‌شود؛ اگر چیزی برای ارسال نباشد
  * هیچ درخواستی به سرور فرستاده نمی‌شود. در غیر این صورت فقط فهرست سبک
  * سرور بررسی و رکوردهای تغییرکرده نوشته می‌شوند.
@@ -666,22 +744,29 @@ async function performUpload(options = {}) {
       return { ok: true, changed: 0, noChanges: true };
     }
 
-    /* فاز ۱: بررسی فهرست سرور (بدون خواندن مقادیر) */
-    const remote = new Map();
-    for (let i = 0; i < collections.length; i++) {
-      const collection = collections[i];
-      setProgress('upload', 5 + (i / collections.length) * 30, `بررسی سرور — ${collection}`);
-      remote.set(collection, await fetchOwnerManifest(pb, collection, ownerId));
+    /* فاز ۱: شناسهٔ رکوردهای سرور
+       در حالت تدریجی فقط رکوردهای تغییرکرده پرسیده می‌شوند، نه فهرست کل مجموعه */
+    let remote = null;
+    let remoteMaps;
+    if (fullSync) {
+      remote = new Map();
+      for (let i = 0; i < collections.length; i++) {
+        const collection = collections[i];
+        setProgress('upload', 5 + (i / collections.length) * 30, `بررسی سرور — ${collection}`);
+        remote.set(collection, await fetchOwnerManifest(pb, collection, ownerId));
+      }
+      remoteMaps = new Map();
+      collections.forEach(collection => {
+        const store = pbStoreForCollection(collection);
+        remoteMaps.set(collection, new Map((remote.get(collection) || []).map(record => [
+          pbCanonicalLocalId(store, record.localId),
+          record
+        ])));
+      });
+    } else {
+      setProgress('upload', 8, 'خواندن شناسهٔ رکوردهای تغییرکرده…', true);
+      remoteMaps = await resolveUploadRemoteMaps(pb, ops, ownerId, meta);
     }
-
-    const remoteMaps = new Map();
-    collections.forEach(collection => {
-      const store = collection === pbCollectionName('app-meta') ? 'app-meta' : collection;
-      remoteMaps.set(collection, new Map((remote.get(collection) || []).map(record => [
-        pbCanonicalLocalId(store, record.localId),
-        record
-      ])));
-    });
 
     /* در حالت تدریجی، حذف محلی فقط وقتی روی سرور اعمال می‌شود که رکورد وجود داشته باشد */
     ops.forEach(op => {
@@ -742,40 +827,80 @@ async function performUpload(options = {}) {
       return { ok: false, changed: changedCount, error: syncError };
     }
 
-    /* پایهٔ مقایسه فقط شامل رکوردهایی است که روی این دستگاه وجود دارند؛
-       رکوردهای فقط-سرور در «دریافت» بعدی به‌عنوان تغییر تازه شناسایی می‌شوند. */
+    /* فرادادهٔ سینک: در حالت تدریجی فقط رکوردهای همین ارسال روی نسخهٔ قبلی اعمال می‌شوند.
+       رکوردهای فقط-سرور با مقایسهٔ updated در «دریافت» بعدی پیدا می‌شوند. */
     const nextRemote = {};
-    const localIdsByCollection = new Map();
-    items.forEach(item => {
-      const localId = pbCanonicalLocalId(item.store, item.localId);
-      if (!localId) return;
-      if (!localIdsByCollection.has(item.collection)) localIdsByCollection.set(item.collection, new Set());
-      localIdsByCollection.get(item.collection).add(localId);
-    });
-    collections.forEach(collection => {
-      const store = collection === pbCollectionName('app-meta') ? 'app-meta' : collection;
-      const localIds = localIdsByCollection.get(collection) || new Set();
-      const map = {};
-      (remote.get(collection) || []).forEach(record => {
-        const localId = pbCanonicalLocalId(store, record.localId);
-        if (!localId || !localIds.has(localId)) return;
-        map[localId] = pbManifestTimestamp(record);
+    if (fullSync) {
+      const localIdsByCollection = new Map();
+      items.forEach(item => {
+        const localId = pbCanonicalLocalId(item.store, item.localId);
+        if (!localId) return;
+        if (!localIdsByCollection.has(item.collection)) localIdsByCollection.set(item.collection, new Set());
+        localIdsByCollection.get(item.collection).add(localId);
       });
-      nextRemote[collection] = map;
-    });
+      collections.forEach(collection => {
+        const store = pbStoreForCollection(collection);
+        const localIds = localIdsByCollection.get(collection) || new Set();
+        const map = {};
+        (remote.get(collection) || []).forEach(record => {
+          const localId = pbCanonicalLocalId(store, record.localId);
+          if (!localId || !localIds.has(localId)) return;
+          map[localId] = pbManifestTimestamp(record);
+        });
+        nextRemote[collection] = map;
+      });
+    } else {
+      Object.keys(meta.remote || {}).forEach(collection => {
+        nextRemote[collection] = { ...(meta.remote[collection] || {}) };
+      });
+    }
     results.forEach((map, collection) => {
-      const store = collection === pbCollectionName('app-meta') ? 'app-meta' : collection;
+      const store = pbStoreForCollection(collection);
       if (!nextRemote[collection]) nextRemote[collection] = {};
       map.forEach((record, localId) => {
         nextRemote[collection][pbCanonicalLocalId(store, localId)] = pbManifestTimestamp(record);
       });
     });
     deleted.forEach(({ collection, localId }) => {
-      const store = collection === pbCollectionName('app-meta') ? 'app-meta' : collection;
+      const store = pbStoreForCollection(collection);
       if (nextRemote[collection]) delete nextRemote[collection][pbCanonicalLocalId(store, localId)];
     });
+
+    /* در اولین ارسال، خط زمانی سرور هم ثبت می‌شود تا دریافت بعدی فقط تغییرات را بخواند.
+       در ارسال‌های تدریجی خط زمانی جلو نمی‌رود تا تغییر دستگاه‌های دیگر از دست نرود. */
+    const floor = { ...((meta && meta.floor) || {}) };
+    const counts = { ...((meta && meta.counts) || {}) };
+    if (fullSync) {
+      collections.forEach(collection => {
+        const records = remote.get(collection) || [];
+        counts[collection] = records.length;
+        const max = maxUpdatedTimestamp(records);
+        if (max) floor[collection] = max;
+      });
+    }
+    /* تعداد رکوردهای سرور با نوشتن‌های همین ارسال هم‌تراز می‌شود
+       تا دریافت بعدی به بازبینی کامل نیاز پیدا نکند. */
+    ops.forEach(op => {
+      if (!op.ok) return;
+      const collection = op.collection || (op.item && op.item.collection);
+      if (!collection || typeof counts[collection] !== 'number') return;
+      if (op.kind === 'delete') {
+        if (op.remoteId) counts[collection] = Math.max(0, counts[collection] - 1);
+        return;
+      }
+      const item = op.item;
+      if (!item) return;
+      const existing = remoteMaps.get(collection);
+      const localId = pbCanonicalLocalId(item.store, item.localId);
+      if (existing && existing.get(localId)) return;
+      counts[collection] += 1;
+    });
+
     saveSyncMeta(server, ownerId, {
       remote: nextRemote,
+      floor,
+      counts,
+      countsAt: fullSync ? now : (meta.countsAt || 0),
       tracker: trackerSignature,
       lastSyncAt: now
     });
@@ -873,6 +998,7 @@ async function refreshAppAfterSync() {
 
 async function performDownload(options = {}) {
   const silent = !!options.silent;
+  const manual = !!options.manual;
   if (options.deferCheck && shouldDeferAutoDownload()) return { ok: false, deferred: true };
   if (syncBusy) return { ok: false, skipped: true, reason: 'busy' };
   if (!isLoggedIn()) {
@@ -903,88 +1029,125 @@ async function performDownload(options = {}) {
 
     if (canApplyIncremental) {
       const syncStores = stores.filter(entry => NORMALIZED_STORES.includes(entry.store));
-      /* فاز ۱: بررسی فهرست سبک سرور (۰ تا ۴۰ درصد) */
-      const remote = new Map();
+      const previousRemote = meta.remote || {};
+      const previousCounts = meta.counts || {};
+      const previousFloor = meta.floor || {};
+      const now = Date.now();
+      /* حذف رکورد در فیلتر `updated` دیده نمی‌شود؛ کاهش تعداد رکوردهای سرور
+         و یک بازبینی کامل دوره‌ای (یا هنگام سینک دستی) حذف‌ها را پیدا می‌کنند. */
+      const deepCheck = manual || !meta.countsAt || (now - meta.countsAt > PB_DELETE_CHECK_GAP);
+
+      /* فاز ۱: خواندن فقط داده‌های تازه، نه کل مجموعه */
+      const fetchedByStore = new Map();
       for (let i = 0; i < syncStores.length; i++) {
         const entry = syncStores[i];
-        setProgress('download', (i / syncStores.length) * 40, `بررسی سرور — ${entry.collection}`);
-        const records = await fetchOwnerManifest(pb, entry.collection, ownerId);
-        remote.set(entry.store, records);
+        const knownCount = typeof previousCounts[entry.collection] === 'number'
+          ? previousCounts[entry.collection]
+          : null;
+        let needManifest = deepCheck || entry.store === 'app-meta';
+        let serverCount = null;
+
+        if (!needManifest) {
+          setProgress('download', 5 + (i / syncStores.length) * 40, `بررسی سرور — ${entry.collection}`, true);
+          serverCount = await fetchOwnerCount(pb, entry.collection, ownerId);
+          if (knownCount === null || serverCount < knownCount) needManifest = true;
+          else if (!previousFloor[entry.collection] && serverCount > 0) needManifest = true;
+        }
+
+        let records = [];
+        if (needManifest) {
+          setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
+          records = await fetchOwnerManifest(pb, entry.collection, ownerId);
+          serverCount = records.length;
+        } else if (serverCount > 0) {
+          setProgress('download', 5 + (i / syncStores.length) * 40, `دریافت تغییرات — ${entry.collection}`);
+          records = await fetchChangedSince(pb, entry.collection, ownerId, previousFloor[entry.collection]);
+        }
+        fetchedByStore.set(entry.store, { records, full: needManifest, count: serverCount });
       }
 
-      const remoteTotal = [...remote.values()].reduce((sum, records) => sum + records.length, 0);
-      if (!remoteTotal) {
+      const serverTotal = syncStores.reduce((sum, entry) =>
+        sum + ((fetchedByStore.get(entry.store) || {}).count || 0), 0);
+      if (!serverTotal) {
         throw new Error('داده‌های حساب روی سرور پیدا نشد؛ عملیات برای جلوگیری از حذف داده متوقف شد.');
       }
-      const appMetaManifest = remote.get('app-meta') || [];
-      const hasMainRecord = appMetaManifest.some(record =>
+      const appMetaFetched = fetchedByStore.get('app-meta') || { records: [] };
+      const hasMainRecord = (appMetaFetched.records || []).some(record =>
         pbCanonicalLocalId('app-meta', record.localId) === DB_STATE_ID
       );
       if (!hasMainRecord) {
         throw new Error('داده‌های سرور کامل نیست (رکورد تنظیمات پیدا نشد)؛ عملیات برای جلوگیری از حذف داده متوقف شد.');
       }
 
-      /* فاز ۲: تعیین تغییرات نسبت به آخرین سینک */
-      const diffs = new Map();
-      let changedCount = 0;
-      let deletedCount = 0;
+      /* فاز ۲: تعیین رکوردهای تازه، بدون خواندن دوبارهٔ همان رکوردها از سرور */
+      const localSnapshot = normalizedStorageSnapshot(compactStateForStorage(state));
+      const puts = [];
+      const deletes = [];
+      const acknowledge = [];
+      const nextRemote = { ...previousRemote };
+      const floor = { ...previousFloor };
+      const counts = { ...previousCounts };
+      let remoteTracker = null;
+      let trackerChangedRemotely = false;
+      let applied = 0;
+
       syncStores.forEach(entry => {
-        const diff = pbManifestDiff(entry.store, meta.remote[entry.collection], remote.get(entry.store));
-        diffs.set(entry.store, diff);
-        changedCount += diff.changed.length;
-        diff.deleted.forEach(localId => {
-          if (entry.store === 'app-meta') return;
-          deletedCount++;
+        const info = fetchedByStore.get(entry.store) || { records: [], full: false, count: 0 };
+        const prevMap = previousRemote[entry.collection] || {};
+        const nextMap = info.full ? {} : { ...prevMap };
+        const seen = new Set();
+
+        (info.records || []).forEach(item => {
+          const canonical = pbCanonicalLocalId(entry.store, item.localId);
+          if (!canonical) return;
+          const updated = pbManifestTimestamp(item);
+          nextMap[canonical] = updated;
+          seen.add(canonical);
+          if (prevMap[canonical] === updated) return; /* بازتاب تغییر همین دستگاه */
+
+          if (entry.store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
+            remoteTracker = item.value;
+            trackerChangedRemotely = true;
+            return;
+          }
+          const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
+          if (!record) return;
+          puts.push({ store: entry.store, record });
+          acknowledge.push({ store: entry.store, id: record.id });
+          applied++;
         });
+
+        if (info.full) {
+          Object.keys(prevMap).forEach(localId => {
+            if (seen.has(localId)) return;
+            if (entry.store === 'app-meta') return;
+            deletes.push({ store: entry.store, id: localId });
+            acknowledge.push({ store: entry.store, id: localId });
+            applied++;
+          });
+        }
+
+        const observedMax = maxUpdatedTimestamp(info.records);
+        if (observedMax && observedMax > (floor[entry.collection] || '')) floor[entry.collection] = observedMax;
+        if (typeof info.count === 'number') counts[entry.collection] = info.count;
+        nextRemote[entry.collection] = nextMap;
       });
 
-      const trackerChangedRemotely = (diffs.get('app-meta')?.changed || []).some(item =>
-        item.localId === POCKETBASE_TRACKER_ID
-      );
-
-      if (!changedCount && !deletedCount) {
-        const now = Date.now();
-        saveSyncMeta(server, ownerId, { ...meta, lastSyncAt: now });
+      if (!applied && !trackerChangedRemotely) {
+        saveSyncMeta(server, ownerId, {
+          ...meta,
+          remote: nextRemote,
+          floor,
+          counts,
+          countsAt: deepCheck ? now : (meta.countsAt || 0),
+          lastSyncAt: now
+        });
         setLastSyncTimestamp(now);
         syncNotice = '✓ داده‌ها از قبل به‌روز است';
         return { ok: true, changed: 0, noChanges: true };
       }
 
-      /* فاز ۳: دریافت فقط رکوردهای تغییرکرده (۴۰ تا ۸۰ درصد) */
-      const localSnapshot = normalizedStorageSnapshot(compactStateForStorage(state));
-      const puts = [];
-      const deletes = [];
-      const acknowledge = [];
-      let remoteTracker = null;
-      let fetched = 0;
-
-      for (const entry of syncStores) {
-        const diff = diffs.get(entry.store);
-        if (diff.changed.length) {
-          const ids = diff.changed.map(item => item.record.id).filter(Boolean);
-          const records = await fetchRecordsByIds(pb, entry.collection, ids);
-          records.forEach(item => {
-            const canonical = pbCanonicalLocalId(entry.store, item.localId);
-            if (entry.store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
-              remoteTracker = item.value;
-              return;
-            }
-            const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
-            if (!record) return;
-            puts.push({ store: entry.store, record });
-            acknowledge.push({ store: entry.store, id: record.id });
-          });
-          fetched += records.length;
-          setProgress('download', 40 + (fetched / Math.max(1, changedCount)) * 40, `${fa(fetched)} از ${fa(changedCount)} رکورد تغییرکرده`);
-        }
-        diff.deleted.forEach(localId => {
-          if (entry.store === 'app-meta') return;
-          deletes.push({ store: entry.store, id: localId });
-          acknowledge.push({ store: entry.store, id: localId });
-        });
-      }
-
-      /* فاز ۴: نوشتن تغییرات روی دستگاه (۸۰ تا ۱۰۰ درصد) */
+      /* فاز ۳: نوشتن تغییرات روی دستگاه */
       setProgress('download', 85, 'ذخیره‌سازی تغییرات روی این دستگاه…', true);
       /* نوشتن‌های همین دریافت نباید چرخهٔ ارسال تازه بسازند */
       autoSyncSuppressUpload++;
@@ -1000,19 +1163,17 @@ async function performDownload(options = {}) {
         try { if (typeof renderTracker === 'function') renderTracker(); }
         catch (e) { console.warn('[PB] renderTracker failed:', e); }
       }
-      const now = Date.now();
-      const nextRemote = {};
-      syncStores.forEach(entry => {
-        nextRemote[entry.collection] = pbManifestUpdatedMap(entry.store, remote.get(entry.store));
-      });
+
       saveSyncMeta(server, ownerId, {
         remote: nextRemote,
+        floor,
+        counts,
+        countsAt: deepCheck ? now : (meta.countsAt || 0),
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
         lastSyncAt: now
       });
       setLastSyncTimestamp(now);
 
-      const applied = puts.length + deletes.length;
       syncNotice = applied
         ? `✓ ${fa(applied)} تغییر از حساب شما اعمال شد`
         : '✓ شمارنده‌های تست به‌روز شد';
@@ -1102,12 +1263,21 @@ async function performDownload(options = {}) {
 
     const now = Date.now();
     const nextRemote = {};
+    const floor = {};
+    const counts = {};
     stores.forEach(entry => {
       if (!NORMALIZED_STORES.includes(entry.store)) return;
-      nextRemote[entry.collection] = pbManifestUpdatedMap(entry.store, rawRecords.get(entry.store) || []);
+      const records = rawRecords.get(entry.store) || [];
+      nextRemote[entry.collection] = pbManifestUpdatedMap(entry.store, records);
+      counts[entry.collection] = records.length;
+      const max = maxUpdatedTimestamp(records);
+      if (max) floor[entry.collection] = max;
     });
     saveSyncMeta(server, ownerId, {
       remote: nextRemote,
+      floor,
+      counts,
+      countsAt: now,
       tracker: remoteTracker ? JSON.stringify(remoteTracker) : null,
       lastSyncAt: now
     });
@@ -1320,7 +1490,7 @@ async function syncCycle(options = {}) {
 
     /* اولین همگام‌سازی: دستگاه تازه اول دریافت می‌کند؛ اگر دادهٔ محلی وجود دارد اول ارسال */
     if (firstSync && !hasLocalStudyData()) {
-      outcome = await performDownload({ silent: true, deferCheck: !manual });
+      outcome = await performDownload({ silent: true, deferCheck: !manual, manual });
       if (outcome && outcome.ok) {
         lastDownloadAt = Date.now();
         registerAutoSuccess();
@@ -1363,7 +1533,7 @@ async function syncCycle(options = {}) {
       return outcome;
     }
 
-    const down = await performDownload({ silent: true, deferCheck: false });
+    const down = await performDownload({ silent: true, deferCheck: false, manual });
     if (down && down.ok) {
       lastDownloadAt = Date.now();
       registerAutoSuccess();
@@ -1410,7 +1580,7 @@ function uploadAllData() {
 }
 function downloadAllData() {
   if (syncBusy || autoSyncRunning) return;
-  return performDownload({});
+  return performDownload({ manual: true });
 }
 function onSettingsOpen() {
   renderSyncUI();

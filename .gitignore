@@ -9,8 +9,21 @@ venv/
 *.jks
 *.apk
 *.aab
+*.idsig
 .gradle/
 pwa/build/
+pwa/.keystore.env
+
+# پروژه اندروید تولیدشده توسط Bubblewrap (با «bubblewrap update» بازسازی می‌شود)
+pwa/app/
+pwa/gradle/
+pwa/build.gradle
+pwa/gradle.properties
+pwa/gradlew
+pwa/gradlew.bat
+pwa/settings.gradle
+pwa/manifest-checksum.txt
+pwa/store_icon.png
 
 # در صورت اجرای محلی PocketBase
 pb_data/

@@ -97,31 +97,53 @@ npm i -g @bubblewrap/cli
 
 ### گام ۲: کلید امضا
 
-داخل پوشهٔ `pwa`:
+کلید امضا در همان پوشه ساخته شده است: `pwa/android.keystore` با alias برابر `android`.
+رمز تصادفی آن در `pwa/.keystore.env` نگه داشته می‌شود (این فایل در `.gitignore` است و کامیت نمی‌شود).
+
+**این دو فایل را جداگانه بک‌آپ بگیرید.** اگر کلید یا رمز گم شود، دیگر نمی‌توانید نسخهٔ جدید همان اپ را در Play Store منتشر کنید.
+
+برای ساخت دوبارهٔ کلید (فقط اگر کلید قبلی را عمداً دور انداخته‌اید):
 
 ```powershell
-keytool -genkeypair -v -keystore android.keystore -alias android -keyalg RSA -keysize 2048 -validity 10000
+keytool -genkeypair -v -keystore android.keystore -alias android -keyalg RSA -keysize 2048 -validity 10000 -storetype PKCS12
 ```
 
-این فایل را گم نکنید؛ برای آپدیت‌های بعدی Play Store لازم است.
+Bubblewrap می‌تواند رمز را از متغیرهای محیطی بخواند و سؤال رمز را نپرسد:
+
+```powershell
+Get-Content .keystore.env | ForEach-Object {
+  $name, $value = $_ -split '=', 2
+  Set-Item -Path "Env:$name" -Value $value
+}
+bubblewrap build
+```
 
 ### گام ۳: اثر انگشت و Digital Asset Links
+
+اثر انگشت این کلید در `pwa/assetlinks.json` ثبت شده است:
+
+```
+EE:E3:95:43:05:9C:55:2E:11:5C:D5:93:18:15:14:BB:0D:0C:B4:4A:DA:C7:63:57:52:FF:24:DC:E6:00:26:E7
+```
+
+اگر کلید را عوض کردید، اثر انگشت جدید را بگیرید:
 
 ```powershell
 keytool -list -v -keystore android.keystore -alias android
 ```
 
-مقدار `SHA256:` را کپی کنید و در `pwa/assetlinks.json` جای
-`REPLACE_WITH_SHA256_CERT_FINGERPRINT` بگذارید. سپس فایل را در هاست قرار دهید:
+مقدار `SHA256:` را در `pwa/assetlinks.json` و همچنین نسخهٔ منتشرشدهٔ `.well-known/assetlinks.json` در ریشهٔ پروژه جایگزین کنید. محل انتشار باید دقیقاً این باشد:
 
 ```
-https://YOUR-DOMAIN/.well-known/assetlinks.json
+https://masir-konkour.vercel.app/.well-known/assetlinks.json
 ```
+
+فایل `pwa/assetlinks.json` فقط نسخهٔ مرجع است؛ چیزی که اندروید می‌خواند همان مسیر `.well-known` در ریشهٔ سایت است.
 
 باید بدون ریدایرکت و با Content-Type برابر `application/json` باز شود. برای بررسی:
 
 ```
-https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://YOUR-DOMAIN&relation=delegate_permission/common.handle_all_urls
+https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://masir-konkour.vercel.app&relation=delegate_permission/common.handle_all_urls
 ```
 
 ### گام ۴: ساخت
@@ -129,13 +151,43 @@ https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=http
 داخل پوشهٔ `pwa`:
 
 ```powershell
+bubblewrap update --skipVersionUpgrade
 bubblewrap build
 ```
+
+اگر `bubblewrap update` را اجرا نکنید، `bubblewrap build` خودش می‌پرسد که پروژه بازسازی شود؛ جواب `y` بدهید و نسخه را تأیید کنید.
+
+نکته‌های این محیط:
+
+- پروژهٔ اندرویدِ تولیدشده (`app/`، `gradle/`، `build.gradle`، `gradlew` و…) در `.gitignore` است و هر بار با `bubblewrap update` از نو ساخته می‌شود.
+- `minSdkVersion` روی ۲۴ است چون کتابخانهٔ `androidbrowserhelper:2.7.4` حداقل اندروید ۷ را می‌خواهد.
+- اگر اینترنت این سیستم فقط از طریق پروکسی کار می‌کند، در `gradle.properties` این خطوط لازم است:
+
+```
+systemProp.http.proxyHost=127.0.0.1
+systemProp.http.proxyPort=10808
+systemProp.https.proxyHost=127.0.0.1
+systemProp.https.proxyPort=10808
+```
+
+- قالب Bubblewrap از مخزن قدیمی `jcenter()` استفاده می‌کند؛ اگر بیلد با خطای مخزن متوقف شد، در `build.gradle` (هر دو بخش `buildscript` و `allprojects`) `jcenter()` را با `mavenCentral()` عوض کنید.
 
 خروجی‌ها:
 
 - `app-release-signed.apk` برای تست روی گوشی
 - `app-release-bundle.aab` برای Play Store
+
+آخرین بیلد موفق: نسخهٔ `0.9.4` (versionCode 1)، بستهٔ `app.masirkonkur.twa`، امضاشده با کلید `android` و اثر انگشت
+`EE:E3:95:43:...:00:26:E7`.
+
+نکتهٔ ویندوز: مسیر JDK نباید فاصله داشته باشد، چون Bubblewrap دستور `apksigner` را بدون کوتیشن اجرا می‌کند و مسیرهایی مثل `C:\Program Files\...` شکست می‌خورند. راه‌حل: یک junction بسازید و همان را به Bubblewrap بدهید:
+
+```powershell
+cmd /c mklink /J "$env:USERPROFILE\jdk17" "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot"
+bubblewrap updateConfig --jdkPath "$env:USERPROFILE\jdk17"
+```
+
+همچنین JDK باید ۶۴ بیتی باشد؛ نسخهٔ ۳۲ بیتیِ دانلودی Bubblewrap نمی‌تواند heap گریدل را رزرو کند.
 
 اگر Bubblewrap از شما خواست `twa-manifest.json` بسازد، همان فایل آمادهٔ این پوشه را نگه دارید و مقادیر را تأیید کنید.
 
@@ -153,7 +205,7 @@ bubblewrap build
 
 1. مقدار `CACHE_NAME` در `sw.js` را بالا ببرید (مثلاً `konkur-shell-v1-0-9-5`).
 2. `version` در `manifest.json` را به‌روز کنید.
-3. در `pwa/twa-manifest.json` مقدار `appVersionName` و `appVersionCode` را بالا ببرید.
+3. در `pwa/twa-manifest.json` مقدار `appVersion` و `appVersionCode` را بالا ببرید (کلید نام نسخه `appVersion` است، نه `appVersionName`).
 4. دوباره `bubblewrap build` بزنید.
 
 نسخهٔ PWA بعد از باز شدن مجدد، کش قدیمی را پاک و نسخهٔ جدید را فعال می‌کند.
@@ -167,4 +219,4 @@ bubblewrap build
 - PocketBase از فایل محلی `js/00-pocketbase.js` بارگذاری می‌شود؛ CDN حذف شده است.
 - درخواست‌های PocketBase توسط Service Worker کش نمی‌شوند؛ فقط داده‌های محلی و پوستهٔ برنامه آفلاین می‌مانند.
 - همگام‌سازی ابری اختیاری است. اپ بدون ورود و بدون اینترنت هم کامل کار می‌کند.
-- فایل `android.keystore` و رمز آن را هرگز در مخزن عمومی یا هاست قرار ندهید.
+- فایل `android.keystore` و `pwa/.keystore.env` را هرگز در مخزن عمومی یا هاست قرار ندهید. کلید فعلی با رمز تصادفی ساخته شده و اثر انگشتش در `pwa/assetlinks.json` ثبت است.

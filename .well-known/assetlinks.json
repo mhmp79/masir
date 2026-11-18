@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.masirkonkur.twa",
+      "sha256_cert_fingerprints": [
+        "EE:E3:95:43:05:9C:55:2E:11:5C:D5:93:18:15:14:BB:0D:0C:B4:4A:DA:C7:63:57:52:FF:24:DC:E6:00:26:E7"
+      ]
+    }
+  }
+]

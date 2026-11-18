@@ -17975,7 +17975,7 @@ async function clearAllData(){
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۱)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۲)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
@@ -17985,6 +17985,9 @@ async function clearAllData(){
      همان مجموعه خوانده می‌شود
    - اگر تغییری برای ارسال یا دریافت نباشد، عملاً هیچ داده‌ای جابه‌جا نمی‌شود
    - اولین سینک دستگاه تازه اول دریافت می‌کند تا دادهٔ سرور بازنویسی نشود
+   - هر ۶۰ ثانیه یک «کاوش ارزان» انجام می‌شود: فقط پرسیده می‌شود آیا رکوردی
+     تازه‌تر از آخرین وضعیت شناخته‌شده روی سرور هست یا نه؛ سینک کامل فقط
+     وقتی سرور واقعاً تغییر کرده باشد اجرا می‌شود
    ============================================================ */
 
 const POCKETBASE_URL_DEFAULT = 'https://masir-69623a.dockhold.app';
@@ -17994,7 +17997,7 @@ const AUTH_TOKEN_KEY = 'konkur-pb-auth-v1';
 const PB_SYNC_META_KEY = 'konkur-pb-sync-meta-v1';
 const PB_SYNC_META_VERSION = 3;
 /* نسخهٔ بازبینی سلامت: یک‌بار پس از این ارتقا رکوردهای ناقص محلی ترمیم می‌شوند */
-const PB_SYNC_INTEGRITY_VERSION = 2;
+const PB_SYNC_INTEGRITY_VERSION = 3;
 const PB_SYNC_META_LIMIT = 3;
 const PB_MANIFEST_FIELDS = 'id,localId,updated';
 const PB_DELETE_CHECK_GAP = 24 * 60 * 60 * 1000;
@@ -18446,6 +18449,35 @@ function pbSameJsonValue(a, b) {
   };
   try { return stable(a) === stable(b); }
   catch (error) { return false; }
+}
+
+/* برخی مجموعه‌ها هرگز مقدار خالی ندارند؛ اگر خالی بود یعنی رکورد ناقص ذخیره شده است.
+   (برای classes مقدار خالی یعنی کلاس بدون جلسه و طبیعی است.) */
+const PB_NON_EMPTY_VALUE_STORES = new Set([
+  'subjects', 'activities', 'sessions', 'sleeps', 'phones', 'exams', 'questions'
+]);
+function pbLocalSnapshotDamaged(store, json) {
+  let parsed;
+  try { parsed = JSON.parse(json); }
+  catch (error) { return true; }
+  if (!parsed || !Object.prototype.hasOwnProperty.call(parsed, 'value')) return true;
+  const value = parsed.value;
+  if (value == null) return true;
+  if (typeof value === 'string') return !value.trim();
+  if (typeof value !== 'object' || Array.isArray(value)) return false;
+  if (!Object.keys(value).length) return PB_NON_EMPTY_VALUE_STORES.has(store);
+  return false;
+}
+
+/* بزرگ‌ترین زمان تغییرِ شناخته‌شده برای یک مجموعه (از floor و فهرست رکوردها) */
+function syncKnownMax(meta, collection) {
+  let max = (meta && meta.floor && meta.floor[collection]) || '';
+  const remoteMap = (meta && meta.remote && meta.remote[collection]) || {};
+  Object.keys(remoteMap).forEach(key => {
+    const value = remoteMap[key];
+    if (typeof value === 'string' && value > max) max = value;
+  });
+  return max;
 }
 
 function maxUpdatedTimestamp(records) {  let max = '';
@@ -19056,18 +19088,24 @@ async function performDownload(options = {}) {
         (now - meta.countsAt > PB_DELETE_CHECK_GAP);
 
       /* در بازبینی سلامت، رکوردهایی که قبلاً بدون مقدار ذخیره شده‌اند ترمیم می‌شوند.
-         حذف‌های محلی در انتظار ارسال نباید دوباره ساخته شوند. */
+         حذف‌ها و ویرایش‌های محلی در انتظار ارسال نباید با نسخهٔ سرور بازنویسی شوند. */
       let pendingDeletes = null;
+      let pendingPuts = null;
       if (deepCheck) {
         try {
           const pending = await readPendingChanges();
           if (pending) {
-            pendingDeletes = new Set(pending
-              .filter(change => change && change.operation === 'delete')
-              .map(change => `${change.store}::${change.recordId}`));
+            pendingDeletes = new Set();
+            pendingPuts = new Set();
+            pending.forEach(change => {
+              if (!change || !change.store) return;
+              const key = `${change.store}::${change.recordId}`;
+              if (change.operation === 'delete') pendingDeletes.add(key);
+              else pendingPuts.add(key);
+            });
           }
         } catch (error) {
-          console.warn('[PB] reading pending deletions failed:', error);
+          console.warn('[PB] reading pending changes failed:', error);
         }
       }
 
@@ -19178,13 +19216,15 @@ async function performDownload(options = {}) {
                 needsValue = true;
               } else {
                 const storeSnapshot = localSnapshot.get(entry.store);
-                const present = storeSnapshot && storeSnapshot.has(canonical);
-                const pendingDelete = pendingDeletes && (
-                  pendingDeletes.has(`${entry.store}::${canonical}`) ||
-                  pendingDeletes.has(`${entry.store}::${String(item.localId)}`)
-                );
-                /* رکورد قبلاً روی این دستگاه بوده ولی مقدارش ناقص ذخیره شده است */
-                needsValue = !!pendingDeletes && !present && !pendingDelete;
+                const rawLocal = storeSnapshot && storeSnapshot.get(canonical);
+                const pendingKey = `${entry.store}::${canonical}`;
+                const pendingKeyRaw = `${entry.store}::${String(item.localId)}`;
+                const pendingDelete = pendingDeletes && (pendingDeletes.has(pendingKey) || pendingDeletes.has(pendingKeyRaw));
+                const pendingPut = pendingPuts && (pendingPuts.has(pendingKey) || pendingPuts.has(pendingKeyRaw));
+                /* رکورد روی این دستگاه هست ولی بدون مقدار ذخیره شده (خرابی نسخهٔ قدیمی)،
+                   یا اصلاً روی این دستگاه نیست؛ هر دو باید از سرور بازخوانی شوند. */
+                const damaged = rawLocal != null && pbLocalSnapshotDamaged(entry.store, rawLocal);
+                needsValue = !!pendingDeletes && !pendingDelete && !pendingPut && (!rawLocal || damaged);
               }
             }
             if (needsValue && !missingCanonical.has(canonical)) {
@@ -19462,6 +19502,7 @@ const AUTO_UPLOAD_DEBOUNCE = 7000;
 const AUTO_MIN_CYCLE_GAP = 30000;
 const AUTO_DOWNLOAD_MIN_GAP = 60000;
 const AUTO_POLL_INTERVAL = 10 * 60 * 1000;
+const AUTO_PROBE_GAP = 60000;
 const AUTO_DEFER_RETRY = 20000;
 const AUTO_BACKOFF_BASE = 60000;
 const AUTO_MAX_BACKOFF = 15 * 60 * 1000;
@@ -19478,6 +19519,8 @@ let autoSyncRetryReason = 'auto';
 let autoSyncSuppressUpload = 0;
 let lastCycleAt = 0;
 let lastDownloadAt = 0;
+let lastProbeAt = 0;
+let probeInFlight = false;
 let lastAutoStatus = 'idle';
 let pendingBadgeToken = 0;
 
@@ -19642,7 +19685,9 @@ async function syncCycle(options = {}) {
       return outcome;
     }
 
-    const downloadAllowed = manual || firstSync || (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP);
+    /* کاوش سرور یعنی تغییر واقعی پیدا شده؛ دریافت نباید به فاصلهٔ ۶۰ ثانیه‌ای محدود شود */
+    const forceDownload = manual || reason === 'probe';
+    const downloadAllowed = forceDownload || firstSync || (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP);
     if (!downloadAllowed) {
       outcome = { ok: true, changed: up.changed || 0, downloadSkipped: true };
       registerAutoSuccess();
@@ -19712,6 +19757,56 @@ function onSettingsOpen() {
   if (!autoSyncEnabled || !isLoggedIn()) return;
   if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(600, 'settings');
 }
+/* کاوش ارزان: آیا روی سرور رکوردی تازه‌تر از آخرین وضعیت شناخته‌شده هست؟
+   به‌جای سینک کامل دوره‌ای، فقط این پرسش کوچک انجام می‌شود. */
+async function probeRemoteChanges() {
+  if (!autoSyncEnabled || !isLoggedIn()) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  if (syncBusy || autoSyncRunning || probeInFlight) return false;
+  const now = Date.now();
+  if (now - lastProbeAt < AUTO_PROBE_GAP) return false;
+  lastProbeAt = now;
+  probeInFlight = true;
+  try {
+    const pb = await requirePocketBaseAuth();
+    const ownerId = pocketBaseUserId(pb);
+    if (!ownerId) return false;
+    const server = normalizeBaseUrl(pocketBaseBaseUrl());
+    const meta = loadSyncMeta(server, ownerId);
+    if (!meta || !meta.remote) return true; /* فراداده نداریم؛ سینک کامل لازم است */
+    for (const store of PB_DOWNLOAD_STORES) {
+      const collection = pbCollectionName(store);
+      const knownMax = syncKnownMax(meta, collection);
+      const filter = knownMax
+        ? `owner="${pbFilterValue(ownerId)}" && updated > "${pbFilterValue(knownMax)}"`
+        : `owner="${pbFilterValue(ownerId)}"`;
+      try {
+        const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, 1, {
+          filter,
+          fields: PB_MANIFEST_FIELDS,
+          skipTotal: true,
+          requestKey: null
+        }));
+        if (res && Array.isArray(res.items) && res.items.length) return true;
+      } catch (error) {
+        /* مجموعه‌ای روی سرور نیست (مثل plan/reserved)؛ کاوش ادامه می‌یابد */
+      }
+    }
+    return false;
+  } catch (error) {
+    console.warn('[PB] remote probe failed:', error);
+    return false;
+  } finally {
+    probeInFlight = false;
+  }
+}
+function maybeProbeRemoteChanges() {
+  return probeRemoteChanges().then(changed => {
+    if (changed) scheduleAutoCycle(0, 'probe');
+    return changed;
+  }).catch(() => false);
+}
+
 function startAutoSync() {
   if (autoSyncStarted) return;
   autoSyncStarted = true;
@@ -19744,6 +19839,7 @@ function startAutoSync() {
   setInterval(() => {
     if (document.hidden || !autoSyncEnabled || !isLoggedIn()) return;
     if (Date.now() - lastDownloadAt >= AUTO_POLL_INTERVAL) scheduleAutoCycle(0, 'poll');
+    else maybeProbeRemoteChanges();
   }, 60000);
 
   scheduleAutoCycle(4000, 'startup');

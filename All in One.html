@@ -17975,12 +17975,14 @@ async function clearAllData(){
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۱.۰)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۰)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
      خوانده می‌شوند (فیلتر سمت سرور)، نه فهرست کامل مجموعه
-   - حذف‌ها با مقایسهٔ تعداد رکوردهای سرور تشخیص داده می‌شوند
+   - حذف‌ها با «حساب تعداد» تشخیص داده می‌شوند: تعداد سرور با تعداد شناخته‌شده
+     به‌علاوهٔ رکوردهای تازه مقایسه می‌شود؛ فقط در صورت اختلاف، فهرست کامل
+     همان مجموعه خوانده می‌شود
    - اگر تغییری برای ارسال یا دریافت نباشد، عملاً هیچ داده‌ای جابه‌جا نمی‌شود
    - اولین سینک دستگاه تازه اول دریافت می‌کند تا دادهٔ سرور بازنویسی نشود
    ============================================================ */
@@ -17993,7 +17995,7 @@ const PB_SYNC_META_KEY = 'konkur-pb-sync-meta-v1';
 const PB_SYNC_META_VERSION = 3;
 const PB_SYNC_META_LIMIT = 3;
 const PB_MANIFEST_FIELDS = 'id,localId,updated';
-const PB_DELETE_CHECK_GAP = 20 * 60 * 1000;
+const PB_DELETE_CHECK_GAP = 24 * 60 * 60 * 1000;
 const PB_DEFAULT_PAGE_SIZE = 200;
 
 let pocketBaseClient = null;
@@ -18165,6 +18167,7 @@ function migrateSyncMeta(meta) {
   if (!meta || meta.version === PB_SYNC_META_VERSION) return meta;
   if (meta.version === 2 && meta.remote && typeof meta.remote === 'object') {
     const floor = {};
+    const counts = {};
     Object.keys(meta.remote).forEach(collection => {
       const map = meta.remote[collection] || {};
       let max = '';
@@ -18173,8 +18176,11 @@ function migrateSyncMeta(meta) {
         if (value && value > max) max = value;
       });
       if (max) floor[collection] = max;
+      counts[collection] = Object.keys(map).length;
     });
-    return { ...meta, version: PB_SYNC_META_VERSION, floor, counts: {}, countsAt: 0 };
+    /* تعدادهای شناخته‌شده از فهرست قبلی ساخته می‌شوند؛ اگر سرور با آن‌ها
+       اختلاف داشته باشد، «حساب تعداد» خودش همان مجموعه را بازبینی می‌کند. */
+    return { ...meta, version: PB_SYNC_META_VERSION, floor, counts, countsAt: Date.now() };
   }
   return null;
 }
@@ -18972,7 +18978,7 @@ async function refreshAppAfterSync() {
 
 async function performDownload(options = {}) {
   const silent = !!options.silent;
-  const manual = !!options.manual;
+  const fullRefresh = !!options.full;
   if (options.deferCheck && shouldDeferAutoDownload()) return { ok: false, deferred: true };
   if (syncBusy) return { ok: false, skipped: true, reason: 'busy' };
   if (!isLoggedIn()) {
@@ -19007,28 +19013,32 @@ async function performDownload(options = {}) {
       const previousCounts = meta.counts || {};
       const previousFloor = meta.floor || {};
       const now = Date.now();
-      /* حذف رکورد در فیلتر `updated` دیده نمی‌شود؛ کاهش تعداد رکوردهای سرور
-         و یک بازبینی کامل دوره‌ای (یا هنگام سینک دستی) حذف‌ها را پیدا می‌کنند. */
-      const deepCheck = manual || !meta.countsAt || (now - meta.countsAt > PB_DELETE_CHECK_GAP);
+      /* حذف رکورد در فیلتر `updated` دیده نمی‌شود. به‌جای بازخوانی دوره‌ای کل
+         فهرست‌ها، «حساب تعداد» انجام می‌شود: تعداد رکوردهای سرور باید برابر
+         تعداد شناخته‌شده به‌علاوهٔ رکوردهای تازه باشد. فقط اگر این معادله
+         برقرار نباشد (حذف یا حذف+افزودن) فهرست همان مجموعه خوانده می‌شود.
+         بازبینی کامل فقط یک بار در شبانه‌روز یا با «دریافت کامل» انجام می‌شود. */
+      const deepCheck = fullRefresh || !meta.countsAt || (now - meta.countsAt > PB_DELETE_CHECK_GAP);
 
       /* فاز ۱: خواندن فقط داده‌های تازه، نه کل مجموعه */
       const fetchedByStore = new Map();
       for (let i = 0; i < syncStores.length; i++) {
         const entry = syncStores[i];
+        const knownMap = previousRemote[entry.collection] || {};
         const knownCount = typeof previousCounts[entry.collection] === 'number'
           ? previousCounts[entry.collection]
-          : null;
+          : Object.keys(knownMap).length;
         let needManifest = deepCheck || entry.store === 'app-meta';
         let serverCount = null;
+        let records = [];
 
         if (!needManifest) {
           setProgress('download', 5 + (i / syncStores.length) * 40, `بررسی سرور — ${entry.collection}`, true);
           serverCount = await fetchOwnerCount(pb, entry.collection, ownerId);
-          if (knownCount === null || serverCount < knownCount) needManifest = true;
-          else if (!previousFloor[entry.collection] && serverCount > 0) needManifest = true;
+          /* نخستین بار (بدون مبنای زمانی) باید یک‌بار فهرست خوانده شود */
+          if (serverCount > 0 && !previousFloor[entry.collection]) needManifest = true;
         }
 
-        let records = [];
         if (needManifest) {
           setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
           records = await fetchOwnerManifest(pb, entry.collection, ownerId);
@@ -19036,6 +19046,32 @@ async function performDownload(options = {}) {
         } else if (serverCount > 0) {
           setProgress('download', 5 + (i / syncStores.length) * 40, `دریافت تغییرات — ${entry.collection}`);
           records = await fetchChangedSince(pb, entry.collection, ownerId, previousFloor[entry.collection]);
+          /* رکوردهایی که پیش‌تر روی سرور نبوده‌اند؛ بقیه فقط ویرایش‌اند */
+          const seen = new Set();
+          let added = 0;
+          records.forEach(item => {
+            const canonical = pbCanonicalLocalId(entry.store, item.localId);
+            if (!canonical || seen.has(canonical)) return;
+            seen.add(canonical);
+            if (knownMap[canonical] === undefined) added++;
+          });
+          if (knownCount + added !== serverCount) {
+            /* شاید شمارش و دریافت هم‌زمان با تغییر دیگری بوده باشند */
+            const recheck = await fetchOwnerCount(pb, entry.collection, ownerId);
+            if (recheck !== serverCount) serverCount = recheck;
+            if (knownCount + added !== serverCount) {
+              setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
+              records = await fetchOwnerManifest(pb, entry.collection, ownerId);
+              serverCount = records.length;
+              needManifest = true;
+            }
+          }
+        } else if (knownCount > 0) {
+          /* مجموعه روی سرور خالی شده است؛ فهرست خالی، حذف‌ها را اعمال می‌کند */
+          setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
+          records = await fetchOwnerManifest(pb, entry.collection, ownerId);
+          serverCount = records.length;
+          needManifest = true;
         }
         fetchedByStore.set(entry.store, { records, full: needManifest, count: serverCount });
       }
@@ -19113,7 +19149,7 @@ async function performDownload(options = {}) {
           remote: nextRemote,
           floor,
           counts,
-          countsAt: deepCheck ? now : (meta.countsAt || 0),
+          countsAt: now,
           lastSyncAt: now
         });
         setLastSyncTimestamp(now);
@@ -19142,7 +19178,7 @@ async function performDownload(options = {}) {
         remote: nextRemote,
         floor,
         counts,
-        countsAt: deepCheck ? now : (meta.countsAt || 0),
+        countsAt: now,
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
         lastSyncAt: now
       });
@@ -19464,7 +19500,7 @@ async function syncCycle(options = {}) {
 
     /* اولین همگام‌سازی: دستگاه تازه اول دریافت می‌کند؛ اگر دادهٔ محلی وجود دارد اول ارسال */
     if (firstSync && !hasLocalStudyData()) {
-      outcome = await performDownload({ silent: true, deferCheck: !manual, manual });
+      outcome = await performDownload({ silent: true, deferCheck: !manual });
       if (outcome && outcome.ok) {
         lastDownloadAt = Date.now();
         registerAutoSuccess();
@@ -19507,7 +19543,7 @@ async function syncCycle(options = {}) {
       return outcome;
     }
 
-    const down = await performDownload({ silent: true, deferCheck: false, manual });
+    const down = await performDownload({ silent: true, deferCheck: false });
     if (down && down.ok) {
       lastDownloadAt = Date.now();
       registerAutoSuccess();
@@ -19554,7 +19590,7 @@ function uploadAllData() {
 }
 function downloadAllData() {
   if (syncBusy || autoSyncRunning) return;
-  return performDownload({ manual: true });
+  return performDownload({ full: true });
 }
 function onSettingsOpen() {
   renderSyncUI();

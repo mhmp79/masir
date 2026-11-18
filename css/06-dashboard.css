@@ -1,0 +1,223 @@
+/* ============================================================
+   DASHBOARD — hero, countdown, donut, pie, report card
+   ============================================================ */
+.hero{
+  background:linear-gradient(150deg,rgba(124,92,255,.30),rgba(34,211,238,.10) 62%,rgba(255,255,255,.03));
+  border-color:rgba(124,92,255,.34);
+  position:relative;overflow:hidden;
+}
+.hero-top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  position:relative;z-index:1;gap:10px;
+}
+.hero-date{font-weight:800;font-size:16px;margin-top:4px}
+.hero-dayline{display:flex;align-items:center;gap:6px}
+.week-badge{
+  display:inline-block;margin-top:10px;
+  padding:5px 11px;border-radius:11px;
+  background:rgba(34,211,238,.14);
+  border:1px solid rgba(34,211,238,.32);
+  font-size:11px;font-weight:700;color:#4de2f5;
+  position:relative;z-index:1;
+}
+.countdown{
+  text-align:center;
+  background:rgba(0,0,0,.28);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:8px 14px;flex:0 0 auto;
+}
+.cd-num{
+  font-size:26px;font-weight:800;line-height:1.1;
+  background:linear-gradient(135deg,#fff,#22d3ee);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.cd-lbl{font-size:10px;color:var(--muted);margin-top:3px}
+.hero-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:9px;margin-top:16px;position:relative;z-index:1;
+}
+.stat{
+  background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:15px;padding:11px 4px;text-align:center;
+}
+.stat-val{font-size:19px;font-weight:800}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:4px;line-height:1.4}
+
+/* Donut هدف */
+.donut-wrap{display:flex;align-items:center;gap:18px}
+.donut{
+  width:104px;height:104px;border-radius:50%;
+  flex:0 0 auto;position:relative;
+  display:grid;place-items:center;
+  transition:background .6s;
+}
+.donut::after{
+  content:'';position:absolute;inset:11px;border-radius:50%;
+  background:#0c1122;box-shadow:inset 0 0 20px rgba(0,0,0,.7);
+}
+.donut-in{position:relative;z-index:1;text-align:center}
+.donut-in b{font-size:19px;display:block;font-weight:800}
+.donut-in span{font-size:10px;color:var(--muted)}
+.donut-info{
+  flex:1;font-size:12.5px;color:#c3cbe0;line-height:1.9;
+}
+.donut-info b{color:#fff}
+
+/* Pie tabs */
+.pie-tabs{display:flex;gap:6px;margin-bottom:14px}
+.pie-tab{
+  flex:1;padding:8px;border-radius:11px;
+  border:1px solid var(--stroke);
+  background:rgba(255,255,255,.04);
+  color:var(--muted);font-family:inherit;
+  font-size:12px;font-weight:700;cursor:pointer;transition:.2s;
+}
+.pie-tab.active{
+  background:linear-gradient(135deg,#7c5cff,#5b8bff);
+  color:#fff;border-color:transparent;
+}
+.pie-wrap{display:flex;gap:16px;align-items:center}
+.pie-donut{
+  width:130px;height:130px;border-radius:50%;
+  position:relative;flex:0 0 auto;
+  display:grid;place-items:center;
+  transition:background .6s;
+}
+.pie-donut::after{
+  content:'';position:absolute;inset:15px;border-radius:50%;
+  background:#0c1122;box-shadow:inset 0 0 20px rgba(0,0,0,.7);
+}
+.pie-center{position:relative;z-index:1;text-align:center}
+.pie-center b{display:block;font-size:17px;font-weight:800}
+.pie-center span{font-size:9.5px;color:var(--muted)}
+.pie-legend{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.pl-row{
+  display:grid;grid-template-columns:10px 1fr auto;
+  gap:8px;align-items:center;font-size:11.5px;
+}
+.pl-dot{width:10px;height:10px;border-radius:3px}
+.pl-name{color:#cfd6ea;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl-pct{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:700}
+
+/* Exam mini chart card */
+.exam-dash-card{
+  border-color:rgba(234,179,8,.32);
+  background:linear-gradient(155deg,rgba(234,179,8,.08),rgba(124,92,255,.04),rgba(255,255,255,.02));
+}
+.chart-svg{display:block}
+
+/* Report Card */
+.report-card{
+  border-radius:22px;padding:20px;margin-bottom:16px;
+  background:linear-gradient(155deg,#151c3a,#0b1022 70%);
+  border:1px solid rgba(124,92,255,.28);
+  position:relative;overflow:hidden;
+}
+.report-card::before{
+  content:'';position:absolute;width:240px;height:240px;
+  border-radius:50%;top:-130px;left:-80px;
+  background:radial-gradient(circle,rgba(124,92,255,.5),transparent 70%);
+}
+.report-card::after{
+  content:'';position:absolute;width:200px;height:200px;
+  border-radius:50%;bottom:-120px;right:-70px;
+  background:radial-gradient(circle,rgba(34,211,238,.28),transparent 70%);
+}
+.rc-head{position:relative;z-index:1;margin-bottom:16px}
+.report-footline{position:relative;z-index:1;margin-top:16px;text-align:center;font-size:10.5px;color:#8b94ad}
+.report-empty{text-align:center;padding:12px}
+.rc-title{font-size:20px;font-weight:800}
+.rc-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.rc-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:8px;position:relative;z-index:1;margin-bottom:18px;
+}
+.rc-stat{
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:10px 4px;text-align:center;
+}
+.rc-stat b{display:block;font-size:17px;font-weight:800}
+.rc-stat span{font-size:9.5px;color:var(--muted)}
+.rc-row{
+  display:grid;grid-template-columns:58px 1fr 40px;
+  gap:8px;align-items:center;margin-bottom:9px;
+  position:relative;z-index:1;
+}
+.rc-row .n{font-size:11.5px;font-weight:700}
+.rc-row .t{
+  height:8px;border-radius:5px;
+  background:rgba(255,255,255,.09);overflow:hidden;
+}
+.rc-row .f{height:100%;border-radius:5px}
+.rc-row .v{
+  font-size:10.5px;color:var(--muted);
+  text-align:left;font-variant-numeric:tabular-nums;
+}
+.report-nav{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin:0 0 14px;padding:10px 12px;
+  border:1px solid var(--stroke);border-radius:16px;
+  background:linear-gradient(135deg,rgba(124,92,255,.10),rgba(34,211,238,.045));
+}
+/* ============================================================
+   HEATMAP — هیت‌مپ ماهانه
+   ============================================================ */
+.hm-head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin-bottom:12px;flex-wrap:wrap;
+}
+.hm-month{font-weight:800;font-size:13px;color:#c7bfff}
+.hm-total{font-size:11px;color:#8b94ad}
+.hm-total b{color:#4de2f5;font-weight:800}
+
+.hm-dow{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:5px;margin-bottom:6px;
+  text-align:center;font-size:10px;color:#8b94ad;font-weight:700;
+}
+.hm-grid{
+  display:grid;grid-template-columns:repeat(7,1fr);
+  gap:5px;
+}
+.hm-cell{
+  aspect-ratio:1;border-radius:9px;
+  display:grid;place-items:center;
+  font-size:11px;font-weight:800;
+  background:rgba(255,255,255,.03);
+  color:#6d7691;cursor:pointer;transition:.15s;
+  border:1px solid rgba(255,255,255,.05);
+}
+.hm-cell.empty{background:transparent;border:0;cursor:default}
+.hm-cell.lvl-1{background:rgba(124,92,255,.20);color:#c7bfff;border-color:rgba(124,92,255,.28)}
+.hm-cell.lvl-2{background:rgba(124,92,255,.42);color:#fff;border-color:rgba(124,92,255,.50)}
+.hm-cell.lvl-3{background:rgba(124,92,255,.65);color:#fff;border-color:rgba(124,92,255,.72)}
+.hm-cell.lvl-4{background:#eab308;color:#17130a;border-color:#fcd34d;box-shadow:0 0 14px rgba(234,179,8,.58)}
+.hm-cell.today{outline:2px solid #22d3ee;outline-offset:-2px}
+.hm-cell:hover{transform:scale(1.08);z-index:2}
+.hm-cell.empty:hover{transform:none}
+
+.hm-legend{
+  display:flex;align-items:center;justify-content:center;
+  gap:6px;margin-top:12px;font-size:10.5px;color:#8b94ad;font-weight:600;
+}
+.hm-legend-cell{
+  width:16px;height:16px;border-radius:4px;
+  border:1px solid rgba(255,255,255,.05);
+}
+.hm-legend-cell.lvl-0{background:rgba(255,255,255,.03)}
+.hm-legend-cell.lvl-1{background:rgba(124,92,255,.20)}
+.hm-legend-cell.lvl-2{background:rgba(124,92,255,.42)}
+.hm-legend-cell.lvl-3{background:rgba(124,92,255,.65)}
+.hm-legend-cell.lvl-4{background:#eab308;box-shadow:0 0 8px rgba(234,179,8,.55)}
+
+/* ⭐ made by footer */
+.report-madeby{
+  margin-top:14px;
+  text-align:center;
+  font-size:10px;
+  color:rgba(255,255,255,.35);
+  font-weight:600;
+  letter-spacing:.4px;
+}

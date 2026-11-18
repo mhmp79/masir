@@ -1,0 +1,84 @@
+/* ============================================================
+   UTILITIES — helpers کوچک و پرکاربرد
+   این فایل آخرین CSS بارگذاری می‌شود تا مثل استایل‌های inline
+   بر قواعد کامپوننت‌ها اولویت داشته باشد.
+   ============================================================ */
+
+/* --- spacing --- */
+.mt-0{margin-top:0}
+.mt-2{margin-top:2px}
+.mt-3{margin-top:3px}
+.mt-6{margin-top:6px}
+.mt-8{margin-top:8px}
+.mt-9{margin-top:9px}
+.mt-10{margin-top:10px}
+.mt-12{margin-top:12px}
+.mt-14{margin-top:14px}
+.mt-16{margin-top:16px}
+.mt-18{margin-top:18px}
+.mt-22{margin-top:22px}
+.mb-0{margin-bottom:0}
+.mb-5{margin-bottom:5px}
+.mb-8{margin-bottom:8px}
+.mb-9{margin-bottom:9px}
+.mb-10{margin-bottom:10px}
+.mb-12{margin-bottom:12px}
+.mb-14{margin-bottom:14px}
+.my-14-8{margin:14px 0 8px}
+
+/* --- typography --- */
+.text-center{text-align:center}
+.text-right{text-align:right}
+.fs-10{font-size:10px}
+.fs-9{font-size:9px}
+.fs-10h{font-size:10.5px}
+.fs-11{font-size:11px}
+.fs-11h{font-size:11.5px}
+.fs-12{font-size:12px}
+.fs-13{font-size:13px}
+.fs-16{font-size:16px}
+.fs-18{font-size:18px}
+.fw-600{font-weight:600}
+.fw-700{font-weight:700}
+.fw-800{font-weight:800}
+.lh-175{line-height:1.75}
+.lh-18{line-height:1.8}
+.lh-185{line-height:1.85}
+.lh-19{line-height:1.9}
+.opacity-60{opacity:.6}
+
+/* --- colors (design tokens) --- */
+.text-ok{color:#6ee7b7}
+.text-cyan{color:#4de2f5}
+.text-aqua{color:#22d3ee}
+.text-acc2{color:var(--acc2)}
+.text-amber{color:#fcd34d}
+.text-rose{color:#fda4af}
+.text-violet{color:#c7bfff}
+.text-soft{color:#cbd3e8}
+.text-dim{color:#4b5470}
+.text-muted{color:var(--muted)}
+.text-indigo{color:#a5b4fc}
+.text-red{color:#fca5a5}
+.text-white{color:#fff}
+
+/* --- layout --- */
+.d-flex{display:flex}
+.flex-1{flex:1}
+.flex-2{flex:2}
+.flex-none{flex:0 0 auto}
+.p-0{padding:0}
+.p-8{padding:8px}
+.p-14{padding:14px}
+.overflow-hidden{overflow:hidden}
+.flex-center{justify-content:center}
+.items-center{align-items:center}
+.justify-between{justify-content:space-between}
+.flex-wrap{flex-wrap:wrap}
+.flex-col{flex-direction:column}
+.gap-6{gap:6px}
+.gap-8{gap:8px}
+.min-w-0{min-width:0}
+.minw-520{min-width:520px}
+.cursor-pointer{cursor:pointer}
+.scroll-40vh{max-height:40vh;overflow-y:auto}

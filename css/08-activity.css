@@ -1,0 +1,498 @@
+/* ============================================================
+   ACTIVITY — خودکفا (تایمر + تست + ترتیب موبایل)
+   نسخه ۰.۹.۱۱ — mobile order fixed
+   ============================================================ */
+
+#activityModeSeg { margin-bottom: 16px; }
+#activityLogPane, #activityTimerPane, #activityWeeklyPane { display: block; }
+
+/* ============ LAYOUT BASE ============ */
+.activity-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.activity-main { order: 1; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+.activity-side { order: 2; width: 100%; }
+.activity-recent-card { margin-bottom: 0; }
+.activity-weekly-card { width: 100%; min-width: 0; }
+
+/* ============ FORM (LOG TAB) ============ */
+.act-head-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; margin-bottom: 14px;
+}
+.act-head-icons { display: flex; gap: 6px; }
+.head-icon-btn {
+  width: 38px; height: 38px; border-radius: 12px;
+  border: 1px solid var(--stroke);
+  background: rgba(255,255,255,.05);
+  color: #fff; font-size: 16px;
+  display: grid; place-items: center; cursor: pointer;
+  font-family: 'Vazirmatn', Tahoma, system-ui, sans-serif;
+}
+.head-icon-btn.sleep { border-color: rgba(99,102,241,.45); background: rgba(99,102,241,.14); color: #a5b4fc; }
+.head-icon-btn.phone { border-color: rgba(239,68,68,.45); background: rgba(239,68,68,.14); color: #fca5a5; }
+.head-icon-btn.exam { border-color: rgba(234,179,8,.55); background: rgba(234,179,8,.14); color: #fcd34d; }
+
+.act-subjects-full { gap: 7px; align-items: center; }
+.act-subjects-full .chip {
+  border-radius: 12px; min-height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ============ AGENDA ============ */
+.act-agenda-list { list-style: none; position: relative; padding-right: 26px; margin: 0; padding-left: 0; }
+.act-agenda-list::before {
+  content: ''; position: absolute; top: 6px; bottom: 6px;
+  right: 9px; width: 2px; border-radius: 2px;
+  background: linear-gradient(to bottom, rgba(124,92,255,.55), rgba(124,92,255,.10));
+}
+.act-agenda-item { position: relative; padding: 0 0 12px 0; }
+.act-agenda-item:last-child { padding-bottom: 0; }
+.act-agenda-dot { position: absolute; right: -26px; top: 12px; width: 20px; height: 20px; display: grid; place-items: center; z-index: 1; }
+.act-more-chip {
+  display: block;
+  text-align: center;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #7c5cff;
+  background: rgba(124,92,255,.08);
+  border: 1px solid rgba(124,92,255,.3);
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+.act-more-chip:hover {
+  background: rgba(124,92,255,.16);
+  border-color: rgba(124,92,255,.5);
+}
+.act-agenda-dot::before {
+  content: ''; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--c, #a78bfa);
+  box-shadow: 0 0 0 3px rgba(139,92,246,.18), 0 0 14px var(--c, #a78bfa);
+}
+.act-agenda-card {
+  border-radius: 14px; padding: 12px 14px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.09);
+}
+.act-agenda-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 8px; margin-bottom: 6px; flex-wrap: wrap; row-gap: 4px;
+}
+.act-agenda-title { font-weight: 700; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.act-agenda-topic { font-weight: 400; color: var(--muted); font-size: 11.5px; margin-top: 4px; line-height: 1.45; overflow-wrap: anywhere; }
+.act-agenda-sub { font-size: 11px; color: var(--muted); margin-top: 7px; line-height: 1.6; }
+.act-agenda-actions { display: flex; gap: 5px; }
+.act-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'Vazirmatn', Tahoma, system-ui, sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: #c7bfff;
+  background: rgba(124,92,255,.12);
+  border: 1px solid rgba(124,92,255,.30);
+  border-radius: 999px; padding: 8px 18px; cursor: pointer;
+  transition: .2s;
+}
+.act-toggle:active { transform: scale(.96); }
+.act-toggle--sm {
+  padding: 5px 11px;
+  font-size: 10.5px;
+  border-radius: 9px;
+  gap: 4px;
+  line-height: 1.3;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* ============ ACTIVITY RECENT HEADER ============ */
+.activity-recent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+.activity-recent-header .card-title {
+  margin: 0;
+  font-size: 12.5px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-group { margin-bottom: 14px; }
+.agenda-group-head {
+  display: flex; align-items: center; gap: 8px;
+  margin: 14px 0 10px; padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.06); flex-wrap: wrap;
+}
+.agenda-group-head > span:first-child { font-size: 12px; font-weight: 800; color: #cfd6ea; }
+.agenda-group-head .agh-date { font-size: 10.5px; color: #8b94ad; }
+.agenda-group-head .agh-line { flex: 1; }
+
+.day-nav-mini {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 10px 12px;
+  background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px; margin-bottom: 14px;
+}
+.day-nav-mini .title { flex: 1; text-align: center; font-weight: 800; font-size: 14px; line-height: 1.5; }
+
+.entry-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.entry-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 11px; border-radius: 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--stroke); font-size: 11.5px;
+}
+.entry-row .er-main { flex: 1; min-width: 0; }
+.entry-row .er-title { font-weight: 700; font-size: 12px; }
+.entry-row .er-sub { font-size: 10.5px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.entry-row .er-del {
+  width: 26px; height: 26px; border-radius: 8px; flex: 0 0 auto;
+  border: 1px solid rgba(244,63,94,.3);
+  background: rgba(244,63,94,.12);
+  color: #ff8ba3; font-size: 13px;
+  cursor: pointer; font-family: inherit; line-height: 1;
+}
+
+/* ============ SLEEP ============ */
+.sleep-range {
+  background: linear-gradient(155deg, rgba(99,102,241,.10), rgba(99,102,241,.04));
+  border: 1px solid rgba(99,102,241,.30);
+  border-radius: 13px; padding: 11px; margin-bottom: 9px;
+}
+.sleep-range-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.sleep-range-title { font-size: 11.5px; font-weight: 800; color: #a5b4fc; display: flex; align-items: center; gap: 5px; }
+.sleep-range-del {
+  padding: 3px 9px; border-radius: 7px;
+  border: 1px solid rgba(244,63,94,.35);
+  background: rgba(244,63,94,.12); color: #ff8ba3;
+  font-family: inherit; font-size: 10px; font-weight: 700; cursor: pointer;
+}
+.sleep-range-info {
+  margin-top: 8px; font-size: 11px; color: #8b94ad; font-weight: 600;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 5px 9px; background: rgba(0,0,0,.18); border-radius: 8px;
+}
+.sleep-range-info.ok { color: #6ee7b7; background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.20); }
+.sleep-range-info.warn { color: #fda4af; background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.22); }
+.sleep-range-info .chip-mini { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 6px; font-size: 10px; font-weight: 800; }
+.sleep-range-info .chip-mini.night { background: rgba(99,102,241,.24); color: #c7d2fe; }
+.sleep-range-info .chip-mini.day { background: rgba(34,211,238,.18); color: #7dd3fc; }
+.sleep-preview {
+  margin-top: 12px; padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(99,102,241,.16), rgba(139,92,246,.10));
+  border: 1px solid rgba(99,102,241,.42);
+  border-radius: 14px; text-align: center;
+  font-size: 13px; color: #c7d2fe; font-weight: 700;
+  display: none;
+}
+.sleep-preview.show { display: block; }
+.sleep-preview b { color: #fff; font-size: 16px; font-weight: 800; }
+
+/* ============================================================
+   TIMER
+   ============================================================ */
+#activityTimerPane .timer-mode-tabs {
+  display: flex; gap: 4px;
+  background: rgba(255,255,255,.05);
+  padding: 4px; border-radius: 12px; margin-bottom: 14px;
+}
+#activityTimerPane .timer-mode-tabs button {
+  flex: 1; padding: 8px 4px; border: 0; background: none;
+  color: var(--muted); font-family: 'Vazirmatn', Tahoma, system-ui, sans-serif;
+  font-size: 11.5px; font-weight: 700; border-radius: 8px; cursor: pointer;
+  transition: .2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#activityTimerPane .timer-mode-tabs button.active {
+  background: linear-gradient(135deg, #7c5cff, #5b8bff);
+  color: #fff; box-shadow: 0 6px 14px -8px #7c5cff;
+}
+#activityTimerPane .timer-settings { margin-bottom: 14px; }
+#activityTimerPane .timer-settings.hidden { display: none; }
+#activityTimerPane .timer-num-input { text-align: center; font-weight: 800; font-variant-numeric: tabular-nums; font-size: 14px; padding: 9px 6px; }
+#activityTimerPane .timer-phase-label { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 6px; min-height: 20px; }
+#activityTimerPane .timer-display {
+  text-align: center; font-size: 42px; font-weight: 800; color: #fff;
+  font-variant-numeric: tabular-nums; letter-spacing: 2px; direction: ltr;
+  padding: 4px 0 14px;
+  text-shadow: 0 0 30px rgba(124,92,255,.30);
+  font-family: 'Vazirmatn', Tahoma, monospace;
+}
+#activityTimerPane .timer-display.idle { color: #8b94ad; text-shadow: none; }
+#activityTimerPane .timer-display.work { color: #c7bfff; text-shadow: 0 0 30px rgba(124,92,255,.55); }
+#activityTimerPane .timer-display.break { color: #6ee7b7; text-shadow: 0 0 30px rgba(16,185,129,.55); }
+#activityTimerPane .timer-progress-wrap { margin-bottom: 14px; }
+#activityTimerPane .timer-progress-wrap.hidden { display: none; }
+#activityTimerPane .timer-progress-track { direction: ltr; height: 8px; background: rgba(255,255,255,.08); border-radius: 6px; overflow: hidden; }
+#activityTimerPane .timer-progress-fill { height: 100%; width: 0; background: linear-gradient(90deg, #7c5cff, #22d3ee); border-radius: 6px; transition: width .35s linear; }
+#activityTimerPane .timer-progress-meta { direction: ltr; text-align: center; font-size: 10.5px; color: var(--muted); margin-top: 6px; }
+#activityTimerPane .timer-controls { display: flex; gap: 8px; }
+#activityTimerPane .timer-controls .btn { flex: 1; padding: 11px 10px; font-size: 12.5px; font-weight: 700; }
+
+/* ============================================================
+   TEST COUNTER
+   ============================================================ */
+#activityTimerPane .section-label {
+  font-size: 12.5px; font-weight: 800; color: #cbd3e8;
+  margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+}
+#activityTimerPane .section-label::before {
+  content: ''; width: 4px; height: 14px; border-radius: 3px;
+  background: linear-gradient(180deg, #22d3ee, #7c5cff);
+}
+#activityTimerPane .trk-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+#activityTimerPane .trk-field {
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 14px; padding: 10px 8px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#activityTimerPane .trk-field[data-field="correct"] { border-color: rgba(16,185,129,.35); }
+#activityTimerPane .trk-field[data-field="wrong"] { border-color: rgba(244,63,94,.35); }
+#activityTimerPane .trk-field[data-field="blank"] { border-color: rgba(139,148,173,.35); }
+#activityTimerPane .trk-label { font-size: 12px; font-weight: 700; text-align: center; }
+#activityTimerPane .trk-field[data-field="correct"] .trk-label { color: #6ee7b7; }
+#activityTimerPane .trk-field[data-field="wrong"] .trk-label { color: #fda4af; }
+#activityTimerPane .trk-field[data-field="blank"] .trk-label { color: #cbd3e8; }
+#activityTimerPane .trk-keys { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; }
+#activityTimerPane .trk-keys span {
+  background: rgba(0,0,0,.30);
+  border: 1px solid rgba(255,255,255,.10);
+  padding: 1px 5px; border-radius: 5px;
+  color: #cbd3e8; font-weight: 700; font-size: 9px;
+}
+#activityTimerPane .trk-btn {
+  height: 34px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: #e8ecf7; border-radius: 10px;
+  font-family: inherit; font-size: 15px;
+  cursor: pointer; display: grid; place-items: center;
+  line-height: 1; padding: 0;
+}
+#activityTimerPane .trk-btn:active { transform: scale(.92); }
+#activityTimerPane .trk-input {
+  height: 42px; width: 100%; text-align: center;
+  font-family: inherit; font-size: 20px; font-weight: 800; color: #fff;
+  background: rgba(0,0,0,.28);
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 10px; outline: none;
+  font-variant-numeric: tabular-nums; padding: 0 4px;
+}
+#activityTimerPane .trk-summary {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-bottom: 12px; background: rgba(0,0,0,.22);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px; padding: 10px;
+}
+#activityTimerPane .trk-summary > div { text-align: center; }
+#activityTimerPane .trk-summary span { font-size: 10.5px; color: #8b94ad; display: block; margin-bottom: 2px; }
+#activityTimerPane .trk-summary b { font-size: 18px; font-weight: 800; }
+#activityTimerPane #trkPct.negative { color: #fda4af; }
+#activityTimerPane #trkPct.positive { color: #6ee7b7; }
+#activityTimerPane .trk-coef-row { display: flex; gap: 8px; align-items: stretch; }
+#activityTimerPane .trk-coef-row select { flex: 1; min-width: 0; }
+#activityTimerPane .trk-clear-sm {
+  flex: 0 0 44px; width: 44px; min-height: 42px;
+  border-radius: 11px;
+  border: 1px solid rgba(244,63,94,.35);
+  background: rgba(244,63,94,.12); color: #ff8ba3;
+  font-family: inherit; font-size: 17px; cursor: pointer;
+  display: grid; place-items: center; padding: 0; line-height: 1;
+}
+#activityTimerPane .trk-clear-sm:active { transform: scale(.92); }
+#activityTimerPane .unified-save-wrap { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+#activityTimerPane .unified-save-btn { padding: 14px; font-size: 14px; font-weight: 800; letter-spacing: .2px; }
+#activityTimerPane .unified-save-btn:disabled { opacity: .55; cursor: not-allowed; filter: grayscale(.4); }
+#activityTimerPane .usb-summary {
+  text-align: center; font-size: 12.5px; font-weight: 700;
+  color: #cbd3e8; padding: 9px 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 10px; line-height: 1.6;
+}
+#activityTimerPane .tools-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent);
+  margin: 16px 0;
+}
+
+/* ============================================================
+   ⭐ MOBILE — ترتیب: main بالا، recent پایین
+   ============================================================ */
+@media (max-width: 1023px) {
+
+  /* main بالا */
+  .activity-main {
+    order: 1;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  /* recent پایین */
+  .activity-side {
+    order: 2;
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  /* recent card: ارتفاع محدود با scroll داخلی */
+  .activity-recent-card {
+    max-height: 380px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+  .activity-recent-card #actList {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  /* فرم/تایمر compact */
+  #activityLogPane .cal-head { padding: 8px 10px; margin-bottom: 12px; }
+  #activityLogPane .card { padding: 14px; }
+  #activityTimerPane .unified-tools-card { padding: 14px; }
+  #activityTimerPane .card-title { font-size: 13px; margin-bottom: 10px; padding-bottom: 10px; }
+  #activityTimerPane .trk-keys { display: none; }
+  #activityTimerPane .timer-mode-tabs { margin-bottom: 10px; }
+  #activityTimerPane .timer-mode-tabs button { padding: 6px 3px; font-size: 10.5px; }
+  #activityTimerPane .timer-display { font-size: 34px; padding: 4px 0 10px; letter-spacing: 1px; }
+  #activityTimerPane .timer-phase-label { font-size: 11px; margin-bottom: 4px; min-height: 16px; }
+  #activityTimerPane .timer-controls .btn { padding: 9px 8px; font-size: 11.5px; }
+  #activityTimerPane .trk-grid { gap: 5px; margin-bottom: 8px; }
+  #activityTimerPane .trk-field { padding: 6px 5px; gap: 3px; }
+  #activityTimerPane .trk-label { font-size: 11px; }
+  #activityTimerPane .trk-btn { height: 26px; font-size: 12px; }
+  #activityTimerPane .trk-input { height: 32px; font-size: 15px; }
+  #activityTimerPane .trk-summary { padding: 8px; margin-bottom: 8px; gap: 4px; }
+  #activityTimerPane .trk-summary span { font-size: 9.5px; }
+  #activityTimerPane .trk-summary b { font-size: 15px; }
+  #activityTimerPane .trk-coef-row { gap: 4px; }
+  #activityTimerPane .trk-coef-row select { font-size: 11px; padding: 6px 8px; }
+  #activityTimerPane .trk-clear-sm { flex: 0 0 38px; width: 38px; min-height: 36px; font-size: 15px; }
+  #activityTimerPane .tools-divider { margin: 10px 0; }
+  #activityTimerPane .section-label { font-size: 11.5px; margin-bottom: 6px; }
+  #activityTimerPane .unified-save-btn { padding: 11px; font-size: 12.5px; }
+  #activityTimerPane .usb-summary { padding: 7px 10px; font-size: 11px; }
+}
+
+/* ============================================================
+   DESKTOP — سایدبار + main دو ستونه
+   ============================================================ */
+@media (min-width: 1024px) {
+  #view-activity.active {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .activity-layout {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--gap);
+    overflow: hidden;
+    flex-direction: row;
+  }
+  .activity-side {
+    grid-column: 2;
+    grid-row: 1;
+    order: initial;
+    flex: initial;
+    overflow: hidden;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .activity-recent-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin-bottom: 0;
+    min-height: 0;
+    max-height: none;
+  }
+  .activity-recent-header { flex: 0 0 auto; }
+  #actList { flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px; }
+  .activity-main {
+    grid-column: 1;
+    grid-row: 1;
+    order: initial;
+    flex: initial;
+    display: flex; flex-direction: column; gap: var(--gap);
+    min-height: 0; overflow: hidden;
+  }
+  #activityModeSeg {
+    flex: 0 0 auto; display: inline-flex;
+    align-self: center; padding: 5px; gap: 4px;
+    border-radius: 12px; background: rgba(255,255,255,.05);
+    width: auto; max-width: none; margin: 0 auto;
+  }
+  #activityModeSeg .seg-btn {
+    flex: 0 0 auto;
+    padding: 8px 22px;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  #activityLogPane { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap); }
+  #activityLogPane .card { margin-bottom: 0; }
+  #activityWeeklyPane { flex: 1; min-height: 0; overflow: auto; }
+  #activityTimerPane { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; padding: 4px; }
+  #activityTimerPane > .unified-tools-card {
+    width: 100%; max-width: 100%; margin: 0; padding: 20px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas: "title title" "timer test" "save save";
+    gap: 18px;
+  }
+  #activityTimerPane .unified-tools-card > .card-title {
+    grid-area: title; margin-bottom: 0; font-size: 14.5px;
+    padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,.08);
+  }
+  #activityTimerPane .unified-tools-card > .timer-block {
+    grid-area: timer; padding: 16px;
+    background: linear-gradient(160deg, rgba(124,92,255,.09), rgba(124,92,255,.02));
+    border: 1px solid rgba(124,92,255,.20); border-radius: 16px; min-width: 0;
+  }
+  #activityTimerPane .unified-tools-card > .test-block {
+    grid-area: test; padding: 16px;
+    background: linear-gradient(160deg, rgba(34,211,238,.07), rgba(34,211,238,.02));
+    border: 1px solid rgba(34,211,238,.20); border-radius: 16px; min-width: 0;
+  }
+  #activityTimerPane .unified-tools-card > .tools-divider { display: none; }
+  #activityTimerPane .unified-tools-card > .unified-save-wrap {
+    grid-area: save; margin-top: 0; padding: 14px 18px;
+    background: linear-gradient(160deg, rgba(16,185,129,.09), rgba(16,185,129,.02));
+    border: 1px solid rgba(16,185,129,.20); border-radius: 14px;
+  }
+  #activityTimerPane .timer-display { font-size: 42px; padding: 6px 0 14px; }
+  #activityTimerPane .trk-keys { display: flex; }
+}
+
+/* ============ ACTIVITY UI MIGRATED CLASSES ============ */
+.act-empty-note{padding:14px}
+.act-list-empty{padding:8px;font-size:11px}
+.act-agenda-topic.no-topic{opacity:.55;font-style:italic}
+.act-agenda-topic.other-note{opacity:.65;font-size:10.5px}
+.sleep-hint{margin-bottom:10px;font-size:10.5px;text-align:center;line-height:1.6}
+.sleep-tag{
+  font-size:9.5px;color:#a5b4fc;
+  background:rgba(99,102,241,.14);
+  padding:1px 6px;border-radius:5px;margin-right:4px;
+}
+.entry-row .text-red{color:#fca5a5}

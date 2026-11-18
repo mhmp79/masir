@@ -1,0 +1,453 @@
+/* ============================================================
+   OVERVIEW — جدول دروس، سلول‌ها و اسلایدر پیشرفت
+   ============================================================ */
+.ov-scroll{
+  overflow:auto;-webkit-overflow-scrolling:touch;
+  max-height:calc(100vh - 220px);
+  overscroll-behavior:contain;
+  contain:layout paint;
+}
+.ov-table{
+  border-collapse:separate;border-spacing:0;
+  width:100%;font-size:12px;
+}
+.ov-table :where(th,td){
+  padding:8px 6px;text-align:center;vertical-align:middle;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  border-left:1px solid rgba(255,255,255,.04);
+}
+.ov-table thead th{
+  position:sticky;top:0;z-index:2;
+  background:#0d1327;color:#cfd6ea;
+  font-weight:700;font-size:9.5px;
+  padding:8px 4px;white-space:nowrap;
+  border-bottom:1.5px solid rgba(124,92,255,.3);
+}
+.ov-table .ov-row-label{
+  position:sticky;right:0;z-index:3;
+  background:#0b1022;text-align:right;
+  padding:8px 6px;min-width:90px;max-width:110px;
+}
+.ov-table thead .ov-row-label{
+  z-index:4;background:#0d1327;text-align:center;
+}
+
+/* ستون نام درس */
+.ov-subj-cell{
+  position:sticky;right:0;z-index:2;
+  background:linear-gradient(180deg,#0d1527,#0a0f1f);
+  text-align:center;vertical-align:middle;
+  min-width:96px;max-width:120px;
+  padding:8px;
+  border-right-width:3px;border-right-style:solid;
+  cursor:pointer;transition:background .15s;
+}
+.ov-subj-cell:hover{
+  background:linear-gradient(180deg,rgba(124,92,255,.22),rgba(124,92,255,.12));
+}
+.ov-subj-cell:active{transform:scale(.99)}
+.ov-subj-cell::before{
+  content:'✂️';position:absolute;top:3px;left:4px;
+  font-size:8px;opacity:0;transition:opacity .15s;pointer-events:none;
+}
+.ov-subj-cell:hover::before{opacity:.7}
+.ov-subj-name{
+  font-weight:800;font-size:12px;line-height:1.3;
+  text-align:center;padding:2px 0;
+  writing-mode:horizontal-tb;overflow-wrap:anywhere;
+}
+.ov-subj-count{font-size:9px;color:#8b94ad;margin-top:5px;font-weight:600}
+
+/* ستون پایه (بدون sticky) */
+.ov-grade-cell{
+  background:#0a0f1f;
+  color:#aab3c9;
+  font-size:11px;font-weight:700;
+  text-align:center;
+  padding:6px 6px;
+  border-left:1px solid rgba(255,255,255,.06);
+  min-width:58px;max-width:74px;
+  vertical-align:middle;
+  position:relative;
+  right:auto;
+}
+/* سلول‌های ادغام‌شده تنها فاصله‌ی بیشتری از سلول پایه دارند */
+.ov-table .ov-grade-cell[colspan],
+.ov-table .ov-grade-cell[rowspan]{padding:8px 4px}
+.ov-grade-cell small{
+  display:block;margin-top:3px;
+  font-size:8.5px;font-weight:700;color:#6f7a94;
+  white-space:nowrap;letter-spacing:-.2px;
+}
+
+/* ستون بخش */
+
+/* هدر فصل */
+.ov-ch-head{font-size:10px;font-weight:800;white-space:nowrap}
+
+/* سلول */
+.ov-cell{
+  min-width:64px;max-width:84px;height:66px;
+  padding:4px;
+  background:rgba(255,255,255,.02);
+  cursor:pointer;transition:background .15s;
+  position:relative;
+}
+.ov-cell-inner{
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:3px;height:100%;width:100%;
+  padding:4px;border-radius:6px;
+}
+.ov-cell.ov-empty{
+  background:rgba(255,255,255,.015);cursor:default;
+}
+.ov-cell.ov-empty::after{
+  content:'';display:block;width:100%;height:100%;
+  border-radius:6px;
+  background:repeating-linear-gradient(45deg,
+    rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 4px,
+    transparent 4px,transparent 9px);
+}
+.ov-cell.studied .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(16,185,129,.24),rgba(34,211,238,.18));
+  border:1px solid rgba(16,185,129,.5);
+  box-shadow:0 0 12px rgba(16,185,129,.2);
+}
+.ov-cell:not(.ov-empty):hover .ov-cell-inner{background:rgba(255,255,255,.06)}
+.ov-cell.studied:hover .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(16,185,129,.34),rgba(34,211,238,.28));
+}
+.ov-cell.in-progress .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(234,179,8,.24),rgba(245,158,11,.14));
+  border:1px solid rgba(234,179,8,.62);
+  box-shadow:0 0 10px rgba(234,179,8,.14);
+}
+.ov-cell.in-progress:hover .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(234,179,8,.32),rgba(245,158,11,.2));
+}
+.ov-cell.ov-lesson-cell{height:52px;min-width:44px}
+
+.ov-cell-title{
+  font-size:10.5px;font-weight:700;
+  color:#e8ecf7;line-height:1.35;letter-spacing:-.1px;
+  overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  text-align:center;overflow-wrap:anywhere;max-height:100%;
+  word-break:break-word;
+}
+.ov-cell-date{
+  font-size:8.5px;color:#8b94ad;font-weight:600;
+  white-space:nowrap;margin-top:1px;
+}
+.ov-dot{display:inline-block;font-weight:900;font-size:9px;color:#6ee7b7;margin-left:2px}
+.ov-dot sup{font-size:7px;font-weight:800;margin-left:1px;vertical-align:super}
+
+/* Legend */
+.ov-legend{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  padding:10px 12px;
+  border-top:1px solid rgba(255,255,255,.06);
+  font-size:10px;color:#8b94ad;
+}
+.ov-leg{display:inline-flex;align-items:center;gap:4px}
+.ov-leg-hint{margin-right:auto;font-size:10px;color:#8b94ad}
+.ov-table-card{padding:0;overflow:hidden}
+
+.ov-table-general .ov-cell-title{font-size:11.5px;font-weight:800}
+.ov-table-general .ov-cell{height:58px;min-width:50px}
+.ov-table-general .ov-subj-count{color:#8b94ad}
+.ov-mobile-cards{display:none}
+.overview-selector-wrap{
+  display:flex;justify-content:center;align-items:center;
+  flex:0 0 auto;width:100%;min-width:0;
+  margin-bottom:var(--gap);
+}
+.overview-tabs{
+  width:auto;max-width:100%;margin:0 auto;
+}
+
+@media (max-width:767px){
+  #view-overview .overview-selector-wrap{justify-content:stretch;margin-bottom:18px}
+  #view-overview .overview-tabs{
+    display:flex;width:100%;max-width:none;flex:1 1 auto;margin:0;
+  }
+  #view-overview .overview-tabs .seg-btn{flex:1 1 0;min-width:0;padding:10px 6px}
+  .ov-scroll{display:none}
+  .ov-mobile-cards{
+    display:flex;flex-direction:column;gap:10px;
+    padding:10px;
+  }
+  .ov-mobile-group{
+    border:1px solid rgba(255,255,255,.07);border-right:3px solid var(--ov-color);
+    border-radius:12px;background:rgba(255,255,255,.025);overflow:hidden;
+  }
+  .ov-mobile-group>header{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:8px 10px;background:rgba(255,255,255,.035);font-size:11px;
+  }
+  .ov-mobile-group>header b{color:var(--ov-color)}
+  .ov-mobile-group>header span{font-size:9px;color:#8b94ad}
+  .ov-mobile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:7px}
+  .ov-mobile-topic{
+    min-width:0;min-height:54px;padding:5px;border:1px solid rgba(255,255,255,.07);
+    border-radius:8px;background:rgba(255,255,255,.025);cursor:pointer;overflow:hidden;
+  }
+  .ov-mobile-topic.studied{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.08)}
+  .ov-mobile-topic.free{opacity:.55;background:rgba(234,179,8,.04)}
+  .ov-mobile-topic .ov-cell-inner{height:auto;min-height:42px;padding:2px;gap:3px}
+  .ov-mobile-topic .ov-cell-title,.ov-mobile-topic .ov-chapter-name,.ov-mobile-topic .ov-lesson-name{font-size:9px}
+  .ov-mobile-topic .ov-sections-list{gap:2px}
+  .ov-mobile-topic .ov-section-item{font-size:8px;padding:3px}
+  .ov-mobile-topic .ov-sec-pct{font-size:7.5px}
+  .ov-mobile-cards-specialized .ov-mobile-group,
+  .ov-mobile-cards-specialized .ov-mobile-topic{
+    background:transparent;border-color:transparent;border-radius:0;
+  }
+  .ov-mobile-cards-specialized .ov-mobile-group{border-right:2px solid var(--ov-color)}
+  .ov-mobile-cards-specialized .ov-mobile-group>header{background:transparent}
+  .ov-mobile-cards-specialized .ov-mobile-topic{border-bottom:1px solid rgba(255,255,255,.07)}
+  .ov-mobile-cards-specialized .ov-mobile-topic .ov-cell-inner{background:transparent;border-color:transparent;box-shadow:none}
+  .ov-mobile-cards-specialized .ov-mobile-topic.studied{
+    background:rgba(16,185,129,.14);
+    border:1px solid rgba(16,185,129,.48);
+    border-radius:8px;
+  }
+  .ov-mobile-cards .ov-mobile-topic.in-progress{
+    background:linear-gradient(135deg,rgba(234,179,8,.22),rgba(245,158,11,.12));
+    border:1px solid rgba(234,179,8,.62);
+    border-radius:8px;
+    box-shadow:0 0 8px rgba(234,179,8,.14);
+  }
+}
+
+/* سلول با گفتار (specialized) */
+.ov-cell.has-sections{
+  min-width:112px;max-width:170px;
+  height:auto;min-height:76px;
+  vertical-align:top;padding:4px 3px;
+}
+.ov-cell.has-sections .ov-cell-inner{
+  align-items:stretch;justify-content:flex-start;
+  padding:4px;gap:3px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:6px;
+}
+.ov-cell.has-sections.studied .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(34,211,238,.08));
+  border-color:rgba(16,185,129,.4);
+}
+.ov-cell.has-sections.in-progress .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(234,179,8,.18),rgba(245,158,11,.1));
+  border-color:rgba(234,179,8,.5);
+}
+.ov-chapter-name{
+  font-size:9.5px;font-weight:800;color:#cbd3e8;
+  text-align:right;padding:2px 4px 3px;
+  border-bottom:1px dashed rgba(255,255,255,.10);
+  margin-bottom:3px;overflow-wrap:anywhere;line-height:1.35;
+}
+.ov-chapter-name .ov-dot{font-size:10px}
+.ov-sections-list{
+  display:flex;flex-direction:column;gap:2px;width:100%;
+}
+.ov-section-item{
+  display:flex;align-items:center;gap:3px;
+  padding:4px 6px;border-radius:5px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06);
+  font-size:9px;color:#cbd3e8;font-weight:600;
+  cursor:pointer;text-align:right;transition:.15s;
+  overflow-wrap:anywhere;line-height:1.35;
+  position:relative;overflow:hidden;
+}
+.ov-section-item span{flex:1;min-width:0;overflow-wrap:anywhere}
+.ov-section-item:hover{
+  background:rgba(255,255,255,.08);
+  border-color:rgba(124,92,255,.35);
+}
+.ov-section-item.studied{
+  background:linear-gradient(135deg,rgba(16,185,129,.20),rgba(34,211,238,.10));
+  border-color:rgba(16,185,129,.45);color:#6ee7b7;
+}
+.ov-section-item.studied span{color:#d1fae5}
+.ov-section-item.in-progress{
+  background:linear-gradient(135deg,rgba(234,179,8,.2),rgba(245,158,11,.1));
+  border-color:rgba(234,179,8,.5);color:#fde68a;
+}
+.ov-section-item.in-progress:hover{
+  background:linear-gradient(135deg,rgba(234,179,8,.3),rgba(245,158,11,.18));
+}
+
+.ov-sec-content{
+  position:relative;z-index:1;
+  display:flex;align-items:center;gap:3px;width:100%;
+}
+.ov-sec-content > span:first-of-type{
+  flex:1;min-width:0;overflow-wrap:anywhere;
+}
+.ov-sec-pct{
+  font-size:8.5px;font-weight:800;color:#fde68a;
+  background:rgba(15,12,4,.72);
+  border:1px solid rgba(234,179,8,.35);
+  padding:0 4px;border-radius:3px;
+  flex:0 0 auto;margin-left:2px;
+}
+
+/* سلول درس (general) با زیرمبحث */
+.ov-lesson-name{
+  font-size:8.5px;font-weight:800;color:#cbd3e8;
+  text-align:right;padding:1px 3px 3px;
+  border-bottom:1px dashed rgba(255,255,255,.10);
+  margin-bottom:2px;overflow-wrap:anywhere;line-height:1.3;
+}
+.ov-lesson-cell.has-sections{
+  min-width:100px;max-width:140px;
+  height:auto;min-height:70px;
+  vertical-align:top;padding:4px 3px;
+}
+.ov-lesson-cell.has-sections .ov-cell-inner{
+  align-items:stretch;justify-content:flex-start;
+  padding:4px;gap:3px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:6px;
+}
+.ov-lesson-cell.has-sections.studied .ov-cell-inner{
+  background:linear-gradient(135deg,rgba(16,185,129,.14),rgba(34,211,238,.08));
+  border-color:rgba(16,185,129,.4);
+}
+
+.ov-cell-content{
+  position:relative;z-index:1;
+  width:100%;height:100%;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;
+}
+.ov-cell-pct{
+  font-size:9px;font-weight:800;color:#fde68a;
+  background:rgba(15,12,4,.82);
+  border:1px solid rgba(234,179,8,.35);
+  padding:1px 5px;border-radius:4px;
+  line-height:1.3;
+  margin-bottom:1px;
+}
+
+/* درس آزاد */
+.ov-cell.ov-lesson-cell.free{
+  cursor:default;
+  background:rgba(234,179,8,.06);
+}
+.ov-cell.ov-lesson-cell.free .ov-cell-inner{
+  background:repeating-linear-gradient(45deg,
+    rgba(234,179,8,.10) 0,rgba(234,179,8,.10) 4px,
+    transparent 4px,transparent 9px);
+  border:1px dashed rgba(234,179,8,.35);
+}
+.ov-cell.ov-lesson-cell.free .ov-cell-title{
+  color:#fcd34d;opacity:.5;
+}
+
+/* مودال‌های نمای کلی */
+.ov-modal-desc{margin-bottom:12px;font-size:12.5px;line-height:1.7}
+.ov-pct-summary{
+  text-align:center;padding:8px;font-size:11px;
+  background:rgba(124,92,255,.08);
+  border:1px solid rgba(124,92,255,.25);
+  border-radius:10px;
+}
+.ov-pct-summary b{color:#c7bfff}
+.ov-click-hint{text-align:center;font-size:10.5px;margin-top:8px}
+.review-row{padding:9px 11px}
+.review-del{padding:4px 8px;font-size:10px}
+.review-add-row{display:flex;gap:6px;margin-top:12px}
+
+/* Progress Slider */
+.progress-slider-wrap{
+  margin:10px 0 14px;padding:12px 14px;
+  background:linear-gradient(155deg,rgba(34,211,238,.08),rgba(124,92,255,.05));
+  border:1px solid rgba(34,211,238,.28);
+  border-radius:13px;
+}
+.progress-slider-head{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;
+}
+.ps-label{font-size:12px;font-weight:800;color:#c7bfff}
+.ps-value{
+  font-size:16px;font-weight:800;color:#4de2f5;
+  font-variant-numeric:tabular-nums;
+  text-shadow:0 0 12px rgba(34,211,238,.35);
+}
+.progress-slider{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:8px;border-radius:6px;
+  background:linear-gradient(90deg,
+    #22d3ee 0%,#22d3ee var(--pct,0%),
+    rgba(255,255,255,.10) var(--pct,0%));
+  outline:none;cursor:pointer;margin:6px 0;
+}
+.progress-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,#22d3ee,#7c5cff);
+  border:3px solid #0b1022;cursor:grab;
+  box-shadow:0 4px 12px -3px #22d3ee;
+  transition:transform .15s;
+}
+.progress-slider::-webkit-slider-thumb:active{
+  cursor:grabbing;transform:scale(1.15);
+}
+.progress-slider::-moz-range-thumb{
+  width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(135deg,#22d3ee,#7c5cff);
+  border:3px solid #0b1022;cursor:grab;
+  box-shadow:0 4px 12px -3px #22d3ee;
+}
+.progress-slider-marks{
+  display:flex;justify-content:space-between;
+  font-size:9.5px;color:#8b94ad;
+  padding:0 2px;margin-top:2px;font-weight:700;
+}
+
+/* Topic sections edit row (نمایش در modal نمای کلی) */
+.topic-sections-edit-list{
+  display:flex;flex-direction:column;gap:6px;
+  margin-bottom:8px;padding:6px;
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+}
+.topic-section-edit-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 9px;border-radius:8px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);
+  transition:.15s;cursor:pointer;
+}
+.topic-section-edit-row:active{transform:scale(.98)}
+.topic-section-edit-row.on{
+  background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(34,211,238,.08));
+  border-color:rgba(16,185,129,.4);
+}
+.tse-label{
+  flex:1;min-width:0;font-size:12px;color:#e8ecf7;
+  font-weight:600;overflow-wrap:anywhere;line-height:1.4;
+}
+.topic-section-edit-row.on .tse-label{color:#d1fae5}
+.tse-checks{
+  font-size:10px;margin-left:auto;color:#6ee7b7;
+  font-weight:800;white-space:nowrap;
+}
+.tse-checks .ov-dot{font-size:11px}
+.tse-pct{
+  font-size:9px;font-weight:800;color:#4de2f5;
+  background:rgba(34,211,238,.12);
+  border:1px solid rgba(34,211,238,.28);
+  padding:1px 6px;border-radius:4px;
+  margin-left:auto;flex:0 0 auto;margin-right:4px;
+}
+.topic-section-edit-row .tse-checks{margin-left:0}
+
+.topic-section-edit-row .tse-checks{margin-left:0}

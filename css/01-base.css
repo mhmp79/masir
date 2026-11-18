@@ -1,0 +1,51 @@
+/* ============================================================
+   BASE — reset، متغیرها، بدنه، اپ
+   ============================================================ */
+:root{
+  --card:rgba(255,255,255,.055);
+  --stroke:rgba(255,255,255,.09);
+  --txt:#e8ecf7;
+  --muted:#8b94ad;
+  --acc:#7c5cff;
+  --acc2:#22d3ee;
+  --ok:#10b981;
+  --bad:#f43f5e;
+  --warn:#f59e0b;
+  --phone:#ef4444;
+  --sleep:#6366f1;
+  --exam:#eab308;
+  --r:20px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:'Vazirmatn',Tahoma,system-ui,sans-serif;
+  color:var(--txt);
+  background:#070b18;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 620px at 88% -8%, rgba(124,92,255,.30), transparent 62%),
+    radial-gradient(760px 520px at 6% 108%, rgba(34,211,238,.16), transparent 62%);
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);
+  background-size:28px 28px;opacity:.45;
+  mask-image:radial-gradient(circle at 50% 30%,#000 0%,transparent 80%);
+  -webkit-mask-image:radial-gradient(circle at 50% 30%,#000 0%,transparent 80%);
+}
+#storageLoading{
+  position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
+  background:#070b18;color:#cbd3e8;font-size:14px;font-weight:700;
+}
+.app{
+  position:relative;z-index:1;
+  width:100%;max-width:480px;
+  margin:0 auto;
+  padding:14px 14px 112px;
+}

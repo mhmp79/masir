@@ -1,0 +1,58 @@
+/* ============================================================
+   TYPOGRAPHY — فونت محلی، کارت، عنوان، متن کم‌رنگ، چیدمان پایه
+   ============================================================ */
+
+/* Vazirmatn — SIL Open Font License 1.1 (fonts/OFL.txt)
+   فونت داخل پروژه است تا اجرای آفلاین به اینترنت نیاز نداشته باشد. */
+@font-face{
+  font-family:'Vazirmatn';
+  font-style:normal;
+  font-weight:100 900;
+  font-display:swap;
+  src:url('../fonts/Vazirmatn-Variable.woff2') format('woff2-variations');
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--stroke);
+  border-radius:var(--r);
+  padding:16px;
+  margin-bottom:14px;
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+  box-shadow:0 14px 34px -24px #000;
+}
+.card-title{
+  font-weight:700;font-size:13.5px;margin-bottom:14px;
+  display:flex;align-items:center;gap:9px;
+}
+.card-title::before{
+  content:'';width:5px;height:16px;border-radius:4px;
+  background:linear-gradient(180deg,#7c5cff,#22d3ee);
+}
+.muted{color:var(--muted);font-size:12px}
+
+.row{display:flex;gap:9px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px}
+
+.hidden{display:none!important}
+
+.progress{
+  height:8px;border-radius:6px;
+  background:rgba(255,255,255,.07);
+  overflow:hidden;margin-top:9px;
+}
+.progress > div{
+  height:100%;border-radius:6px;
+  background:linear-gradient(90deg,#10b981,#22d3ee);
+  transition:width .6s;
+}
+
+.view{display:none}
+.view.active{display:block;animation:fade .32s ease}
+@keyframes fade{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:none}
+}

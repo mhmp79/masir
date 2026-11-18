@@ -1,0 +1,238 @@
+/* ============================================================
+   FORMS — ورودی‌ها، سوییچ، تایم‌پیر، تنظیمات
+   ============================================================ */
+.input,select,input[type=number],input[type=text],
+input[type=time],input[type=date],textarea{
+  width:100%;font-family:inherit;font-size:13px;
+  color:var(--txt);
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--stroke);
+  border-radius:13px;padding:11px 13px;
+  outline:none;transition:.2s;
+}
+.input:focus,input:focus,textarea:focus{
+  border-color:rgba(124,92,255,.65);
+  background:rgba(124,92,255,.08);
+}
+textarea{resize:vertical;min-height:80px;line-height:1.7}
+input::placeholder,textarea::placeholder{color:#616a85}
+input[type=time],input[type=date]{color-scheme:dark}
+input.input-md{width:170px}
+input.input-sm{width:80px}
+.lbl{
+  display:block;font-size:11.5px;color:var(--muted);
+  margin:12px 0 7px;
+}
+select{
+  appearance:none;
+  background-image:
+    linear-gradient(45deg,transparent 50%,#8b94ad 50%),
+    linear-gradient(135deg,#8b94ad 50%,transparent 50%);
+  background-position:
+    calc(0% + 16px) 50%,
+    calc(0% + 21px) 50%;
+  background-size:5px 5px,5px 5px;
+  background-repeat:no-repeat;
+  padding-left:34px;
+}
+select optgroup{background:#101827;color:#aeb9d0;font-weight:700}
+select option{background:#0d1524;color:var(--txt)}
+
+/* Toggle Card */
+.toggle-card{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:12px 14px;border-radius:16px;
+  background:rgba(255,255,255,.045);
+  border:1px solid var(--stroke);
+  cursor:pointer;transition:.22s;
+}
+.toggle-card.exam.on{
+  background:rgba(234,179,8,.14);
+  border-color:rgba(234,179,8,.45);
+}
+
+/* Switch */
+.switch{
+  position:relative;width:46px;height:26px;flex:0 0 auto;
+}
+.switch input{
+  position:absolute;opacity:0;width:100%;height:100%;
+  margin:0;cursor:pointer;z-index:2;
+}
+.switch span{
+  position:absolute;inset:0;border-radius:20px;
+  background:rgba(255,255,255,.12);transition:.25s;
+}
+.switch span::after{
+  content:'';position:absolute;width:20px;height:20px;
+  border-radius:50%;background:#fff;top:3px;right:3px;
+  transition:.25s;
+}
+.switch input:checked + span{
+  background:linear-gradient(135deg,#7c5cff,#5b8bff);
+}
+.switch input:checked + span::after{transform:translateX(-20px)}
+
+/* Time Pair */
+.time-pair{
+  display:flex;align-items:center;gap:3px;
+  background:rgba(255,255,255,.05);
+  border:1px solid var(--stroke);
+  border-radius:13px;padding:3px 7px;
+  min-height:44px;transition:.2s;
+  direction:ltr;
+}
+.time-pair:focus-within{
+  border-color:rgba(124,92,255,.65);
+  background:rgba(124,92,255,.08);
+  box-shadow:0 0 0 3px rgba(124,92,255,.12);
+}
+.time-pair .time-part{
+  flex:1 1 0;min-width:0;width:100%;border:0;
+  background:transparent;padding:8px 2px;
+  text-align:center;
+  font-family:'Vazirmatn',Tahoma,system-ui,sans-serif;
+  font-size:14px;font-weight:700;color:var(--txt);
+  outline:none;font-variant-numeric:tabular-nums;
+  -moz-appearance:textfield;
+}
+.time-pair .time-part::-webkit-inner-spin-button,
+.time-pair .time-part::-webkit-outer-spin-button{
+  -webkit-appearance:none;margin:0;
+}
+.time-pair .time-part::placeholder{
+  color:#616a85;font-weight:500;font-size:11px;
+}
+.time-pair .time-part:focus{
+  background:rgba(124,92,255,.10);border-radius:8px;
+}
+.time-pair .time-sep{
+  color:var(--muted);font-weight:800;font-size:14px;
+  padding:0 2px;flex:0 0 auto;user-select:none;
+}
+
+/* Setting Row */
+.setting-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;padding:11px 13px;border-radius:13px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--stroke);
+  margin-bottom:8px;flex-wrap:wrap;
+}
+.setting-row .sr-label{
+  font-weight:700;font-size:12.5px;color:#e8ecf7;
+  flex:1;min-width:120px;
+}
+.setting-row .sr-control{
+  display:flex;align-items:center;gap:6px;
+}
+
+/* افزودن/ویرایش مبحث */
+.add-topic{display:flex;gap:6px;margin-top:10px}
+.add-topic input{flex:1}
+.add-topic button{
+  flex:0 0 auto;padding:0 14px;border-radius:11px;
+  border:1px solid rgba(34,211,238,.32);
+  background:rgba(34,211,238,.10);color:#4de2f5;
+  font-family:inherit;font-size:12px;font-weight:800;
+  cursor:pointer;
+}
+
+/* Grade Picker */
+.grade-picker{
+  display:flex;gap:5px;
+  background:rgba(255,255,255,.05);
+  padding:4px;border-radius:11px;
+  margin-bottom:10px;flex-wrap:wrap;
+}
+.grade-picker button{
+  flex:1;min-width:60px;padding:8px 4px;
+  border-radius:8px;border:0;background:none;
+  color:var(--muted);font-family:inherit;
+  font-size:11px;font-weight:700;cursor:pointer;
+}
+.grade-picker button.active{
+  background:linear-gradient(135deg,#7c5cff,#5b8bff);color:#fff;
+}
+.grade-picker-disabled{opacity:.5;pointer-events:none}
+
+/* Error section dividers (تنظیمات تگ‌ها) */
+.err-sep{height:1px;background:rgba(255,255,255,.08);margin:14px 0}
+.err-sec-title{
+  font-size:11px;font-weight:800;color:#cbd3e8;
+  margin-bottom:8px;display:flex;align-items:center;gap:6px;
+}
+.err-sec-title::before{
+  content:'';width:3px;height:12px;border-radius:2px;
+  background:linear-gradient(180deg,#7c5cff,#22d3ee);
+}
+.err-tag-row{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 8px;
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--stroke);
+  border-radius:7px;margin-bottom:4px;
+  font-size:11px;min-width:0;
+}
+.err-tag-row .c-dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.err-tag-row .c-label{flex:1;min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.err-tag-row .c-del{
+  width:18px;height:18px;border-radius:5px;
+  border:1px solid rgba(244,63,94,.3);
+  background:rgba(244,63,94,.10);
+  color:#ff8ba3;font-size:11px;
+  cursor:pointer;line-height:1;padding:0;flex:0 0 auto;
+  display:grid;place-items:center;
+}
+
+/* Common tag block با زیرمجموعه */
+.common-tag-block{
+  background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  padding:8px 10px;margin-bottom:8px;
+}
+.common-tag-block .err-tag-row{
+  background:transparent;border:0;margin-bottom:4px;padding:0;
+}
+.tag-special-badge{
+  font-size:9px;padding:2px 7px;border-radius:5px;
+  background:rgba(34,211,238,.14);
+  border:1px solid rgba(34,211,238,.32);
+  color:#4de2f5;font-weight:700;white-space:nowrap;margin-right:auto;
+}
+.sub-opts-row{
+  display:flex;flex-wrap:wrap;gap:5px;align-items:center;
+  padding-top:6px;
+  border-top:1px dashed rgba(255,255,255,.10);
+  margin-top:4px;
+}
+.sub-opt-chip{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:3px 8px;border-radius:7px;
+  background:rgba(124,92,255,.14);
+  border:1px solid rgba(124,92,255,.32);
+  color:#c7bfff;font-size:10.5px;font-weight:700;
+  white-space:nowrap;line-height:1.4;
+}
+.sub-opt-chip .sub-opt-del{
+  width:14px;height:14px;border-radius:3px;border:0;
+  background:rgba(244,63,94,.22);color:#ff8ba3;
+  font-size:10px;cursor:pointer;
+  display:grid;place-items:center;padding:0;line-height:1;
+  font-family:inherit;
+}
+.sub-opt-chip .sub-opt-del:active{transform:scale(.85)}
+.sub-opt-input{
+  flex:1;min-width:100px;padding:5px 8px;
+  border-radius:6px;
+  border:1px dashed rgba(34,211,238,.30);
+  background:rgba(34,211,238,.05);
+  color:#4de2f5;font-family:inherit;font-size:10.5px;
+  font-weight:600;outline:none;
+}
+.sub-opt-input::placeholder{color:#4d6b73}
+.sub-opt-input:focus{
+  border-style:solid;border-color:#22d3ee;
+  background:rgba(34,211,238,.10);
+}

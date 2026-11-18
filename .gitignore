@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# کلیدهای امضا و خروجی‌های اندروید — هرگز کامیت نشوند
+*.keystore
+*.jks
+*.apk
+*.aab
+.gradle/
+pwa/build/
+
+# در صورت اجرای محلی PocketBase
+pb_data/
+pocketbase.exe
+
+# Node / ابزارها
+node_modules/
+
+# سیستم‌عامل و ویرایشگر
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# متغیرهای محیطی و لاگ
+.env
+.env.*
+*.log

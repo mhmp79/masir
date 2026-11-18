@@ -1,0 +1,42 @@
+{
+  "packageId": "app.masirkonkur.twa",
+  "host": "pwa.example.com",
+  "name": "مسیر کنکور",
+  "launcherName": "مسیر کنکور",
+  "display": "standalone",
+  "themeColor": "#7c5cff",
+  "themeColorDark": "#0b1024",
+  "navigationColor": "#0b1024",
+  "navigationColorDark": "#0b1024",
+  "navigationDividerColor": "#0b1024",
+  "navigationDividerColorDark": "#0b1024",
+  "backgroundColor": "#0b1024",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://pwa.example.com/icons/icon-512.png",
+  "maskableIconUrl": "https://pwa.example.com/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "0.9.4",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://pwa.example.com/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://pwa.example.com/",
+  "minSdkVersion": 21,
+  "orientation": "portrait-primary",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}

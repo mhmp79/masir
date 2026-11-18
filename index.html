@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>مسیر کنکور | ۱۴۰۶</title>
+<meta name="theme-color" content="#7c5cff">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مسیر کنکور">
+<link rel="preload" href="fonts/Vazirmatn-Variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/01-base.css">
+<link rel="stylesheet" href="css/02-typography.css">
+<link rel="stylesheet" href="css/03-buttons.css">
+<link rel="stylesheet" href="css/04-forms.css">
+<link rel="stylesheet" href="css/05-overlays.css">
+<link rel="stylesheet" href="css/06-dashboard.css">
+<link rel="stylesheet" href="css/07-plan.css">
+<link rel="stylesheet" href="css/08-activity.css">
+<link rel="stylesheet" href="css/09-exam.css">
+<link rel="stylesheet" href="css/10-overview.css">
+<link rel="stylesheet" href="css/11-class.css">
+<link rel="stylesheet" href="css/12-settings.css">
+<link rel="stylesheet" href="css/13-reports.css">
+<link rel="stylesheet" href="css/14-desktop.css">
+<link rel="stylesheet" href="css/15-utilities.css">
+</head>
+<body>
+  <div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">ک</div>
+      <div>
+        <div class="brand-title">مسیر کنکور</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn context-btn hidden" id="contextActionBtn" title="اقدام">
+        <span class="ctx-icon">📊</span>
+        <span class="ctx-label" id="contextActionLabel">گزارش</span>
+      </button>
+      <button class="icon-btn settings-btn" id="settingsBtn" title="تنظیمات">⚙️</button>
+    </div>
+  </header>
+  <main>
+
+    <!-- ===== DASHBOARD ===== -->
+    <section class="view active" id="view-dashboard">
+      <div class="card hero">
+        <div class="hero-top">
+          <div>
+            <div class="hero-dayline">
+              <button class="day-arrow-sm" id="dashPrevDay">‹</button>
+              <span class="muted" id="dashDayLabel">امروز</span>
+              <button class="day-arrow-sm" id="dashNextDay">›</button>
+            </div>
+            <div class="hero-date" id="dashDate">—</div>
+            <div class="week-badge" id="weekBadge">—</div>
+          </div>
+          <div class="countdown">
+            <div class="cd-num" id="daysLeft">—</div>
+            <div class="cd-lbl">روز تا کنکور</div>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="stat"><div class="stat-val" id="todayHours">۰</div><div class="stat-lbl" id="todayHoursLbl">ساعت مطالعه امروز</div></div>
+          <div class="stat"><div class="stat-val" id="todayTests">۰</div><div class="stat-lbl" id="todayTestsLbl">تست امروز</div></div>
+          <div class="stat"><div class="stat-val" id="weekHours">۰</div><div class="stat-lbl">ساعت این هفته</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="d-flex items-center justify-between mb-14">
+          <div class="card-title mb-0">پیشرفت هفته</div>
+          <button class="mini-btn" id="editGoalBtn">⚙ هدف</button>
+        </div>
+        <div class="donut-wrap">
+          <div class="donut" id="donut"><div class="donut-in"><b id="donutPct">۰٪</b><span>از هدف</span></div></div>
+          <div class="donut-info">
+            <div>مطالعه این هفته: <b id="weekTotal">۰</b> ساعت</div>
+            <div>هدف هفتگی: <b id="weekGoal">۴۰</b> ساعت</div>
+            <div>تست این هفته: <b id="weekTests">۰</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card"><div class="card-title">روند مطالعه روزهای هفته</div><div id="lineChart"></div></div>
+
+      <div class="card">
+        <div class="d-flex items-center justify-between mb-12">
+          <div class="card-title mb-0">🗓️ هیت‌مپ مطالعه ماهانه</div>
+        </div>
+        <div id="monthlyHeatmap"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">سهم دروس در هفته</div>
+        <div class="pie-tabs">
+          <button class="pie-tab active" data-pie="study">مطالعه</button>
+          <button class="pie-tab" data-pie="test">تست</button>
+        </div>
+        <div class="pie-wrap">
+          <div class="pie-donut" id="pieDonut"><div class="pie-center" id="pieCenter"></div></div>
+          <div class="pie-legend" id="pieLegend"></div>
+        </div>
+      </div>
+
+      <div class="card exam-dash-card hidden" id="examDashCard">
+        <div class="d-flex items-center justify-between mb-14 gap-8 flex-wrap">
+          <div class="card-title mb-0 text-amber">📝 مقایسه تراز آزمون‌ها</div>
+          <button class="mini-btn exam" id="openExamCompareBtn">مقایسه کامل ←</button>
+        </div>
+        <div id="examMiniChart"></div>
+      </div>
+    </section>
+
+        <!-- ===== PLAN ===== -->
+    <section class="view" id="view-plan">
+      <div class="seg" id="planViewSeg">
+        <button class="seg-btn active" data-view="timeline">⏱ زمانی</button>
+        <button class="seg-btn" data-view="subjects">📚 مبحثی</button>
+        <button class="seg-btn" data-view="phases">⏰ حجمی</button>
+      </div>
+      <div class="plan-layout">
+        <aside class="plan-side">
+          <div class="plan-pool-section">
+            <div class="pool-bar-header">
+              <span class="pbh-icon">📦</span>
+              <span class="pbh-title">استخر بازه‌ها</span>
+              <span class="pbh-count" id="planPoolCount"></span>
+              <button class="pbh-add" id="planAddBtn">+ بازه جدید</button>
+            </div>
+            <div id="planPool"></div>
+          </div>
+
+          <div class="card calendar-card" id="planCalendarCard">
+            <div class="cal-head">
+              <button class="cal-nav-btn" id="planCalPrev">‹</button>
+              <div id="planCalTitle"></div>
+              <button class="cal-nav-btn" id="planCalNext">›</button>
+              <button class="cal-today-icon" id="planCalToday">◉</button>
+            </div>
+            <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
+            <div class="cal-grid" id="planCalGrid"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-title mb-10">🎯 آزمون‌ها</div>
+            <div id="planExamPicker"></div>
+          </div>
+
+          <div class="card topic-card" id="planTopicSetupCard">
+            <button class="topic-summary" type="button" id="planTopicToggle">
+              <span class="ts-icon">📚</span>
+              <span class="ts-title">موضوعات آزمون</span>
+              <span class="ts-hint" id="planTopicHint"></span>
+              <span class="ts-chevron">▼</span>
+            </button>
+            <div id="planTopicSetup"></div>
+          </div>
+        </aside>
+
+        <main class="plan-main" id="planMain"></main>
+      </div>
+    </section>
+    <!-- ===== ACTIVITY ===== -->
+    <section class="view" id="view-activity">
+      <div class="activity-layout" id="activityLayout">
+        <aside class="activity-side">
+          <div class="card activity-recent-card" id="activityRecentCard">
+            <div class="card-title">فعالیت‌های اخیر</div>
+            <div id="actList"></div>
+          </div>
+        </aside>
+        <div class="activity-main">
+          <div class="seg" id="activityModeSeg">
+            <button class="seg-btn active" data-amode="timer">⏱ در حال انجام</button>
+            <button class="seg-btn" data-amode="log">📝 انجام شده</button>
+            <button class="seg-btn" data-amode="weekly">📊 جدول هفتگی</button>
+          </div>
+
+          <div id="activityLogPane" class="hidden">
+            <div class="card cal-head">
+              <div class="cal-head-nav">
+                <button id="actPrevDay">‹</button>
+                <div id="actDateTitle">—</div>
+                <button id="actNextDay">›</button>
+              </div>
+              <button class="cal-today-icon" id="actTodayBtn">◉</button>
+            </div>
+            <div class="card">
+              <div class="act-head-row">
+                <div class="card-title">ثبت فعالیت</div>
+                <div class="act-head-icons">
+                  <button class="head-icon-btn sleep" id="openSleepBtn" title="خواب">🌙</button>
+                  <button class="head-icon-btn phone" id="openPhoneBtn" title="گوشی">📱</button>
+                </div>
+              </div>
+              <label class="lbl mt-0">درس / دسته</label>
+              <div class="chips act-subjects-full" id="actSubjects"></div>
+              <label class="lbl">مبحث</label>
+              <input class="input" id="actTopic" placeholder="مثلاً: مشتق، فصل ۳، تست‌های ترکیبی">
+              <div class="grid2 mt-2">
+                <div><label class="lbl">ساعت شروع</label><div id="actStartTime" class="time-pair"></div></div>
+                <div><label class="lbl">ساعت پایان</label><div id="actEndTime" class="time-pair"></div></div>
+              </div>
+              <div class="lbl mb-5">مدت سریع</div>
+              <div class="quick-chips" id="actQuickChips">
+                <button class="quick-chip" data-min="30">۳۰ دقیقه</button>
+                <button class="quick-chip active" data-min="60">۶۰ دقیقه</button>
+                <button class="quick-chip" data-min="90">۹۰ دقیقه</button>
+                <button class="quick-chip" data-min="120">۱۲۰ دقیقه</button>
+              </div>
+              <div class="muted text-center mt-10 fw-600" id="actDuration">مدت: —</div>
+              <div class="toggle-card mt-16" id="actTestsToggleCard">
+                <div><div class="fw-700 fs-13">تست زدم</div></div>
+                <label class="switch"><input type="checkbox" id="actTestsToggle"><span></span></label>
+              </div>
+              <div id="actTestFields" class="hidden mt-12">
+                <div class="grid3">
+                  <input class="input" id="actCorrect" type="number" placeholder="درست">
+                  <input class="input" id="actWrong" type="number" placeholder="غلط">
+                  <input class="input" id="actBlank" type="number" placeholder="نزده">
+                </div>
+                <div class="text-center mt-12 fs-13">درصد: <b id="actPercentLive" class="fs-18 text-acc2">۰٪</b></div>
+              </div>
+              <button class="btn primary mt-16" id="actSave">ثبت فعالیت</button>
+            </div>
+          </div>
+
+          <div id="activityWeeklyPane" class="hidden">
+            <div class="activity-weekly-card" id="activityWeeklyCard">
+              <div id="activityWeeklyReport"></div>
+            </div>
+          </div>
+
+          <div id="activityTimerPane">
+            <div class="card unified-tools-card" id="unifiedToolsCard">
+              <div class="card-title">⏱ میخوام بخونم — تایمر + شمارنده تست</div>
+              <div class="timer-block">
+                <div class="timer-mode-tabs">
+                  <button data-tmode="stopwatch" class="active">⏱ کرنومتر</button>
+                  <button data-tmode="pomodoro">🍅 پومودورو</button>
+                  <button data-tmode="flow">🌊 فلو</button>
+                </div>
+                <div id="timerPomodoroSettings" class="timer-settings hidden">
+                  <div class="grid3">
+                    <div>
+                      <label class="lbl mt-0">مطالعه (دقیقه)</label>
+                      <input class="input timer-num-input" id="pomWork" type="number" min="1" max="180" value="25">
+                    </div>
+                    <div>
+                      <label class="lbl mt-0">استراحت</label>
+                      <input class="input timer-num-input" id="pomBreak" type="number" min="1" max="60" value="5">
+                    </div>
+                    <div>
+                      <label class="lbl mt-0">تکرار</label>
+                      <input class="input timer-num-input" id="pomReps" type="number" min="1" max="12" value="4">
+                    </div>
+                  </div>
+                </div>
+                <div id="timerFlowSettings" class="timer-settings hidden">
+                  <div class="grid2">
+                    <div>
+                      <label class="lbl mt-0">مطالعه (دقیقه)</label>
+                      <input class="input timer-num-input" id="flowStudy" type="number" min="5" max="180" value="60">
+                    </div>
+                    <div>
+                      <label class="lbl mt-0">استراحت</label>
+                      <input class="input timer-num-input" id="flowBreak" type="number" min="1" max="60" value="10">
+                    </div>
+                  </div>
+                  <div class="muted text-center mt-8 fs-11" id="flowRatioInfo">—</div>
+                </div>
+                <div class="timer-phase-label" id="timerPhaseLabel">آماده</div>
+                <div class="timer-display idle" id="timerDisplay">00:00:00</div>
+                <div class="timer-progress-wrap hidden" id="timerProgressWrap">
+                  <div class="timer-progress-track">
+                    <div class="timer-progress-fill" id="timerProgressFill"></div>
+                  </div>
+                  <div class="timer-progress-meta" id="timerProgressMeta"></div>
+                </div>
+                <div class="timer-controls">
+                  <button class="btn primary" id="timerToggle">▶ شروع</button>
+                  <button class="btn ghost hidden" id="timerPhaseAction"></button>
+                  <button class="btn ghost" id="timerReset">↺ ریست</button>
+                </div>
+              </div>
+              <div class="tools-divider"></div>
+              <div class="test-block">
+                <div class="section-label">📝 شمارنده تست</div>
+                <div class="trk-grid">
+                  <div class="trk-field" data-field="correct">
+                    <div class="trk-label">درست</div>
+                    <div class="trk-keys"><span>Q +</span><span>A −</span></div>
+                    <button class="trk-btn up" data-delta="1" type="button">▲</button>
+                    <input class="trk-input" data-input="correct" type="text" inputmode="numeric" maxlength="4" placeholder="۰">
+                    <button class="trk-btn down" data-delta="-1" type="button">▼</button>
+                  </div>
+                  <div class="trk-field" data-field="wrong">
+                    <div class="trk-label">غلط</div>
+                    <div class="trk-keys"><span>W +</span><span>S −</span></div>
+                    <button class="trk-btn up" data-delta="1" type="button">▲</button>
+                    <input class="trk-input" data-input="wrong" type="text" inputmode="numeric" maxlength="4" placeholder="۰">
+                    <button class="trk-btn down" data-delta="-1" type="button">▼</button>
+                  </div>
+                  <div class="trk-field" data-field="blank">
+                    <div class="trk-label">نزده</div>
+                    <div class="trk-keys"><span>E +</span><span>D −</span></div>
+                    <button class="trk-btn up" data-delta="1" type="button">▲</button>
+                    <input class="trk-input" data-input="blank" type="text" inputmode="numeric" maxlength="4" placeholder="۰">
+                    <button class="trk-btn down" data-delta="-1" type="button">▼</button>
+                  </div>
+                </div>
+                <div class="trk-summary">
+                  <div><span>تعداد کل</span><b id="trkTotal" class="text-violet">۰</b></div>
+                  <div><span>درصد</span><b id="trkPct" class="pct-mute">۰٪</b></div>
+                </div>
+                <label class="lbl">ضریب نمره منفی</label>
+                <div class="trk-coef-row">
+                  <select class="input" id="trkCoef">
+                    <option value="0">بدون نمره منفی</option>
+                    <option value="0.333333">۱/۳ نمره منفی (کنکور)</option>
+                    <option value="0.25">۱/۴ نمره منفی</option>
+                    <option value="0.5">۱/۲ نمره منفی</option>
+                    <option value="1">۱ نمره منفی</option>
+                  </select>
+                  <button class="trk-clear-sm" id="trkClear" title="پاک کردن شمارنده">↺</button>
+                </div>
+              </div>
+              <div class="tools-divider"></div>
+              <div class="unified-save-wrap">
+                <button class="btn primary unified-save-btn" id="unifiedSaveBtn" disabled>
+                  ✓ ثبت فعالیت
+                </button>
+                <div class="usb-summary" id="unifiedSaveSummary">⏱ بدون زمان &nbsp;•&nbsp; 📝 تست نزدم</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== EXAM ===== -->
+    <section class="view" id="view-exam">
+      <div class="seg" id="examModeSeg">
+        <button class="seg-btn active" data-emode="exams">📝 آزمون‌ها</button>
+        <button class="seg-btn" data-emode="analysis">🔍 تحلیل آزمون</button>
+      </div>
+      <div class="exam-layout" id="examLayout">
+        <aside class="exam-side" id="examSide">
+          <details class="exam-calendar-details" id="examCalendarDetails" open>
+            <summary class="exam-calendar-summary">
+              <span class="pcs-icon">📅</span>
+              <span class="pcs-title">تقویم</span>
+              <span class="pcs-date" id="examCalendarSummaryDate">—</span>
+              <span class="pcs-chevron">▼</span>
+            </summary>
+            <div class="card cal-head">
+              <div class="cal-head-nav">
+                <button id="examCalPrev">‹</button>
+                <div id="examCalTitle">—</div>
+                <button id="examCalNext">›</button>
+              </div>
+              <button class="cal-today-icon" id="examCalToday">◉</button>
+            </div>
+            <div class="card">
+              <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
+              <div class="cal-grid" id="examCalGrid"></div>
+            </div>
+          </details>
+        </aside>
+        <div class="exam-main">
+          <div id="examListPane">
+            <div class="card">
+              <div class="d-flex items-center justify-between mb-14 gap-6 flex-wrap">
+                <div class="card-title mb-0">📝 آزمون‌ها</div>
+                <button class="mini-btn" id="newExamBtn">+ آزمون جدید</button>
+              </div>
+              <div id="examsList"></div>
+            </div>
+            <div class="card">
+              <div class="card-title">🏷️ پراکندگی اشتباهات</div>
+              <div id="examTagStats"></div>
+            </div>
+          </div>
+          <div id="examAnalysisPane" class="hidden">
+            <div class="card exam-analysis-header-card">
+              <div class="card-title">🔍 تحلیل جامع آزمون‌ها</div>
+              <div class="muted" id="gaSub">—</div>
+            </div>
+            <div id="gaBody"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== OVERVIEW ===== -->
+    <section class="view" id="view-overview">
+      <div class="overview-selector-wrap">
+        <div class="seg overview-tabs">
+          <button class="seg-btn active" data-ovt="specialized">🔬 تخصصی</button>
+          <button class="seg-btn" data-ovt="general">📚 عمومی</button>
+        </div>
+      </div>
+      <div id="overviewBody"></div>
+    </section>
+
+    <!-- ===== CLASS ===== -->
+    <section class="view" id="view-class">
+      <div class="card">
+        <div class="card-title">ثبت کلاس‌ها</div>
+        <div class="chips" id="clsSubjects"></div>
+        <div class="progress"><div id="clsProgressBar" style="width:0%"></div></div>
+        <div class="row-between mt-9">
+          <span class="muted" id="clsProgressTxt">۰ از ۰ جلسه دیده شده</span>
+          <span class="muted" id="clsDownTxt">۰ دانلود</span>
+        </div>
+        <div class="d-flex gap-6 mt-10">
+          <button class="mini-btn flex-1 flex-center" id="clsViewToggle">👁️ نمایش فشرده</button>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">جلسات</div><div id="clsSessions"></div></div>
+    </section>
+  </main>
+
+  <nav class="nav">
+    <button class="nav-btn active" data-view="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg><span>داشبورد</span></button>
+    <button class="nav-btn" data-view="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>برنامه ریزی</span></button>
+    <button class="nav-btn" data-view="activity"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>فعالیت</span></button>
+    <button class="nav-btn" data-view="exam"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg><span>آزمون</span></button>
+    <button class="nav-btn" data-view="overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>نمای کلی</span></button>
+    <button class="nav-btn" data-view="class"><svg viewBox="0 0 24 24"><path d="M22 9 12 4 2 9l10 5 10-5Z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>کلاس</span></button>
+  </nav>
+</div>
+
+<!-- ===== EXAM OVERLAY ===== -->
+<div id="examOverlay">
+  <div class="exam-overlay-inner">
+    <header class="exam-overlay-header">
+      <div class="d-flex items-center gap-8 min-w-0">
+        <div class="exam-overlay-logo">📝</div>
+        <div class="min-w-0"><div id="examOverlayTitle" class="exam-overlay-title">—</div><div id="examOverlaySub" class="exam-overlay-sub">—</div></div>
+      </div>
+      <div class="d-flex gap-6 items-center flex-none">
+        <button id="examSettingsBtn" class="exam-ov-icon-btn exam-ov-icon-btn-settings" title="تنظیمات مباحث آزمون">⚙</button>
+        <button id="closeExamOverlay" class="exam-ov-icon-btn exam-ov-icon-btn-close">✕</button>
+      </div>
+    </header>
+    <main id="examOverlayBody"></main>
+  </div>
+</div>
+
+<!-- ===== EXAM COMPARE OVERLAY ===== -->
+<div class="wr-overlay" id="examCompareOverlay">
+  <div class="wr-shell">
+    <header class="wr-top">
+      <div class="wr-top-right">
+        <div class="wr-logo wr-logo-gold">📝</div>
+        <div><div class="wr-title">مقایسه آزمون‌های آزمایشی</div><div class="wr-sub" id="examCompareSub">—</div></div>
+      </div>
+      <div class="wr-nav">
+        <button class="wr-close" id="examCompareClose" title="بستن">✕</button>
+      </div>
+    </header>
+    <main class="wr-body" id="examCompareBody"></main>
+  </div>
+</div>
+
+<!-- ===== SETTINGS OVERLAY ===== -->
+<div class="wr-overlay" id="settingsOverlay">
+  <div class="wr-shell">
+    <header class="wr-top">
+      <div class="wr-top-right">
+        <div class="wr-logo wr-logo-warm">⚙</div>
+        <div><div class="wr-title">تنظیمات</div><div class="wr-sub">پروفایل، دروس، آزمون، پشتیبان‌گیری و همگام‌سازی</div></div>
+      </div>
+      <div class="wr-nav">
+        <button class="wr-close" id="settingsClose" title="بستن">✕</button>
+      </div>
+    </header>
+    <main class="wr-body" id="settingsBody">
+
+      <div class="card profile-card">
+        <div class="profile-summary">
+          <div class="profile-summary-info">
+            <div class="profile-display-name" id="profileDisplayName">نام ثبت نشده</div>
+            <div class="profile-summary-meta">
+              <span id="profileDisplayField">رشته: تجربی</span>
+              <span class="profile-meta-divider">•</span>
+              <span id="profileDisplayGrade">پایه: دوازدهم</span>
+            </div>
+          </div>
+          <button type="button" class="profile-edit-btn" id="editProfileBtn" aria-label="ویرایش پروفایل" aria-expanded="false" title="ویرایش پروفایل">✎</button>
+        </div>
+        <div class="profile-edit-fields" id="profileEditFields" hidden>
+          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجی‌های تصویری استفاده می‌شود.</div>
+          <div class="profile-identity-grid">
+            <div class="profile-field">
+              <label class="lbl mt-0">نام</label>
+              <input class="input" id="setFirstName" placeholder="مثلاً: متین" maxlength="40">
+            </div>
+            <div class="profile-field">
+              <label class="lbl mt-0">نام خانوادگی</label>
+              <input class="input" id="setLastName" placeholder="مثلاً: رحمانیان" maxlength="40">
+            </div>
+            <div class="profile-field">
+              <label class="lbl mt-0">رشته</label>
+              <select class="input" id="setField">
+                <option value="تجربی">تجربی</option>
+                <option value="ریاضی">ریاضی</option>
+                <option value="انسانی">انسانی</option>
+              </select>
+            </div>
+            <div class="profile-field">
+              <label class="lbl mt-0">پایه</label>
+              <select class="input" id="setGrade">
+                <option value="دهم">دهم</option>
+                <option value="یازدهم">یازدهم</option>
+                <option value="دوازدهم">دوازدهم</option>
+              </select>
+            </div>
+          </div>
+          <div class="muted mt-10 fs-10h lh-175 text-amber" id="profileFieldHint"></div>
+          <div class="profile-edit-actions">
+            <button class="btn primary" id="saveProfileBtn">ذخیره پروفایل</button>
+            <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card profile-card sync-card" id="syncCard">
+        <div id="syncUI"></div>
+      </div>
+
+      <div class="card acc-card settings-card">
+        <button class="acc-head" data-acc-toggle>
+          <div class="acc-head-title">🎨 تنظیمات دروس و رنگ‌ها</div>
+          <span class="acc-chevron">▼</span>
+        </button>
+        <div class="acc-body">
+          <div class="muted mb-10 fs-11h">با دستگیره <b>⠿</b> ترتیب درس‌ها را در گروه تخصصی یا عمومی جابه‌جا کن؛ تخصصی‌ها همیشه بالاتر هستند. با دکمه <b>⚙</b> تنظیمات پیشرفته را باز کن.</div>
+          <div id="subjectManager"></div>
+          <div class="toggle-card mt-12" id="finalEleventhSetting" hidden>
+            <div>
+              <div class="fw-700 fs-13">نهایی یازدهم</div>
+              <div class="muted fs-10h mt-3">دروس عمومی یازدهم را در نمای کلیِ پایه دوازدهم هم نمایش بده.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="includeEleventhFinalToggle"><span></span></label>
+          </div>
+          <button class="btn btn-add mt-12" id="addSubjectBtn">+ افزودن درس جدید</button>
+        </div>
+      </div>
+
+      <div class="card acc-card exam-settings-card">
+        <button class="acc-head" data-acc-toggle>
+          <div class="acc-head-title">📝 تنظیمات آزمون</div>
+          <span class="acc-chevron">▼</span>
+        </button>
+        <div class="acc-body">
+          <div class="toggle-card exam mb-12" id="examToggleCard">
+            <div><div class="fw-700 fs-13">فعال‌سازی آزمون</div></div>
+            <label class="switch"><input type="checkbox" id="examEnabledToggle"><span></span></label>
+          </div>
+          <div id="examSettingsBody" class="hidden">
+            <div class="setting-row"><div class="sr-label">نام پیش‌فرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
+            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input class="input input-sm" type="number" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
+          </div>
+          <div class="err-sep"></div>
+          <div class="err-sec-title">🏷️ تنظیمات اشتباهات</div>
+          <div class="err-sec-title fs-10h text-muted mt-6">عمومی (همه دروس)</div>
+          <div id="commonErrorsList"></div>
+          <div class="add-topic"><input class="input" id="newCommonErr" placeholder="اشتباه عمومی جدید..."><button id="addCommonErrBtn">+</button></div>
+          <div class="err-sep"></div>
+          <div class="err-sec-title fs-10h text-muted">اختصاصی هر درس (فقط دروس تخصصی)</div>
+          <div class="chips" id="errSubjectChips"></div>
+          <div id="subjectErrorsList" class="mt-10"></div>
+          <div class="add-topic"><input class="input" id="newSubjectErr" placeholder="اشتباه اختصاصی جدید..."><button id="addSubjectErrBtn">+</button></div>
+        </div>
+      </div>
+
+      <div class="card acc-card backup-card">
+        <button class="acc-head" data-acc-toggle>
+          <div class="acc-head-title">💾 پشتیبان‌گیری</div>
+          <span class="acc-chevron">▼</span>
+        </button>
+        <div class="acc-body">
+          <div class="muted mb-12 fs-11 lh-19">شامل تمام داده‌ها: پروفایل، دروس، فعالیت‌ها، برنامه، خواب، گوشی، کلاس‌ها، آزمون‌ها، تنظیمات، شمارنده تست.</div>
+          <button class="btn backup-btn mb-9" id="exportBtn">⬇ ذخیره فایل پشتیبان (.json)</button>
+          <label class="file-btn">⬆ ایمپورت<input type="file" id="importInput" class="hidden" accept="application/json,.json"></label>
+        </div>
+      </div>
+
+      <div class="card acc-card danger-card">
+        <button class="acc-head" data-acc-toggle>
+          <div class="acc-head-title">⚠ حذف داده‌ها</div>
+          <span class="acc-chevron">▼</span>
+        </button>
+        <div class="acc-body">
+          <button class="btn danger" id="clearDataBtn">🗑 پاک کردن تمام اطلاعات</button>
+        </div>
+      </div>
+
+      <div class="settings-version">
+        نسخه برنامه: <b id="appVersionDisplay">—</b>
+        <div class="mt-6 fs-10 opacity-60">Made by MH.Mahdipanah</div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modalContent"></div></div>
+<div class="toast" id="toast"></div>
+<div id="storageLoading" role="status" aria-live="polite">در حال بارگذاری اطلاعات…</div>
+
+<script src="js/00-pocketbase.js"></script>
+<script src="js/01-core.js"></script>
+<script src="js/02-dashboard.js"></script>
+<script src="js/03-plan.js"></script>
+<script src="js/04-activity.js"></script>
+<script src="js/05-exam.js"></script>
+<script src="js/06-overview.js"></script>
+<script src="js/07-class.js"></script>
+<script src="js/08-settings.js"></script>
+<script src="js/09-reports.js"></script>
+<script src="js/10-timer.js"></script>
+<script src="js/11-backup.js"></script>
+<script src="js/12-pocketbase.js"></script>
+<script src="js/99-init.js"></script>
+
+<script>
+if ("serviceWorker" in navigator && location.protocol.indexOf('http') === 0) {
+  navigator.serviceWorker
+    .register('./sw.js', { updateViaCache: 'none' })
+    .catch((e) => console.warn('[sw] registration failed:', e));
+}
+</script>
+
+</body>
+</html>

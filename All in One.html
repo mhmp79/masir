@@ -17975,7 +17975,7 @@ async function clearAllData(){
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۰)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۱)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
@@ -17993,6 +17993,8 @@ const LAST_SYNC_KEY = 'konkur-last-sync-v1';
 const AUTH_TOKEN_KEY = 'konkur-pb-auth-v1';
 const PB_SYNC_META_KEY = 'konkur-pb-sync-meta-v1';
 const PB_SYNC_META_VERSION = 3;
+/* نسخهٔ بازبینی سلامت: یک‌بار پس از این ارتقا رکوردهای ناقص محلی ترمیم می‌شوند */
+const PB_SYNC_INTEGRITY_VERSION = 2;
 const PB_SYNC_META_LIMIT = 3;
 const PB_MANIFEST_FIELDS = 'id,localId,updated';
 const PB_DELETE_CHECK_GAP = 24 * 60 * 60 * 1000;
@@ -18387,8 +18389,7 @@ async function fetchRemoteIdMap(pb, collection, ownerId, localIds) {
 }
 
 /* فقط رکوردهایی که از یک زمان مشخص به بعد تغییر کرده‌اند (فیلتر سمت سرور) */
-async function fetchChangedSince(pb, collection, ownerId, since) {
-  const items = [];
+async function fetchChangedSince(pb, collection, ownerId, since) {  const items = [];
   const perPage = PB_DEFAULT_PAGE_SIZE;
   const filter = `owner="${pbFilterValue(ownerId)}" && updated >= "${pbFilterValue(since)}"`;
   for (let page = 1; page < 500; page++) {
@@ -18405,6 +18406,25 @@ async function fetchChangedSince(pb, collection, ownerId, since) {
   return items;
 }
 
+/* فهرست سبک فقط شناسه و زمان تغییر دارد؛ برای رکوردهای تغییرکرده،
+   مقدار کامل همان چند رکورد را جداگانه می‌خوانیم. */
+async function fetchRemoteValuesByLocalIds(pb, collection, ownerId, localIds) {
+  const items = [];
+  const unique = [...new Set((localIds || []).map(id => String(id)))];
+  const chunkSize = 20;
+  for (let start = 0; start < unique.length; start += chunkSize) {
+    const chunk = unique.slice(start, start + chunkSize);
+    const localFilter = chunk.map(id => `localId="${pbFilterValue(id)}"`).join(' || ');
+    const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, chunk.length, {
+      filter: `owner="${pbFilterValue(ownerId)}" && (${localFilter})`,
+      skipTotal: true,
+      requestKey: null
+    }));
+    ((res && res.items) || []).forEach(item => items.push(item));
+  }
+  return items;
+}
+
 /* تعداد رکوردهای سرور؛ برای تشخیص حذف (که در فیلتر updated دیده نمی‌شود) */
 async function fetchOwnerCount(pb, collection, ownerId) {
   const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, 1, {
@@ -18416,8 +18436,19 @@ async function fetchOwnerCount(pb, collection, ownerId) {
   return ((res && res.items) || []).length;
 }
 
-function maxUpdatedTimestamp(records) {
-  let max = '';
+/* مقایسهٔ پایدار دو مقدار JSON بدون توجه به ترتیب کلیدها */
+function pbSameJsonValue(a, b) {
+  const stable = value => {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`;
+    const keys = Object.keys(value).sort();
+    return `{${keys.map(key => `${JSON.stringify(key)}:${stable(value[key])}`).join(',')}}`;
+  };
+  try { return stable(a) === stable(b); }
+  catch (error) { return false; }
+}
+
+function maxUpdatedTimestamp(records) {  let max = '';
   (records || []).forEach(record => {
     const value = pbManifestTimestamp(record);
     if (value && value > max) max = value;
@@ -18881,6 +18912,7 @@ async function performUpload(options = {}) {
       floor,
       counts,
       countsAt: fullSync ? now : (meta.countsAt || 0),
+      integrity: (meta && meta.integrity) || 0,
       tracker: trackerSignature,
       lastSyncAt: now
     });
@@ -19018,7 +19050,26 @@ async function performDownload(options = {}) {
          تعداد شناخته‌شده به‌علاوهٔ رکوردهای تازه باشد. فقط اگر این معادله
          برقرار نباشد (حذف یا حذف+افزودن) فهرست همان مجموعه خوانده می‌شود.
          بازبینی کامل فقط یک بار در شبانه‌روز یا با «دریافت کامل» انجام می‌شود. */
-      const deepCheck = fullRefresh || !meta.countsAt || (now - meta.countsAt > PB_DELETE_CHECK_GAP);
+      const deepCheck = fullRefresh ||
+        meta.integrity !== PB_SYNC_INTEGRITY_VERSION ||
+        !meta.countsAt ||
+        (now - meta.countsAt > PB_DELETE_CHECK_GAP);
+
+      /* در بازبینی سلامت، رکوردهایی که قبلاً بدون مقدار ذخیره شده‌اند ترمیم می‌شوند.
+         حذف‌های محلی در انتظار ارسال نباید دوباره ساخته شوند. */
+      let pendingDeletes = null;
+      if (deepCheck) {
+        try {
+          const pending = await readPendingChanges();
+          if (pending) {
+            pendingDeletes = new Set(pending
+              .filter(change => change && change.operation === 'delete')
+              .map(change => `${change.store}::${change.recordId}`));
+          }
+        } catch (error) {
+          console.warn('[PB] reading pending deletions failed:', error);
+        }
+      }
 
       /* فاز ۱: خواندن فقط داده‌های تازه، نه کل مجموعه */
       const fetchedByStore = new Map();
@@ -19089,7 +19140,9 @@ async function performDownload(options = {}) {
         throw new Error('داده‌های سرور کامل نیست (رکورد تنظیمات پیدا نشد)؛ عملیات برای جلوگیری از حذف داده متوقف شد.');
       }
 
-      /* فاز ۲: تعیین رکوردهای تازه، بدون خواندن دوبارهٔ همان رکوردها از سرور */
+      /* فاز ۲: تعیین رکوردهای تازه و حذف‌شده‌ها.
+         فهرست سبک (`full`) مقدار رکورد را ندارد؛ بنابراین مقدار همان چند
+         رکورد تغییرکرده با یک درخواست هدفمند خوانده می‌شود. */
       const localSnapshot = normalizedStorageSnapshot(compactStateForStorage(state));
       const puts = [];
       const deletes = [];
@@ -19101,11 +19154,13 @@ async function performDownload(options = {}) {
       let trackerChangedRemotely = false;
       let applied = 0;
 
-      syncStores.forEach(entry => {
+      for (const entry of syncStores) {
         const info = fetchedByStore.get(entry.store) || { records: [], full: false, count: 0 };
         const prevMap = previousRemote[entry.collection] || {};
         const nextMap = info.full ? {} : { ...prevMap };
         const seen = new Set();
+        const missingValues = [];
+        const missingCanonical = new Set();
 
         (info.records || []).forEach(item => {
           const canonical = pbCanonicalLocalId(entry.store, item.localId);
@@ -19113,6 +19168,32 @@ async function performDownload(options = {}) {
           const updated = pbManifestTimestamp(item);
           nextMap[canonical] = updated;
           seen.add(canonical);
+
+          if (info.full) {
+            const unchanged = prevMap[canonical] === updated;
+            let needsValue = !unchanged;
+            if (!needsValue && deepCheck) {
+              if (entry.store === 'app-meta') {
+                /* تنظیمات و شمارنده همیشه با مقدار کامل هم‌تراز می‌شوند */
+                needsValue = true;
+              } else {
+                const storeSnapshot = localSnapshot.get(entry.store);
+                const present = storeSnapshot && storeSnapshot.has(canonical);
+                const pendingDelete = pendingDeletes && (
+                  pendingDeletes.has(`${entry.store}::${canonical}`) ||
+                  pendingDeletes.has(`${entry.store}::${String(item.localId)}`)
+                );
+                /* رکورد قبلاً روی این دستگاه بوده ولی مقدارش ناقص ذخیره شده است */
+                needsValue = !!pendingDeletes && !present && !pendingDelete;
+              }
+            }
+            if (needsValue && !missingCanonical.has(canonical)) {
+              missingCanonical.add(canonical);
+              missingValues.push(String(item.localId));
+            }
+            return;
+          }
+
           if (prevMap[canonical] === updated) return; /* بازتاب تغییر همین دستگاه */
 
           if (entry.store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
@@ -19137,11 +19218,41 @@ async function performDownload(options = {}) {
           });
         }
 
+        if (missingValues.length) {
+          setProgress('download', 55, `دریافت ${fa(missingValues.length)} رکورد تغییرکرده — ${entry.collection}`, true);
+          const detailed = await fetchRemoteValuesByLocalIds(pb, entry.collection, ownerId, missingValues);
+          detailed.forEach(item => {
+            const canonical = pbCanonicalLocalId(entry.store, item.localId);
+            if (!canonical) return;
+            if (entry.store === 'app-meta') {
+              if (canonical === POCKETBASE_TRACKER_ID) {
+                if (pbSameJsonValue(item.value, currentTrackerPayload())) return;
+                remoteTracker = item.value;
+                trackerChangedRemotely = true;
+                return;
+              }
+              const localJson = localSnapshot.get('app-meta') &&
+                localSnapshot.get('app-meta').get(DB_STATE_ID);
+              if (localJson) {
+                try {
+                  const local = JSON.parse(localJson);
+                  if (pbSameJsonValue(local.value, item.value)) return;
+                } catch (error) {}
+              }
+            }
+            const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
+            if (!record) return;
+            puts.push({ store: entry.store, record });
+            acknowledge.push({ store: entry.store, id: record.id });
+            applied++;
+          });
+        }
+
         const observedMax = maxUpdatedTimestamp(info.records);
         if (observedMax && observedMax > (floor[entry.collection] || '')) floor[entry.collection] = observedMax;
         if (typeof info.count === 'number') counts[entry.collection] = info.count;
         nextRemote[entry.collection] = nextMap;
-      });
+      }
 
       if (!applied && !trackerChangedRemotely) {
         saveSyncMeta(server, ownerId, {
@@ -19150,6 +19261,7 @@ async function performDownload(options = {}) {
           floor,
           counts,
           countsAt: now,
+          integrity: PB_SYNC_INTEGRITY_VERSION,
           lastSyncAt: now
         });
         setLastSyncTimestamp(now);
@@ -19179,6 +19291,7 @@ async function performDownload(options = {}) {
         floor,
         counts,
         countsAt: now,
+        integrity: PB_SYNC_INTEGRITY_VERSION,
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
         lastSyncAt: now
       });
@@ -19288,6 +19401,7 @@ async function performDownload(options = {}) {
       floor,
       counts,
       countsAt: now,
+      integrity: PB_SYNC_INTEGRITY_VERSION,
       tracker: remoteTracker ? JSON.stringify(remoteTracker) : null,
       lastSyncAt: now
     });

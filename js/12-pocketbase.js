@@ -1229,20 +1229,26 @@ async function performDownload(options = {}) {
       /* «ترمیم خودکار»: نسخه‌های قبلی می‌توانستند زمان تغییر یک رکورد را
          «دیده‌شده» ثبت کنند بدون آن‌که مقدارش روی دستگاه اعمال شود؛ نتیجه
          این بود که هر دو دستگاه خود را «به‌روز» می‌دانستند ولی مقدارها فرق
-         داشت. پس از این ارتقا مقدار رکوردهای شناخته‌شده تکه‌تکه با سرور
-         مقایسه می‌شود و فقط تفاوت‌ها نوشته می‌شوند (انتقال محدود، نه کل داده). */
+         داشت. پس مقدار رکوردهای شناخته‌شده همیشه — نه فقط یک‌بار — تکه‌تکه
+         با سرور مقایسه می‌شود و فقط تفاوت‌ها نوشته می‌شوند.
+         سه حالت:
+           repair : همهٔ رکوردها در همین چرخه (دکمهٔ ترمیم)
+           full   : پس از ارتقای نسخهٔ سلامت، همهٔ مجموعه‌ها تا پایان پیمایش
+           maintain : در هر چرخه یک مجموعه به‌صورت چرخشی (هزینهٔ ثابت و کم) */
       const explicitVerify = !!options.verify;
-      const verificationPending = !!meta && (
-        meta.integrity !== PB_SYNC_INTEGRITY_VERSION ||
-        !!(meta.verify && meta.verify.version === PB_SYNC_INTEGRITY_VERSION && !meta.verify.done)
-      );
-      const verifyState = (verificationPending || explicitVerify)
-        ? {
-            version: PB_SYNC_INTEGRITY_VERSION,
-            cursor: { ...((meta && meta.verify && meta.verify.cursor) || {}) },
-            done: false
-          }
-        : null;
+      const integrityOutdated = meta.integrity !== PB_SYNC_INTEGRITY_VERSION;
+      const previousVerify = (meta && meta.verify && meta.verify.version === PB_SYNC_INTEGRITY_VERSION)
+        ? meta.verify : null;
+      /* پیمایش کامل ممکن است چند چرخه طول بکشد؛ نباید نیمه‌کاره رها شود */
+      const unfinishedFull = !!previousVerify && previousVerify.mode === 'full' && !previousVerify.done;
+      const verifyMode = explicitVerify ? 'repair' : (integrityOutdated || unfinishedFull) ? 'full' : 'maintain';
+      const verifyState = {
+        version: PB_SYNC_INTEGRITY_VERSION,
+        mode: verifyMode,
+        cursor: { ...((previousVerify && previousVerify.cursor) || {}) },
+        turn: (+((previousVerify && previousVerify.turn) || 0)) || 0,
+        done: verifyMode === 'maintain'
+      };
       const now = Date.now();
       /* حذف رکورد در فیلتر `updated` دیده نمی‌شود. به‌جای بازخوانی دوره‌ای کل
          فهرست‌ها، «حساب تعداد» انجام می‌شود: تعداد رکوردهای سرور باید برابر
@@ -1494,54 +1500,65 @@ async function performDownload(options = {}) {
         }
 
         /* ترمیم خودکار: مقدار بخشی از رکوردهای شناخته‌شده با سرور مقایسه
-           می‌شود و تنها تفاوت‌ها نوشته می‌شوند. */
+           می‌شود و تنها تفاوت‌ها نوشته می‌شوند. در حالت نگه‌داری، در هر
+           چرخه فقط یک مجموعه به‌صورت چرخشی بررسی می‌شود تا هزینه ثابت بماند. */
         if (verifyState && entry.store !== 'app-meta') {
-          const storeSnapshot = localSnapshot.get(entry.store);
-          const knownIds = Object.keys(prevMap).sort();
-          const knownSet = new Set(knownIds);
-          let targetIds;
-          if (explicitVerify) {
-            targetIds = knownIds.filter(id => !handledCanonical.has(id));
-          } else {
-            const start = Math.max(0, Math.min(knownIds.length, +verifyState.cursor[entry.collection] || 0));
-            verifyState.cursor[entry.collection] = start + PB_VERIFY_BATCH;
-            targetIds = knownIds.slice(start, start + PB_VERIFY_BATCH)
-              .filter(id => !handledCanonical.has(id));
-          }
-          if (targetIds.length) {
-            setProgress('download', 62, `بررسی ${fa(targetIds.length)} رکورد — ${entry.collection}`, true);
-            const detailed = explicitVerify
-              ? (await fetchOwnerRecords(pb, entry.collection, ownerId))
-                  .filter(item => knownSet.has(pbCanonicalLocalId(entry.store, item.localId)))
-              : await fetchRemoteValuesByLocalIds(pb, entry.collection, ownerId, targetIds);
-            const byCanonical = new Map();
-            detailed.forEach(item => {
-              const canonical = pbCanonicalLocalId(entry.store, item.localId);
-              if (canonical) byCanonical.set(canonical, item);
-            });
-            targetIds.forEach(canonical => {
-              const item = byCanonical.get(canonical);
-              /* نبودِ رکورد روی سرور را بازبینی فهرست تشخیص می‌دهد */
-              if (!item) return;
-              if (hasPendingChange(entry.store, canonical, item.localId).any) {
-                pendingSkipped++;
-                skippedCanonical.add(canonical);
-                return;
+          const storeIndex = PB_DOWNLOAD_STORES.indexOf(entry.store);
+          const inTurn = verifyState.mode !== 'maintain' ||
+            storeIndex === (verifyState.turn % Math.max(1, PB_DOWNLOAD_STORES.length));
+          if (inTurn) {
+            const storeSnapshot = localSnapshot.get(entry.store);
+            const knownIds = Object.keys(prevMap).sort();
+            const knownSet = new Set(knownIds);
+            let targetIds = [];
+            if (knownIds.length) {
+              if (explicitVerify) {
+                targetIds = knownIds.filter(id => !handledCanonical.has(id));
+              } else {
+                const total = knownIds.length;
+                const start = Math.max(0, Math.min(total, +verifyState.cursor[entry.collection] || 0));
+                const end = Math.min(total, start + PB_VERIFY_BATCH);
+                /* پس از پایان فهرست، پیمایش از ابتدا ادامه می‌یابد */
+                verifyState.cursor[entry.collection] = end >= total ? 0 : end;
+                targetIds = knownIds.slice(start, end)
+                  .filter(id => !handledCanonical.has(id));
               }
-              const updated = pbManifestTimestamp(item);
-              if (pbLocalValueMatches(storeSnapshot, canonical, item)) {
+            }
+            if (targetIds.length) {
+              setProgress('download', 62, `بررسی ${fa(targetIds.length)} رکورد — ${entry.collection}`, true);
+              const detailed = explicitVerify
+                ? (await fetchOwnerRecords(pb, entry.collection, ownerId))
+                    .filter(item => knownSet.has(pbCanonicalLocalId(entry.store, item.localId)))
+                : await fetchRemoteValuesByLocalIds(pb, entry.collection, ownerId, targetIds);
+              const byCanonical = new Map();
+              detailed.forEach(item => {
+                const canonical = pbCanonicalLocalId(entry.store, item.localId);
+                if (canonical) byCanonical.set(canonical, item);
+              });
+              targetIds.forEach(canonical => {
+                const item = byCanonical.get(canonical);
+                /* نبودِ رکورد روی سرور را بازبینی فهرست تشخیص می‌دهد */
+                if (!item) return;
+                if (hasPendingChange(entry.store, canonical, item.localId).any) {
+                  pendingSkipped++;
+                  skippedCanonical.add(canonical);
+                  return;
+                }
+                const updated = pbManifestTimestamp(item);
+                if (pbLocalValueMatches(storeSnapshot, canonical, item)) {
+                  if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
+                  return;
+                }
+                const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
+                if (!record) return;
+                puts.push({ store: entry.store, record });
+                acknowledge.push({ store: entry.store, id: record.id });
+                handledCanonical.add(canonical);
+                applied++;
                 if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
-                return;
-              }
-              const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
-              if (!record) return;
-              puts.push({ store: entry.store, record });
-              acknowledge.push({ store: entry.store, id: record.id });
-              handledCanonical.add(canonical);
-              applied++;
-              if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
-              if (updated && updated > (floor[entry.collection] || '')) floor[entry.collection] = updated;
-            });
+                if (updated && updated > (floor[entry.collection] || '')) floor[entry.collection] = updated;
+              });
+            }
           }
         }
 
@@ -1563,12 +1580,18 @@ async function performDownload(options = {}) {
       if (pendingSkipped) scheduleAutoUpload(600);
 
       if (verifyState) {
-        const complete = explicitVerify || syncStores.every(entry =>
-          entry.store === 'app-meta' ||
-          (+verifyState.cursor[entry.collection] || 0) >=
-            Object.keys(previousRemote[entry.collection] || {}).length
-        );
-        verifyState.done = complete;
+        if (verifyState.mode === 'maintain') {
+          /* هر چرخه مجموعهٔ بعدی؛ پیمایش همیشه ادامه دارد */
+          verifyState.turn = (verifyState.turn + 1) % Math.max(1, PB_DOWNLOAD_STORES.length);
+          verifyState.done = true;
+        } else if (verifyState.mode === 'full') {
+          /* پیمایش کامل وقتی تمام است که همهٔ مجموعه‌ها یک دور کامل شده باشند */
+          verifyState.done = PB_DOWNLOAD_STORES.every(store =>
+            (+verifyState.cursor[pbCollectionName(store)] || 0) === 0
+          );
+        } else {
+          verifyState.done = true;
+        }
       }
 
       if (!applied && !trackerChangedRemotely) {
@@ -1762,10 +1785,12 @@ async function loginWithPassword(email, password, serverUrl) {
     save();
     await flushStorage().catch(() => {});
   }
+  startRealtimePush();
   return true;
 }
 
 function logoutPocketBase() {
+  stopRealtimePush();
   clearLegacyToken();
   try {
     if (pocketBaseClient && pocketBaseClient.authStore) pocketBaseClient.authStore.clear();
@@ -1774,6 +1799,107 @@ function logoutPocketBase() {
   syncNotice = null;
   resetProgress();
   stopAutoSyncTimers();
+  stopRealtimePush();
+}
+
+/* ============ realtime push (PocketBase SSE) ============ */
+/* دریافت زنده: سرور هر تغییر را همان لحظه اعلام می‌کند، بنابراین لازم نیست
+   برنامه مدام برای «چیزی تازه هست؟» سرور را بپرسد. اگر اتصال ممکن نباشد
+   (پراکسی، مرورگر قدیمی، آفلاین) بی‌صدا به همان کاوش دوره‌ای برمی‌گردیم. */
+const REALTIME_RETRY_MS = 5 * 60 * 1000;
+const realtimePush = {
+  supported: typeof EventSource !== 'undefined',
+  started: false,
+  connected: false,
+  identity: '',
+  unsubs: [],
+  lastEventAt: 0,
+  failedAt: 0
+};
+
+function realtimeIdentity() {
+  try {
+    if (!isLoggedIn()) return '';
+    const pb = getPocketBaseClient();
+    const owner = pocketBaseUserId(pb);
+    if (!owner) return '';
+    return normalizeBaseUrl(pocketBaseBaseUrl()) + '|' + owner;
+  } catch (e) { return ''; }
+}
+function stopRealtimePush() {
+  const unsubs = realtimePush.unsubs;
+  realtimePush.started = false;
+  realtimePush.connected = false;
+  realtimePush.identity = '';
+  realtimePush.unsubs = [];
+  unsubs.forEach(unsub => {
+    try {
+      const out = unsub();
+      if (out && typeof out.catch === 'function') out.catch(() => {});
+    } catch (e) {}
+  });
+  renderSyncUI();
+  return Promise.resolve();
+}
+async function startRealtimePush() {
+  if (!realtimePush.supported) return false;
+  if (!autoSyncEnabled || !isLoggedIn()) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  try { if (document.hidden) return false; } catch (e) {}
+  const identity = realtimeIdentity();
+  if (!identity) return false;
+  if (realtimePush.connected || (realtimePush.started && realtimePush.identity === identity)) return realtimePush.connected;
+  if (Date.now() - realtimePush.failedAt < REALTIME_RETRY_MS) return false;
+  await stopRealtimePush();
+  realtimePush.started = true;
+  realtimePush.identity = identity;
+  try {
+    const pb = getPocketBaseClient();
+    const ownerId = pocketBaseUserId(pb);
+    const collections = [...new Set(PB_DOWNLOAD_STORES.map(pbCollectionName))];
+    for (const collection of collections) {
+      const store = pbStoreForCollection(collection);
+      const unsub = await pb.collection(collection).subscribe('*', event => {
+        handleRealtimeEvent(store, collection, event, ownerId);
+      });
+      if (!realtimePush.started || realtimePush.identity !== identity) {
+        try { const out = unsub(); if (out && typeof out.catch === 'function') out.catch(() => {}); } catch (e) {}
+        return false;
+      }
+      realtimePush.unsubs.push(unsub);
+    }
+    realtimePush.connected = true;
+    renderSyncUI();
+    return true;
+  } catch (error) {
+    console.warn('[PB] realtime unavailable:', error && error.message ? error.message : error);
+    realtimePush.failedAt = Date.now();
+    await stopRealtimePush();
+    return false;
+  }
+}
+/* رویداد سرور فقط «یک تغییر هست» را اعلام می‌کند؛ اعمال آن با همان مسیر
+   تدریجیِ آزموده‌شده انجام می‌شود تا ادغام فیلدها و ویرایش‌های معلق حفظ شوند. */
+function handleRealtimeEvent(store, collection, event, ownerId) {
+  try {
+    if (!event || !event.record) return;
+    if (event.record.owner && ownerId && event.record.owner !== ownerId) return;
+    if (!isLoggedIn()) return;
+    realtimePush.lastEventAt = Date.now();
+    realtimePending = true;
+    const server = normalizeBaseUrl(pocketBaseBaseUrl());
+    const meta = loadSyncMeta(server, ownerId);
+    const canonical = pbCanonicalLocalId(store, event.record.localId);
+    if (canonical && event.action !== 'delete' && meta && meta.remote && meta.remote[collection]) {
+      const stamp = pbManifestTimestamp(event.record);
+      const known = meta.remote[collection][canonical];
+      /* پژواک نوشتن خودمان یا رکوردی که همین حالا اعمال شده */
+      if (stamp && known && stamp <= known) return;
+    }
+    scheduleAutoCycle(700, 'realtime');
+  } catch (error) {
+    console.warn('[PB] realtime event failed:', error);
+  }
 }
 
 /* ============ automatic sync engine ============ */
@@ -1804,6 +1930,7 @@ let lastCycleAt = 0;
 let lastDownloadAt = 0;
 let lastProbeAt = 0;
 let probeInFlight = false;
+let realtimePending = false;
 let lastAutoStatus = 'idle';
 let pendingBadgeToken = 0;
 
@@ -1816,8 +1943,8 @@ function readAutoSyncEnabled() {
 function setAutoSyncEnabled(enabled) {
   autoSyncEnabled = !!enabled;
   try { localStorage.setItem(AUTO_SYNC_ENABLED_KEY, autoSyncEnabled ? '1' : '0'); } catch (e) {}
-  if (!autoSyncEnabled) stopAutoSyncTimers();
-  else scheduleAutoUpload(700);
+  if (!autoSyncEnabled) { stopAutoSyncTimers(); stopRealtimePush(); }
+  else { scheduleAutoUpload(700); startRealtimePush(); }
   renderSyncUI();
   refreshPendingBadge();
 }
@@ -1918,6 +2045,8 @@ async function syncCycle(options = {}) {
   }
   if (syncBusy || autoSyncRunning) {
     if (!manual) autoSyncPending = true;
+    /* رویداد زنده نباید در میان یک چرخهٔ دیگر گم شود */
+    if (reason === 'realtime' || reason === 'probe') realtimePending = true;
     return { ok: false, busy: true };
   }
   if (!manual) {
@@ -1925,7 +2054,8 @@ async function syncCycle(options = {}) {
     if (cooldown > 0) { scheduleAutoCycle(cooldown, reason); return { ok: false, cooldown: true }; }
     /* وقتی سرور واقعاً تغییر کرده یا کاربر تازه به برنامه برگشته،
        فاصلهٔ ۳۰ ثانیه‌ای چرخه نباید اعمال تغییر را عقب بیندازد. */
-    const urgent = reason === 'probe' || reason === 'visible' || reason === 'focus' || reason === 'online';
+    const urgent = reason === 'probe' || reason === 'visible' || reason === 'focus' ||
+      reason === 'online' || reason === 'realtime';
     const minGap = reason === 'local-change' ? AUTO_LOCAL_CHANGE_GAP : AUTO_MIN_CYCLE_GAP;
     const gap = minGap - (Date.now() - lastCycleAt);
     if (lastCycleAt && gap > 0 && !urgent) {
@@ -1983,8 +2113,9 @@ async function syncCycle(options = {}) {
       registerAutoFailure(uploadFailure);
     }
 
-    /* کاوش سرور یعنی تغییر واقعی پیدا شده؛ دریافت نباید به فاصلهٔ ۶۰ ثانیه‌ای محدود شود */
-    const forceDownload = manual || reason === 'probe';
+    /* کاوش سرور یا رویداد زنده یعنی تغییر واقعی پیدا شده؛ دریافت نباید به
+       فاصلهٔ ۶۰ ثانیه‌ای محدود شود */
+    const forceDownload = manual || reason === 'probe' || reason === 'realtime';
     const downloadAllowed = forceDownload || firstSync || (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP);
     if (!downloadAllowed) {
       outcome = uploadFailed
@@ -2002,6 +2133,8 @@ async function syncCycle(options = {}) {
       return outcome;
     }
 
+    /* تغییرهایی که همین حالا اعلام شده‌اند با همین دریافت خوانده می‌شوند */
+    realtimePending = false;
     const down = await performDownload({ silent: true, deferCheck: false });
     if (down && down.ok) {
       lastDownloadAt = Date.now();
@@ -2031,6 +2164,11 @@ async function syncCycle(options = {}) {
     return { ok: false, error: syncError };
   } finally {
     autoSyncRunning = false;
+    if (realtimePending) {
+      /* رویدادی که هنگام این چرخه رسید، در چرخهٔ بعدی (فوری) خوانده می‌شود */
+      realtimePending = false;
+      scheduleAutoCycle(500, 'realtime');
+    }
     if (autoSyncPending) {
       autoSyncPending = false;
       scheduleAutoUpload(400);
@@ -2083,6 +2221,7 @@ function onSettingsOpen() {
   renderSyncUI();
   refreshPendingBadge();
   if (!autoSyncEnabled || !isLoggedIn()) return;
+  startRealtimePush();
   if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(600, 'settings');
 }
 /* کاوش ارزان: آیا روی سرور رکوردی تازه‌تر از آخرین وضعیت شناخته‌شده هست؟
@@ -2183,28 +2322,37 @@ function startAutoSync() {
   };
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { flushPendingUploadOnHide(); return; }
+    if (document.hidden) { stopRealtimePush(); flushPendingUploadOnHide(); return; }
     if (!autoSyncEnabled || !isLoggedIn()) return;
+    startRealtimePush();
     if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(600, 'visible');
     else maybeProbeRemoteChanges(true);
   });
   window.addEventListener('pagehide', flushPendingUploadOnHide);
   window.addEventListener('online', () => {
     renderSyncUI();
-    if (autoSyncEnabled && isLoggedIn()) scheduleAutoCycle(1500, 'online');
+    if (autoSyncEnabled && isLoggedIn()) {
+      startRealtimePush();
+      scheduleAutoCycle(1500, 'online');
+    }
   });
-  window.addEventListener('offline', () => { lastAutoStatus = 'offline'; renderSyncUI(); });
+  window.addEventListener('offline', () => { lastAutoStatus = 'offline'; stopRealtimePush(); renderSyncUI(); });
   window.addEventListener('focus', () => {
     if (!autoSyncEnabled || !isLoggedIn() || document.hidden) return;
+    startRealtimePush();
     if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(800, 'focus');
     else maybeProbeRemoteChanges(true);
   });
   setInterval(() => {
     if (document.hidden || !autoSyncEnabled || !isLoggedIn()) return;
-    if (Date.now() - lastDownloadAt >= AUTO_POLL_INTERVAL) scheduleAutoCycle(0, 'poll');
-    else maybeProbeRemoteChanges();
+    if (Date.now() - lastDownloadAt >= AUTO_POLL_INTERVAL) { scheduleAutoCycle(0, 'poll'); return; }
+    /* با اتصال زنده، پرس‌وجوی دقیقه‌ای لازم نیست؛ همان پایش ده‌دقیقه‌ای می‌ماند */
+    if (realtimePush.connected) return;
+    startRealtimePush();
+    maybeProbeRemoteChanges();
   }, 60000);
 
+  startRealtimePush();
   scheduleAutoCycle(4000, 'startup');
 }
 function refreshPendingBadge() {
@@ -2250,6 +2398,7 @@ function syncFootText(online, lastSync) {
   if (!online) return 'اتصال اینترنت برقرار نیست؛ پس از برقراری، همگام‌سازی خودکار ادامه می‌یابد.';
   if (!autoSyncEnabled) return 'همگام‌سازی خودکار خاموش است؛ با دکمهٔ بالا دستی همگام کن.';
   if (lastAutoStatus === 'syncing') return 'در حال بررسی تغییرات…';
+  if (realtimePush.connected) return `دریافت زنده فعال است؛ آخرین بررسی: ${lastSync}`;
   return `آخرین بررسی: ${lastSync}`;
 }
 
@@ -2304,7 +2453,7 @@ function renderSyncUI() {
       ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
 
       <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
-      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.6</div>
+      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.7</div>
     `;
 
     if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);
@@ -2413,6 +2562,12 @@ window.pocketBaseSync = {
   onSettingsOpen,
   isAutoSyncEnabled: () => autoSyncEnabled,
   setAutoSyncEnabled,
+  realtimeStatus: () => ({
+    supported: realtimePush.supported,
+    connected: realtimePush.connected,
+    lastEventAt: realtimePush.lastEventAt
+  }),
+  startRealtime: startRealtimePush,
   login: loginWithPassword,
   logout: logoutPocketBase,
   render: renderSyncUI

@@ -18504,7 +18504,7 @@ function pbSameJsonValue(a, b) {
 /* آیا سرور مقدار ارسالی را ذخیره نکرده است؟ فقط کلیدهای ارسالی بررسی
    می‌شوند تا فیلدهای اضافه‌ای که سرور برمی‌گرداند خطا ایجاد نکنند. */
 function pbValueDrift(sent, saved) {
-  if (sent === undefined) return false;
+  if (sent === undefined || sent === null) return false;
   if (saved === undefined || saved === null) return true;
   if (typeof sent !== 'object' || sent === null || Array.isArray(sent)) {
     return !pbSameJsonValue(sent, saved);

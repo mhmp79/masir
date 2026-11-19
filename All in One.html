@@ -20123,6 +20123,7 @@ function renderSyncUI() {
       ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
 
       <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
+      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.4</div>
     `;
 
     if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);

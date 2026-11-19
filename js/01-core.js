@@ -949,6 +949,7 @@ function applyLocalStorageMutations(mutations){
       id:`${mutation.store}::${mutation.id}`,store:mutation.store,recordId:mutation.id,
       operation:mutation.operation,changedAt:Date.now(),deviceId:syncDeviceId,revision:newSyncRevision()
     };
+    if(Array.isArray(mutation.fields))change.fields=mutation.fields;
     if(mutation.operation==='delete'){
       const oldValue=localStorage.getItem(key);
       localStorage.removeItem(key);
@@ -1115,6 +1116,7 @@ const appStateRepository={
           deviceId:syncDeviceId,
           revision:newSyncRevision()
         };
+        if(Array.isArray(mutation.fields))change.fields=mutation.fields;
         if(mutation.operation==='delete'){
           objectStore.delete(mutation.id);
           if(mutation.value!=null)change.payload=mutation.record();
@@ -1180,6 +1182,31 @@ function unwrapStorageValue(value){
   if(Array.isArray(value))return value.map(rawStorageValue);
   return rawStorageValue(value);
 }
+/* برای مقایسهٔ فیلدها؛ فقط برای تشخیص این‌که کدام فیلدها واقعاً عوض شده‌اند */
+function storageFieldSignature(value){
+  try{return JSON.stringify(value===undefined?null:value);}catch(error){return undefined;}
+}
+/* فهرست فیلدهایی که بین دو نسخه از یک رکورد تغییر کرده‌اند.
+   خروجی undefined یعنی «نامشخص» (رکورد تازه) و باید کل مقدار ارسال شود. */
+function changedFieldNames(oldValue,nextValue){
+  const oldRaw=rawStorageValue(oldValue);
+  const nextRaw=rawStorageValue(nextValue);
+  if(!nextRaw||typeof nextRaw!=='object'||Array.isArray(nextRaw))return undefined;
+  if(!oldRaw||typeof oldRaw!=='object'||Array.isArray(oldRaw))return undefined;
+  const changed=[];
+  const keys=new Set([...Object.keys(oldRaw),...Object.keys(nextRaw)]);
+  keys.forEach(key=>{
+    const before=storageFieldSignature(oldRaw[key]);
+    const after=storageFieldSignature(nextRaw[key]);
+    if(before!==after)changed.push(key);
+  });
+  return changed;
+}
+function mergeMutationFields(existing,metadata){
+  if(!Array.isArray(metadata.fields))return metadata;
+  const current=existing&&existing.operation==='put'&&Array.isArray(existing.fields)?existing.fields:[];
+  return {...metadata,fields:[...new Set([...current,...metadata.fields])]};
+}
 function markStorageMutation(store,id,operation,value,metadata={}){
   if(id==null)return;
   const key=`${store}::${id}`;
@@ -1187,7 +1214,9 @@ function markStorageMutation(store,id,operation,value,metadata={}){
     pendingStorageMutations.set(key,{store,id:String(id),operation,value:rawStorageValue(value),...metadata});
     return;
   }
-  pendingStorageMutations.set(key,{store,id:String(id),operation:'put',value:rawStorageValue(value),...metadata});
+  const existing=pendingStorageMutations.get(key);
+  const merged=mergeMutationFields(existing,metadata);
+  pendingStorageMutations.set(key,{store,id:String(id),operation:'put',value:rawStorageValue(value),...merged});
 }
 function markStorageDeletion(store,id,value,metadata={}){
   markStorageMutation(store,id,'delete',value,metadata);
@@ -1211,9 +1240,16 @@ function markArrayReplacement(store,oldValue,newValue,metadata={}){
   oldById.forEach(({item},id)=>{if(!newById.has(id))markStorageDeletion(store,id,item,{...metadata});});
   newById.forEach(({item,index},id)=>{
     const old=oldById.get(id);
-    if(!old||old.index!==index||old.item!==item){
+    if(!old){
       markStorageMutation(store,id,'put',item,{...metadata,order:index});
+      return;
     }
+    /* فقط جابه‌جایی (بدون تغییر مقدار) هم ثبت می‌شود، ولی با فهرست فیلدهای
+       خالی؛ هنگام ارسال فقط «order» می‌رود و مقدار قدیمی رکورد را بازنویسی
+       نمی‌کند. این کار جلوی پاک‌شدن ویرایش تازهٔ دستگاه دیگر را می‌گیرد. */
+    const fields=changedFieldNames(old.item,item);
+    if(old.index===index&&fields&&!fields.length)return;
+    markStorageMutation(store,id,'put',item,{...metadata,order:index,fields});
   });
 }
 function markStorageCollection(store,oldValue,newValue){
@@ -1335,7 +1371,7 @@ function trackStorageState(value){
             if(String(oldValue)!==String(nextRaw))markStorageDeletion(context.store,context.id,object,{...context});
             const updatedId=entityIdFor(context.store,object,context.date);
             markStorageMutation(context.store,updatedId,'put',object,{...context,order:context.order});
-          }else markStorageMutation(context.store,context.id,'put',object,{...context,order:context.order});
+          }else markStorageMutation(context.store,context.id,'put',object,{...context,order:context.order,fields:[String(key)]});
           return true;
         }
         if(context.kind==='entity'&&context.store==='app-meta'){
@@ -1351,6 +1387,7 @@ function trackStorageState(value){
             const metadata=context.store==='questions'
               ?{examId:context.examId,order:index}
               :{order:index};
+            metadata.fields=changedFieldNames(oldRaw,nextRaw);
             markStorageMutation(context.store,nextId,'put',nextRaw,metadata);
           }
           return true;

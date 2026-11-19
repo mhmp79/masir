@@ -1,7 +1,7 @@
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۴)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۵)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
@@ -413,7 +413,7 @@ async function fetchRemoteIdMap(pb, collection, ownerId, localIds) {
     const filter = `owner="${pbFilterValue(ownerId)}" && (${localFilter})`;
     const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, chunk.length, {
       filter,
-      fields: 'id,localId,updated',
+      fields: 'id,localId,updated,value,order',
       skipTotal: true,
       requestKey: null
     }));
@@ -681,21 +681,45 @@ function buildUploadRecords() {
   return items;
 }
 
-function uploadRecordPayload(item, ownerId) {
+function uploadRecordPayload(item, ownerId, orderOnly) {
   const record = item.record || {};
   const data = { owner: ownerId, localId: item.localId };
-  if (record.value !== undefined) {
-    data.value = record.value;
-  } else {
-    const value = { ...record };
-    delete value.id;
-    delete value.order;
-    delete value.examId;
-    data.value = value;
+  if (!orderOnly) {
+    if (record.value !== undefined) {
+      data.value = record.value;
+    } else {
+      const value = { ...record };
+      delete value.id;
+      delete value.order;
+      delete value.examId;
+      data.value = value;
+    }
   }
   if (record.order !== undefined && record.order !== null) data.order = record.order;
   if (record.examId) data.examId = record.examId;
   return data;
+}
+
+/* فقط فیلدهایی که کاربر روی همین دستگاه عوض کرده است برداشته می‌شود */
+function pbPickValueFields(value, fields) {
+  const picked = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Array.isArray(fields)) return picked;
+  fields.forEach(field => {
+    if (Object.prototype.hasOwnProperty.call(value, field)) picked[field] = value[field];
+  });
+  return picked;
+}
+
+/*
+ * ادغام مقدار سرور با فیلدهای تغییرکردهٔ محلی.
+ * پایهٔ ادغام نسخهٔ سرور است تا ویرایش‌های دستگاه‌های دیگر پاک نشود؛
+ * فقط فیلدهایی که کاربر همین‌جا عوض کرده روی آن نوشته می‌شود.
+ */
+function pbMergeValueWithFields(remoteValue, localValue, fields) {
+  const base = remoteValue && typeof remoteValue === 'object' && !Array.isArray(remoteValue)
+    ? { ...remoteValue }
+    : {};
+  return { ...base, ...pbPickValueFields(localValue, fields) };
 }
 
 /*
@@ -706,31 +730,43 @@ function uploadRecordPayload(item, ownerId) {
  *   سرور مقدار را ذخیره نکرده باشد خطا برگردانده می‌شود تا تغییر «تأیید»
  *   نشود و در صف ارسال بماند.
  */
-async function upsertRemoteRecord(pb, item, ownerId, remoteByLocalId) {
-  const data = uploadRecordPayload(item, ownerId);
+async function upsertRemoteRecord(pb, item, ownerId, remoteByLocalId, change) {
   const existing = remoteByLocalId && remoteByLocalId.get(item.localId);
+  const fields = change && Array.isArray(change.fields) ? change.fields : null;
+  /* تغییر «فقط ترتیب» نباید مقدار رکورد را بازنویسی کند؛ فقط order می‌رود */
+  const orderOnly = !!(fields && !fields.length && existing && existing.id);
+  /* نوشتن جزئی (فقط order یا مقدارِ ادغام‌شده) یعنی نسخهٔ محلی هنوز کاملاً
+     با سرور یکی نیست؛ زمان سرور نباید به‌عنوان «دیده‌شده» ثبت شود. */
+  const partial = !!(fields && existing && existing.id);
+  const data = uploadRecordPayload(item, ownerId, orderOnly);
+  if (!orderOnly && fields && fields.length && existing && existing.value !== undefined) {
+    data.value = pbMergeValueWithFields(existing.value, item.record && item.record.value, fields);
+  }
+  const fullData = () => uploadRecordPayload(item, ownerId, false);
 
   const ensureStored = saved => {
     if (!saved) return saved;
+    if (data.value === undefined) return saved;
     if (!pbValueDrift(data.value, saved.value)) return saved;
     const error = new Error(`سرور مقدار «${item.collection}» را ذخیره نکرد`);
     error.status = 409;
     error.valueDrift = true;
     throw error;
   };
-  const updateById = id => pb.collection(item.collection).update(id, data, { requestKey: null });
+  const updateById = (id, payload = data) => pb.collection(item.collection).update(id, payload, { requestKey: null });
   const createOrAdopt = async () => {
+    const payload = orderOnly ? fullData() : data;
     try {
-      return await pb.collection(item.collection).create(data, { requestKey: null });
+      return await pb.collection(item.collection).create(payload, { requestKey: null });
     } catch (error) {
       if (!isUniqueConflictError(error) && !isMissingRecordError(error)) throw error;
       const found = await findExistingRecord(pb, item.collection, ownerId, item.localId);
       if (!found || !found.id) throw error;
-      return await updateById(found.id);
+      return await updateById(found.id, payload);
     }
   };
 
-  return await withRateLimitRetry(async () => {
+  const record = await withRateLimitRetry(async () => {
     if (existing && existing.id) {
       try {
         return ensureStored(await updateById(existing.id));
@@ -745,6 +781,7 @@ async function upsertRemoteRecord(pb, item, ownerId, remoteByLocalId) {
     }
     return ensureStored(await createOrAdopt());
   });
+  return { record, partial };
 }
 
 /*
@@ -905,6 +942,7 @@ async function performUpload(options = {}) {
     /* فاز ۲: نوشتن فقط تغییرات */
     const errors = [];
     const results = new Map(); // collection -> Map(localId -> saved record)
+    const partialWrites = new Set();
     const deleted = [];
 
     await mapLimit(ops, 4, async op => {
@@ -916,11 +954,13 @@ async function performUpload(options = {}) {
           }
           op.ok = true;
         } else {
-          const saved = await upsertRemoteRecord(pb, op.item, ownerId, remoteMaps.get(op.item.collection));
+          const outcome = await upsertRemoteRecord(pb, op.item, ownerId, remoteMaps.get(op.item.collection), op.change);
+          const saved = outcome && outcome.record;
           if (saved) {
             if (!results.has(op.item.collection)) results.set(op.item.collection, new Map());
             results.get(op.item.collection).set(op.item.localId, saved);
           }
+          if (outcome && outcome.partial) partialWrites.add(`${op.item.collection}::${op.item.localId}`);
           op.ok = true;
         }
       } catch (error) {
@@ -985,6 +1025,17 @@ async function performUpload(options = {}) {
       map.forEach((record, localId) => {
         nextRemote[collection][pbCanonicalLocalId(store, localId)] = pbManifestTimestamp(record);
       });
+    });
+    /* نوشتن جزئی (فقط order یا مقدار ادغام‌شده) نسخهٔ محلی را کامل با سرور
+       هم‌تراز نمی‌کند؛ پس زمان سرور به‌عنوان «دیده‌شده» ثبت نمی‌شود تا دریافت
+       همان چرخه کل مقدار تازهٔ سرور را بیاورد و تغییری گم نشود. */
+    partialWrites.forEach(key => {
+      const separator = key.indexOf('::');
+      if (separator < 0) return;
+      const collection = key.slice(0, separator);
+      const localId = key.slice(separator + 2);
+      const store = pbStoreForCollection(collection);
+      if (nextRemote[collection]) delete nextRemote[collection][pbCanonicalLocalId(store, localId)];
     });
     deleted.forEach(({ collection, localId }) => {
       const store = pbStoreForCollection(collection);
@@ -1289,18 +1340,22 @@ async function performDownload(options = {}) {
         const seen = new Set();
         const missingValues = [];
         const missingCanonical = new Set();
+        /* رکوردهایی که به‌خاطر تغییر محلی در انتظار ارسال اعمال نشدند.
+           زمان آن‌ها در فراداده ثبت نمی‌شود تا ویرایش دستگاه دیگر برای همیشه
+           پنهان نماند و کاوش بعدی دوباره آن را پیدا کند. */
+        const skippedCanonical = new Set();
 
         (info.records || []).forEach(item => {
           const canonical = pbCanonicalLocalId(entry.store, item.localId);
           if (!canonical) return;
           const updated = pbManifestTimestamp(item);
-          nextMap[canonical] = updated;
           seen.add(canonical);
 
           if (info.full) {
             /* تغییر محلی در انتظار ارسال برنده است؛ مقدار سرور اعمال نمی‌شود */
             const pending = hasPendingChange(entry.store, canonical, item.localId);
-            if (pending.any) { pendingSkipped++; return; }
+            if (pending.any) { pendingSkipped++; skippedCanonical.add(canonical); return; }
+            nextMap[canonical] = updated;
             const unchanged = prevMap[canonical] === updated;
             let needsValue = !unchanged;
             if (!needsValue && deepCheck) {
@@ -1327,8 +1382,10 @@ async function performDownload(options = {}) {
           if (hasPendingChange(entry.store, canonical, item.localId).any) {
             /* ویرایش/حذف تازهٔ همین دستگاه هنوز ارسال نشده است */
             pendingSkipped++;
+            skippedCanonical.add(canonical);
             return;
           }
+          nextMap[canonical] = updated;
 
           if (entry.store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
             remoteTracker = item.value;
@@ -1363,6 +1420,8 @@ async function performDownload(options = {}) {
             if (!canonical) return;
             if (hasPendingChange(entry.store, canonical, item.localId).any) {
               pendingSkipped++;
+              delete nextMap[canonical];
+              skippedCanonical.add(canonical);
               return;
             }
             if (entry.store === 'app-meta') {
@@ -1389,7 +1448,15 @@ async function performDownload(options = {}) {
           });
         }
 
-        const observedMax = maxUpdatedTimestamp(info.records);
+        /* رکوردهای کنارگذاشته‌شده «تازه‌ترین زمان شناخته‌شده» را بالا نمی‌برند؛
+           وگرنه کاوش بعدی فکر می‌کند همه‌چیز دیده شده و آن تغییر گم می‌شود. */
+        const observedRecords = skippedCanonical.size
+          ? (info.records || []).filter(item => {
+              const canonical = pbCanonicalLocalId(entry.store, item.localId);
+              return !canonical || !skippedCanonical.has(canonical);
+            })
+          : (info.records || []);
+        const observedMax = maxUpdatedTimestamp(observedRecords);
         if (observedMax && observedMax > (floor[entry.collection] || '')) floor[entry.collection] = observedMax;
         if (typeof info.count === 'number') counts[entry.collection] = info.count;
         nextRemote[entry.collection] = nextMap;
@@ -2104,7 +2171,7 @@ function renderSyncUI() {
       ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
 
       <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
-      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.4</div>
+      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.5</div>
     `;
 
     if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);

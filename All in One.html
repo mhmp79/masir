@@ -5119,7 +5119,6 @@ input.ex-subj{
 .sync-pending.pending{color:#fcd34d}
 .sync-now-btn{width:100%;margin-top:12px;white-space:nowrap}
 .sync-profile-details .sync-now-btn{width:100%}
-.sync-repair-btn{width:100%;margin-top:8px;white-space:nowrap;font-size:12px}
 .sync-auto-foot{
   margin-top:12px;padding-top:10px;
   border-top:1px solid rgba(255,255,255,.08);
@@ -5160,7 +5159,6 @@ input.ex-subj{
   .sync-auto-toggle{padding:11px 12px}
   .sync-progress{padding:11px 12px}
   .sync-now-btn{font-size:12px;padding:11px 12px}
-  .sync-repair-btn{font-size:11.5px;padding:10px 12px}
 }
 
 /* Backup import warning */
@@ -18083,7 +18081,7 @@ const PB_SYNC_META_VERSION = 3;
 /* نسخهٔ بازبینی سلامت: یک‌بار پس از این ارتقا رکوردهای ناقص محلی ترمیم می‌شوند.
    نسخهٔ ۴ علاوه بر ترمیم رکوردهای ناقص، مقدار رکوردهایی را که نسخه‌های قبلی
    «دیده‌شده» ثبت کرده بودند ولی هرگز اعمال نکرده بودند دوباره مقایسه می‌کند. */
-const PB_SYNC_INTEGRITY_VERSION = 4;
+const PB_SYNC_INTEGRITY_VERSION = 5;
 const PB_SYNC_META_LIMIT = 3;
 const PB_MANIFEST_FIELDS = 'id,localId,updated';
 const PB_DELETE_CHECK_GAP = 24 * 60 * 60 * 1000;
@@ -19284,29 +19282,22 @@ async function performDownload(options = {}) {
       const previousRemote = meta.remote || {};
       const previousCounts = meta.counts || {};
       const previousFloor = meta.floor || {};
-      /* «ترمیم خودکار»: نسخه‌های قبلی می‌توانستند زمان تغییر یک رکورد را
-         «دیده‌شده» ثبت کنند بدون آن‌که مقدارش روی دستگاه اعمال شود؛ نتیجه
-         این بود که هر دو دستگاه خود را «به‌روز» می‌دانستند ولی مقدارها فرق
-         داشت. پس مقدار رکوردهای شناخته‌شده همیشه — نه فقط یک‌بار — تکه‌تکه
-         با سرور مقایسه می‌شود و فقط تفاوت‌ها نوشته می‌شوند.
-         سه حالت:
-           repair : همهٔ رکوردها در همین چرخه (دکمهٔ ترمیم)
-           full   : پس از ارتقای نسخهٔ سلامت، همهٔ مجموعه‌ها تا پایان پیمایش
-           maintain : در هر چرخه یک مجموعه به‌صورت چرخشی (هزینهٔ ثابت و کم) */
-      const explicitVerify = !!options.verify;
+      /* "هر سینک = ترمیم کامل": نسخههای قبلی میتوانستند زمان تغییر رکوردی را
+         «دیدهشده» ثبت کنند بدون آنکه مقدارش روی دستگاه اعمال شود؛ نتیجه
+         اینکه هر دو دستگاه خود را بهروز میدانستند ولی مقدارها فرق داشت.
+         از این پس زمانی که مقدار هر رکورد آخرین بار واقعاً با سرور مقایسه
+         شده (`checked`) نگهداری میشود. در هر چرخه، رکوردهایی که زمانشان با
+         زمان بررسیشده فرق دارد دوباره خوانده و مقایسه میشوند — همان اطمینان
+         دکمه ترمیم، بدون انتقال مجدد رکوردهای تغیینکرده. */
+      const explicitVerify = !!options.verify || !!options.full;
       const integrityOutdated = meta.integrity !== PB_SYNC_INTEGRITY_VERSION;
-      const previousVerify = (meta && meta.verify && meta.verify.version === PB_SYNC_INTEGRITY_VERSION)
-        ? meta.verify : null;
-      /* پیمایش کامل ممکن است چند چرخه طول بکشد؛ نباید نیمه‌کاره رها شود */
-      const unfinishedFull = !!previousVerify && previousVerify.mode === 'full' && !previousVerify.done;
-      const verifyMode = explicitVerify ? 'repair' : (integrityOutdated || unfinishedFull) ? 'full' : 'maintain';
-      const verifyState = {
-        version: PB_SYNC_INTEGRITY_VERSION,
-        mode: verifyMode,
-        cursor: { ...((previousVerify && previousVerify.cursor) || {}) },
-        turn: (+((previousVerify && previousVerify.turn) || 0)) || 0,
-        done: verifyMode === 'maintain'
-      };
+      const previousChecked = (meta && meta.checked && typeof meta.checked === 'object')
+        ? meta.checked : {};
+      const nextChecked = {};
+      Object.keys(previousChecked).forEach(collection => {
+        nextChecked[collection] = { ...(previousChecked[collection] || {}) };
+      });
+      const verifyState = { version: PB_SYNC_INTEGRITY_VERSION, mode: 'all', done: true };
       const now = Date.now();
       /* حذف رکورد در فیلتر `updated` دیده نمی‌شود. به‌جای بازخوانی دوره‌ای کل
          فهرست‌ها، «حساب تعداد» انجام می‌شود: تعداد رکوردهای سرور باید برابر
@@ -19435,6 +19426,7 @@ async function performDownload(options = {}) {
         const info = fetchedByStore.get(entry.store) || { records: [], full: false, count: 0 };
         const prevMap = previousRemote[entry.collection] || {};
         const nextMap = info.full ? {} : { ...prevMap };
+        const checkedMap = nextChecked[entry.collection] || (nextChecked[entry.collection] = {});
         const seen = new Set();
         const missingValues = [];
         const missingCanonical = new Set();
@@ -19486,6 +19478,7 @@ async function performDownload(options = {}) {
             return;
           }
           nextMap[canonical] = updated;
+          checkedMap[canonical] = updated;
 
           if (entry.store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
             remoteTracker = item.value;
@@ -19519,6 +19512,7 @@ async function performDownload(options = {}) {
           detailed.forEach(item => {
             const canonical = pbCanonicalLocalId(entry.store, item.localId);
             if (!canonical) return;
+            const itemUpdated = pbManifestTimestamp(item);
             if (hasPendingChange(entry.store, canonical, item.localId).any) {
               pendingSkipped++;
               delete nextMap[canonical];
@@ -19527,6 +19521,7 @@ async function performDownload(options = {}) {
             }
             if (entry.store === 'app-meta') {
               if (canonical === POCKETBASE_TRACKER_ID) {
+                checkedMap[canonical] = itemUpdated;
                 if (pbSameJsonValue(item.value, currentTrackerPayload())) return;
                 remoteTracker = item.value;
                 trackerChangedRemotely = true;
@@ -19537,7 +19532,10 @@ async function performDownload(options = {}) {
               if (localJson) {
                 try {
                   const local = JSON.parse(localJson);
-                  if (pbSameJsonValue(local.value, item.value)) return;
+                  if (pbSameJsonValue(local.value, item.value)) {
+                    checkedMap[canonical] = itemUpdated;
+                    return;
+                  }
                 } catch (error) {}
               }
             }
@@ -19546,6 +19544,7 @@ async function performDownload(options = {}) {
             puts.push({ store: entry.store, record });
             acknowledge.push({ store: entry.store, id: record.id });
             handledCanonical.add(canonical);
+            checkedMap[canonical] = itemUpdated;
             applied++;
           });
         }
@@ -19556,67 +19555,50 @@ async function performDownload(options = {}) {
             if (!handledCanonical.has(canonical)) delete nextMap[canonical];
           });
         }
-
-        /* ترمیم خودکار: مقدار بخشی از رکوردهای شناخته‌شده با سرور مقایسه
-           می‌شود و تنها تفاوت‌ها نوشته می‌شوند. در حالت نگه‌داری، در هر
-           چرخه فقط یک مجموعه به‌صورت چرخشی بررسی می‌شود تا هزینه ثابت بماند. */
-        if (verifyState && entry.store !== 'app-meta') {
-          const storeIndex = PB_DOWNLOAD_STORES.indexOf(entry.store);
-          const inTurn = verifyState.mode !== 'maintain' ||
-            storeIndex === (verifyState.turn % Math.max(1, PB_DOWNLOAD_STORES.length));
-          if (inTurn) {
-            const storeSnapshot = localSnapshot.get(entry.store);
-            const knownIds = Object.keys(prevMap).sort();
-            const knownSet = new Set(knownIds);
-            let targetIds = [];
-            if (knownIds.length) {
-              if (explicitVerify) {
-                targetIds = knownIds.filter(id => !handledCanonical.has(id));
-              } else {
-                const total = knownIds.length;
-                const start = Math.max(0, Math.min(total, +verifyState.cursor[entry.collection] || 0));
-                const end = Math.min(total, start + PB_VERIFY_BATCH);
-                /* پس از پایان فهرست، پیمایش از ابتدا ادامه می‌یابد */
-                verifyState.cursor[entry.collection] = end >= total ? 0 : end;
-                targetIds = knownIds.slice(start, end)
-                  .filter(id => !handledCanonical.has(id));
+        /* هر سینک = ترمیم: رکوردهای شناختهشدهای که زمانشان با آخرین بررسی
+           واقعی فرق دارد دوباره خوانده و با مقدار محلی مقایسه میشوند. */
+        if (entry.store !== 'app-meta') {
+          const storeSnapshot = localSnapshot.get(entry.store);
+          const knownIds = Object.keys(prevMap).sort();
+          const targetIds = knownIds.filter(canonical => {
+            if (handledCanonical.has(canonical) || skippedCanonical.has(canonical)) return false;
+            if (explicitVerify || integrityOutdated) return true;
+            const stamp = prevMap[canonical];
+            return !stamp || checkedMap[canonical] !== stamp;
+          });
+          if (targetIds.length) {
+            setProgress('download', 62, `بررسی ${fa(targetIds.length)} رکورد — ${entry.collection}`, true);
+            const detailed = await fetchRemoteValuesByLocalIds(pb, entry.collection, ownerId, targetIds);
+            const byCanonical = new Map();
+            detailed.forEach(item => {
+              const canonical = pbCanonicalLocalId(entry.store, item.localId);
+              if (canonical) byCanonical.set(canonical, item);
+            });
+            targetIds.forEach(canonical => {
+              const item = byCanonical.get(canonical);
+              /* نبود رکورد روی سرور را بازبینی فهرست تشخیص میدهد */
+              if (!item) return;
+              if (hasPendingChange(entry.store, canonical, item.localId).any) {
+                pendingSkipped++;
+                skippedCanonical.add(canonical);
+                return;
               }
-            }
-            if (targetIds.length) {
-              setProgress('download', 62, `بررسی ${fa(targetIds.length)} رکورد — ${entry.collection}`, true);
-              const detailed = explicitVerify
-                ? (await fetchOwnerRecords(pb, entry.collection, ownerId))
-                    .filter(item => knownSet.has(pbCanonicalLocalId(entry.store, item.localId)))
-                : await fetchRemoteValuesByLocalIds(pb, entry.collection, ownerId, targetIds);
-              const byCanonical = new Map();
-              detailed.forEach(item => {
-                const canonical = pbCanonicalLocalId(entry.store, item.localId);
-                if (canonical) byCanonical.set(canonical, item);
-              });
-              targetIds.forEach(canonical => {
-                const item = byCanonical.get(canonical);
-                /* نبودِ رکورد روی سرور را بازبینی فهرست تشخیص می‌دهد */
-                if (!item) return;
-                if (hasPendingChange(entry.store, canonical, item.localId).any) {
-                  pendingSkipped++;
-                  skippedCanonical.add(canonical);
-                  return;
-                }
-                const updated = pbManifestTimestamp(item);
-                if (pbLocalValueMatches(storeSnapshot, canonical, item)) {
-                  if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
-                  return;
-                }
-                const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
-                if (!record) return;
-                puts.push({ store: entry.store, record });
-                acknowledge.push({ store: entry.store, id: record.id });
-                handledCanonical.add(canonical);
-                applied++;
+              const updated = pbManifestTimestamp(item);
+              if (pbLocalValueMatches(storeSnapshot, canonical, item)) {
+                checkedMap[canonical] = updated;
                 if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
-                if (updated && updated > (floor[entry.collection] || '')) floor[entry.collection] = updated;
-              });
-            }
+                return;
+              }
+              const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
+              if (!record) return;
+              puts.push({ store: entry.store, record });
+              acknowledge.push({ store: entry.store, id: record.id });
+              handledCanonical.add(canonical);
+              checkedMap[canonical] = updated;
+              applied++;
+              if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
+              if (updated && updated > (floor[entry.collection] || '')) floor[entry.collection] = updated;
+            });
           }
         }
 
@@ -19636,21 +19618,7 @@ async function performDownload(options = {}) {
 
       /* تغییرهای محلی‌ای که کنار گذاشته شدند باید هرچه زودتر ارسال شوند */
       if (pendingSkipped) scheduleAutoUpload(600);
-
-      if (verifyState) {
-        if (verifyState.mode === 'maintain') {
-          /* هر چرخه مجموعهٔ بعدی؛ پیمایش همیشه ادامه دارد */
-          verifyState.turn = (verifyState.turn + 1) % Math.max(1, PB_DOWNLOAD_STORES.length);
-          verifyState.done = true;
-        } else if (verifyState.mode === 'full') {
-          /* پیمایش کامل وقتی تمام است که همهٔ مجموعه‌ها یک دور کامل شده باشند */
-          verifyState.done = PB_DOWNLOAD_STORES.every(store =>
-            (+verifyState.cursor[pbCollectionName(store)] || 0) === 0
-          );
-        } else {
-          verifyState.done = true;
-        }
-      }
+      /* پیمایش چرخهای قدیمی جای خود را به بررسی کامل هر چرخه داد */
 
       if (!applied && !trackerChangedRemotely) {
         saveSyncMeta(server, ownerId, {
@@ -19661,6 +19629,7 @@ async function performDownload(options = {}) {
           countsAt: now,
           integrity: PB_SYNC_INTEGRITY_VERSION,
           verify: verifyState || meta.verify || null,
+          checked: nextChecked,
           lastSyncAt: now
         });
         setLastSyncTimestamp(now);
@@ -19686,12 +19655,14 @@ async function performDownload(options = {}) {
       }
 
       saveSyncMeta(server, ownerId, {
+        ...meta,
         remote: nextRemote,
         floor,
         counts,
         countsAt: now,
         integrity: PB_SYNC_INTEGRITY_VERSION,
         verify: verifyState || meta.verify || null,
+        checked: nextChecked,
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
         lastSyncAt: now
       });
@@ -19802,7 +19773,8 @@ async function performDownload(options = {}) {
       counts,
       countsAt: now,
       integrity: PB_SYNC_INTEGRITY_VERSION,
-      verify: { version: PB_SYNC_INTEGRITY_VERSION, cursor: {}, done: true },
+      verify: { version: PB_SYNC_INTEGRITY_VERSION, mode: 'all', done: true },
+      checked: nextRemote,
       tracker: remoteTracker ? JSON.stringify(remoteTracker) : null,
       lastSyncAt: now
     });
@@ -19954,7 +19926,7 @@ function handleRealtimeEvent(store, collection, event, ownerId) {
       /* پژواک نوشتن خودمان یا رکوردی که همین حالا اعمال شده */
       if (stamp && known && stamp <= known) return;
     }
-    scheduleAutoCycle(700, 'realtime');
+    scheduleAutoCycle(150, 'realtime');
   } catch (error) {
     console.warn('[PB] realtime event failed:', error);
   }
@@ -19962,11 +19934,11 @@ function handleRealtimeEvent(store, collection, event, ownerId) {
 
 /* ============ automatic sync engine ============ */
 const AUTO_SYNC_ENABLED_KEY = 'konkur-pb-auto-sync-v1';
-const AUTO_UPLOAD_DEBOUNCE = 4000;
+const AUTO_UPLOAD_DEBOUNCE = 300;
 const AUTO_MIN_CYCLE_GAP = 30000;
 /* تغییر محلی نباید ۳۰ ثانیه معطل بماند؛ فقط یک فاصلهٔ کوتاه برای ادغام
    چند ویرایش پشت‌سرهم لازم است. */
-const AUTO_LOCAL_CHANGE_GAP = 2000;
+const AUTO_LOCAL_CHANGE_GAP = 400;
 const AUTO_DOWNLOAD_MIN_GAP = 60000;
 const AUTO_POLL_INTERVAL = 10 * 60 * 1000;
 const AUTO_PROBE_GAP = 60000;
@@ -20193,7 +20165,10 @@ async function syncCycle(options = {}) {
 
     /* تغییرهایی که همین حالا اعلام شده‌اند با همین دریافت خوانده می‌شوند */
     realtimePending = false;
-    const down = await performDownload({ silent: true, deferCheck: false });
+    const downloadOptions = { silent: true, deferCheck: false };
+    if (options.verify) downloadOptions.verify = true;
+    if (options.full) downloadOptions.full = true;
+    const down = await performDownload(downloadOptions);
     if (down && down.ok) {
       lastDownloadAt = Date.now();
       if (uploadFailed) {
@@ -20225,7 +20200,7 @@ async function syncCycle(options = {}) {
     if (realtimePending) {
       /* رویدادی که هنگام این چرخه رسید، در چرخهٔ بعدی (فوری) خوانده می‌شود */
       realtimePending = false;
-      scheduleAutoCycle(500, 'realtime');
+      scheduleAutoCycle(200, 'realtime');
     }
     if (autoSyncPending) {
       autoSyncPending = false;
@@ -20244,28 +20219,13 @@ async function syncCycle(options = {}) {
 }
 
 function syncNow() {
-  return syncCycle({ reason: 'manual' });
+  /* دکمهٔ سینک همان کاری را میکند که ترمیم میکرد: ارسال محلی، بازبینی
+     کامل فهرستها و مقایسهٔ مقدار تمام رکوردهای شناختهشده با سرور. */
+  return syncCycle({ reason: 'manual', verify: true, full: true });
 }
-/* ترمیم کامل: اول تغییرات محلی ارسال می‌شود تا از دست نروند، بعد مقدار
-   همهٔ رکوردهای شناخته‌شده با سرور مقایسه و تنها تفاوت‌ها روی این دستگاه
-   نوشته می‌شود. برای رفع ناهماهنگی‌هایی است که در آن فرادادهٔ سینک خود را
-   «به‌روز» می‌دانست ولی مقدار رکوردها با سرور یکی نبود. */
-async function syncRepair() {
-  if (syncBusy || autoSyncRunning) return { ok: false, busy: true };
-  if (!isLoggedIn()) { renderSyncUI(); return { ok: false, error: 'auth' }; }
-  syncError = null;
-  const up = await performUpload({ silent: true }).catch(error => ({ ok: false, error: String(error) }));
-  const down = await performDownload({ silent: true, full: true, verify: true })
-    .catch(error => ({ ok: false, error: String(error) }));
-  renderSyncUI();
-  if (down && down.ok) {
-    toast(down.changed
-      ? `✓ ${fa(down.changed)} رکورد ترمیم شد`
-      : '✓ همهٔ رکوردها با سرور یکسان است');
-  } else {
-    toast('❌ ترمیم انجام نشد' + (down && down.error ? ' — ' + down.error : ''));
-  }
-  return { up, down };
+/* نام قدیمی برای سازگاری؛ اکنون همان «همگامسازی» است و دکمهٔ جداگانه حذف شد. */
+function syncRepair() {
+  return syncNow();
 }
 function uploadAllData() {
   if (syncBusy || autoSyncRunning) return;
@@ -20489,7 +20449,7 @@ function renderSyncUI() {
       <label class="toggle-card sync-auto-toggle ${autoSyncEnabled ? 'on' : ''}" for="syncAutoToggle">
         <div class="sync-auto-info">
           <div class="sync-auto-title">همگام‌سازی خودکار</div>
-          <div class="sync-auto-desc">هر تغییر پس از چند ثانیه با حجم کم روی حساب شما ذخیره می‌شود و تغییرات دیگر دستگاه‌ها هم دریافت می‌شود.</div>
+          <div class="sync-auto-desc">هر تغییر بلافاصله با حجم کم روی حساب شما ذخیره میشود، تغییرات دستگاههای دیگر بهصورت زنده دریافت میشود و هر سینک شامل بررسی کامل با سرور است.</div>
         </div>
         <span class="switch"><input type="checkbox" id="syncAutoToggle" ${autoSyncEnabled ? 'checked' : ''} ${busy ? 'disabled' : ''}><span></span></span>
       </label>
@@ -20499,30 +20459,25 @@ function renderSyncUI() {
       </div>
 
       <button class="btn primary sync-now-btn" id="syncNowBtn" ${busy ? 'disabled' : ''}>
-        ${busy ? '⏳ در حال همگام‌سازی…' : '🔄 همگام‌سازی اکنون'}
-      </button>
-      <button class="btn ghost sync-repair-btn" id="syncRepairBtn" ${busy ? 'disabled' : ''}>
-        🔧 ترمیم و تطبیق با سرور
+        ${busy ? '⏳ در حال همگامسازی و بررسی…' : '🔄 همگامسازی و بررسی کامل'}
       </button>
 
-      ${syncProgressMarkup()}
+${syncProgressMarkup()}
 
       ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
       ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
 
       <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
-      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.7</div>
+      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.8</div>
     `;
 
     if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);
 
     const logoutBtn = document.getElementById('syncLogoutBtn');
     const nowBtn = document.getElementById('syncNowBtn');
-    const repairBtn = document.getElementById('syncRepairBtn');
     const toggle = document.getElementById('syncAutoToggle');
 
     if (nowBtn) nowBtn.onclick = () => { syncNow(); };
-    if (repairBtn) repairBtn.onclick = () => { syncRepair(); };
     if (toggle) toggle.onchange = () => setAutoSyncEnabled(!!toggle.checked);
     if (logoutBtn) logoutBtn.onclick = () => {
       if (busy) return;
@@ -20616,6 +20571,7 @@ window.pocketBaseSync = {
   downloadAllData,
   syncNow,
   syncRepair,
+  cycle: syncCycle,
   startAutoSync,
   onSettingsOpen,
   isAutoSyncEnabled: () => autoSyncEnabled,
@@ -20630,7 +20586,6 @@ window.pocketBaseSync = {
   logout: logoutPocketBase,
   render: renderSyncUI
 };
-
 
 /* ===== js/99-init.js ===== */
 'use strict';

@@ -22,12 +22,16 @@ const LAST_SYNC_KEY = 'konkur-last-sync-v1';
 const AUTH_TOKEN_KEY = 'konkur-pb-auth-v1';
 const PB_SYNC_META_KEY = 'konkur-pb-sync-meta-v1';
 const PB_SYNC_META_VERSION = 3;
-/* نسخهٔ بازبینی سلامت: یک‌بار پس از این ارتقا رکوردهای ناقص محلی ترمیم می‌شوند */
-const PB_SYNC_INTEGRITY_VERSION = 3;
+/* نسخهٔ بازبینی سلامت: یک‌بار پس از این ارتقا رکوردهای ناقص محلی ترمیم می‌شوند.
+   نسخهٔ ۴ علاوه بر ترمیم رکوردهای ناقص، مقدار رکوردهایی را که نسخه‌های قبلی
+   «دیده‌شده» ثبت کرده بودند ولی هرگز اعمال نکرده بودند دوباره مقایسه می‌کند. */
+const PB_SYNC_INTEGRITY_VERSION = 4;
 const PB_SYNC_META_LIMIT = 3;
 const PB_MANIFEST_FIELDS = 'id,localId,updated';
 const PB_DELETE_CHECK_GAP = 24 * 60 * 60 * 1000;
 const PB_DEFAULT_PAGE_SIZE = 200;
+/* در هر چرخه چند رکورد برای «ترمیم خودکار» با مقدار سرور مقایسه شود */
+const PB_VERIFY_BATCH = 40;
 
 let pocketBaseClient = null;
 let pocketBaseClientUrl = '';
@@ -492,6 +496,19 @@ function pbValueDrift(sent, saved) {
   }
   if (typeof saved !== 'object' || Array.isArray(saved)) return true;
   return Object.keys(sent).some(key => !pbSameJsonValue(sent[key], saved[key]));
+}
+
+/* آیا مقدار ذخیره‌شده روی این دستگاه با مقدار رکورد سرور یکی است؟
+   برای «ترمیم خودکار» استفاده می‌شود؛ فقط مقدار مقایسه می‌شود، نه ترتیب. */
+function pbLocalValueMatches(storeSnapshot, canonical, item) {
+  const json = storeSnapshot && storeSnapshot.get(canonical);
+  if (!json) return false;
+  try {
+    const local = JSON.parse(json);
+    return pbSameJsonValue(local && local.value, item && item.value);
+  } catch (error) {
+    return false;
+  }
 }
 
 /* برخی مجموعه‌ها هرگز مقدار خالی ندارند؛ اگر خالی بود یعنی رکورد ناقص ذخیره شده است.
@@ -1209,6 +1226,23 @@ async function performDownload(options = {}) {
       const previousRemote = meta.remote || {};
       const previousCounts = meta.counts || {};
       const previousFloor = meta.floor || {};
+      /* «ترمیم خودکار»: نسخه‌های قبلی می‌توانستند زمان تغییر یک رکورد را
+         «دیده‌شده» ثبت کنند بدون آن‌که مقدارش روی دستگاه اعمال شود؛ نتیجه
+         این بود که هر دو دستگاه خود را «به‌روز» می‌دانستند ولی مقدارها فرق
+         داشت. پس از این ارتقا مقدار رکوردهای شناخته‌شده تکه‌تکه با سرور
+         مقایسه می‌شود و فقط تفاوت‌ها نوشته می‌شوند (انتقال محدود، نه کل داده). */
+      const explicitVerify = !!options.verify;
+      const verificationPending = !!meta && (
+        meta.integrity !== PB_SYNC_INTEGRITY_VERSION ||
+        !!(meta.verify && meta.verify.version === PB_SYNC_INTEGRITY_VERSION && !meta.verify.done)
+      );
+      const verifyState = (verificationPending || explicitVerify)
+        ? {
+            version: PB_SYNC_INTEGRITY_VERSION,
+            cursor: { ...((meta && meta.verify && meta.verify.cursor) || {}) },
+            done: false
+          }
+        : null;
       const now = Date.now();
       /* حذف رکورد در فیلتر `updated` دیده نمی‌شود. به‌جای بازخوانی دوره‌ای کل
          فهرست‌ها، «حساب تعداد» انجام می‌شود: تعداد رکوردهای سرور باید برابر
@@ -1344,6 +1378,8 @@ async function performDownload(options = {}) {
            زمان آن‌ها در فراداده ثبت نمی‌شود تا ویرایش دستگاه دیگر برای همیشه
            پنهان نماند و کاوش بعدی دوباره آن را پیدا کند. */
         const skippedCanonical = new Set();
+        /* رکوردهایی که در همین چرخه مقدارشان نوشته شد (یا در حال نوشتن است) */
+        const handledCanonical = new Set();
 
         (info.records || []).forEach(item => {
           const canonical = pbCanonicalLocalId(entry.store, item.localId);
@@ -1396,6 +1432,7 @@ async function performDownload(options = {}) {
           if (!record) return;
           puts.push({ store: entry.store, record });
           acknowledge.push({ store: entry.store, id: record.id });
+          handledCanonical.add(canonical);
           applied++;
         });
 
@@ -1444,8 +1481,68 @@ async function performDownload(options = {}) {
             if (!record) return;
             puts.push({ store: entry.store, record });
             acknowledge.push({ store: entry.store, id: record.id });
+            handledCanonical.add(canonical);
             applied++;
           });
+        }
+        /* فراداده فقط زمانی «دیده‌شده» را جلو می‌برد که مقدار واقعاً اعمال شده
+           باشد؛ وگرنه همان رکورد برای همیشه پنهان می‌ماند. */
+        if (missingCanonical.size) {
+          missingCanonical.forEach(canonical => {
+            if (!handledCanonical.has(canonical)) delete nextMap[canonical];
+          });
+        }
+
+        /* ترمیم خودکار: مقدار بخشی از رکوردهای شناخته‌شده با سرور مقایسه
+           می‌شود و تنها تفاوت‌ها نوشته می‌شوند. */
+        if (verifyState && entry.store !== 'app-meta') {
+          const storeSnapshot = localSnapshot.get(entry.store);
+          const knownIds = Object.keys(prevMap).sort();
+          const knownSet = new Set(knownIds);
+          let targetIds;
+          if (explicitVerify) {
+            targetIds = knownIds.filter(id => !handledCanonical.has(id));
+          } else {
+            const start = Math.max(0, Math.min(knownIds.length, +verifyState.cursor[entry.collection] || 0));
+            verifyState.cursor[entry.collection] = start + PB_VERIFY_BATCH;
+            targetIds = knownIds.slice(start, start + PB_VERIFY_BATCH)
+              .filter(id => !handledCanonical.has(id));
+          }
+          if (targetIds.length) {
+            setProgress('download', 62, `بررسی ${fa(targetIds.length)} رکورد — ${entry.collection}`, true);
+            const detailed = explicitVerify
+              ? (await fetchOwnerRecords(pb, entry.collection, ownerId))
+                  .filter(item => knownSet.has(pbCanonicalLocalId(entry.store, item.localId)))
+              : await fetchRemoteValuesByLocalIds(pb, entry.collection, ownerId, targetIds);
+            const byCanonical = new Map();
+            detailed.forEach(item => {
+              const canonical = pbCanonicalLocalId(entry.store, item.localId);
+              if (canonical) byCanonical.set(canonical, item);
+            });
+            targetIds.forEach(canonical => {
+              const item = byCanonical.get(canonical);
+              /* نبودِ رکورد روی سرور را بازبینی فهرست تشخیص می‌دهد */
+              if (!item) return;
+              if (hasPendingChange(entry.store, canonical, item.localId).any) {
+                pendingSkipped++;
+                skippedCanonical.add(canonical);
+                return;
+              }
+              const updated = pbManifestTimestamp(item);
+              if (pbLocalValueMatches(storeSnapshot, canonical, item)) {
+                if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
+                return;
+              }
+              const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
+              if (!record) return;
+              puts.push({ store: entry.store, record });
+              acknowledge.push({ store: entry.store, id: record.id });
+              handledCanonical.add(canonical);
+              applied++;
+              if (updated && updated > (nextMap[canonical] || '')) nextMap[canonical] = updated;
+              if (updated && updated > (floor[entry.collection] || '')) floor[entry.collection] = updated;
+            });
+          }
         }
 
         /* رکوردهای کنارگذاشته‌شده «تازه‌ترین زمان شناخته‌شده» را بالا نمی‌برند؛
@@ -1465,6 +1562,15 @@ async function performDownload(options = {}) {
       /* تغییرهای محلی‌ای که کنار گذاشته شدند باید هرچه زودتر ارسال شوند */
       if (pendingSkipped) scheduleAutoUpload(600);
 
+      if (verifyState) {
+        const complete = explicitVerify || syncStores.every(entry =>
+          entry.store === 'app-meta' ||
+          (+verifyState.cursor[entry.collection] || 0) >=
+            Object.keys(previousRemote[entry.collection] || {}).length
+        );
+        verifyState.done = complete;
+      }
+
       if (!applied && !trackerChangedRemotely) {
         saveSyncMeta(server, ownerId, {
           ...meta,
@@ -1473,6 +1579,7 @@ async function performDownload(options = {}) {
           counts,
           countsAt: now,
           integrity: PB_SYNC_INTEGRITY_VERSION,
+          verify: verifyState || meta.verify || null,
           lastSyncAt: now
         });
         setLastSyncTimestamp(now);
@@ -1503,6 +1610,7 @@ async function performDownload(options = {}) {
         counts,
         countsAt: now,
         integrity: PB_SYNC_INTEGRITY_VERSION,
+        verify: verifyState || meta.verify || null,
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
         lastSyncAt: now
       });
@@ -1613,6 +1721,7 @@ async function performDownload(options = {}) {
       counts,
       countsAt: now,
       integrity: PB_SYNC_INTEGRITY_VERSION,
+      verify: { version: PB_SYNC_INTEGRITY_VERSION, cursor: {}, done: true },
       tracker: remoteTracker ? JSON.stringify(remoteTracker) : null,
       lastSyncAt: now
     });
@@ -1941,13 +2050,34 @@ async function syncCycle(options = {}) {
 function syncNow() {
   return syncCycle({ reason: 'manual' });
 }
+/* ترمیم کامل: اول تغییرات محلی ارسال می‌شود تا از دست نروند، بعد مقدار
+   همهٔ رکوردهای شناخته‌شده با سرور مقایسه و تنها تفاوت‌ها روی این دستگاه
+   نوشته می‌شود. برای رفع ناهماهنگی‌هایی است که در آن فرادادهٔ سینک خود را
+   «به‌روز» می‌دانست ولی مقدار رکوردها با سرور یکی نبود. */
+async function syncRepair() {
+  if (syncBusy || autoSyncRunning) return { ok: false, busy: true };
+  if (!isLoggedIn()) { renderSyncUI(); return { ok: false, error: 'auth' }; }
+  syncError = null;
+  const up = await performUpload({ silent: true }).catch(error => ({ ok: false, error: String(error) }));
+  const down = await performDownload({ silent: true, full: true, verify: true })
+    .catch(error => ({ ok: false, error: String(error) }));
+  renderSyncUI();
+  if (down && down.ok) {
+    toast(down.changed
+      ? `✓ ${fa(down.changed)} رکورد ترمیم شد`
+      : '✓ همهٔ رکوردها با سرور یکسان است');
+  } else {
+    toast('❌ ترمیم انجام نشد' + (down && down.error ? ' — ' + down.error : ''));
+  }
+  return { up, down };
+}
 function uploadAllData() {
   if (syncBusy || autoSyncRunning) return;
   return performUpload({});
 }
 function downloadAllData() {
   if (syncBusy || autoSyncRunning) return;
-  return performDownload({ full: true });
+  return performDownload({ full: true, verify: true });
 }
 function onSettingsOpen() {
   renderSyncUI();
@@ -2164,6 +2294,9 @@ function renderSyncUI() {
       <button class="btn primary sync-now-btn" id="syncNowBtn" ${busy ? 'disabled' : ''}>
         ${busy ? '⏳ در حال همگام‌سازی…' : '🔄 همگام‌سازی اکنون'}
       </button>
+      <button class="btn ghost sync-repair-btn" id="syncRepairBtn" ${busy ? 'disabled' : ''}>
+        🔧 ترمیم و تطبیق با سرور
+      </button>
 
       ${syncProgressMarkup()}
 
@@ -2171,16 +2304,18 @@ function renderSyncUI() {
       ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
 
       <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
-      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.5</div>
+      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.6</div>
     `;
 
     if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);
 
     const logoutBtn = document.getElementById('syncLogoutBtn');
     const nowBtn = document.getElementById('syncNowBtn');
+    const repairBtn = document.getElementById('syncRepairBtn');
     const toggle = document.getElementById('syncAutoToggle');
 
     if (nowBtn) nowBtn.onclick = () => { syncNow(); };
+    if (repairBtn) repairBtn.onclick = () => { syncRepair(); };
     if (toggle) toggle.onchange = () => setAutoSyncEnabled(!!toggle.checked);
     if (logoutBtn) logoutBtn.onclick = () => {
       if (busy) return;
@@ -2273,6 +2408,7 @@ window.pocketBaseSync = {
   uploadAllData,
   downloadAllData,
   syncNow,
+  syncRepair,
   startAutoSync,
   onSettingsOpen,
   isAutoSyncEnabled: () => autoSyncEnabled,

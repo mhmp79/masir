@@ -10,7 +10,7 @@
 
 'use strict';
 
-const CACHE_NAME = 'konkur-shell-v1-0-9-4-r10';
+const CACHE_NAME = 'konkur-shell-v1-0-9-4-r11';
 const ROOT_URL = new URL('./', self.location.href).href;
 const OFFLINE_URL = new URL('index.html', ROOT_URL).href;
 

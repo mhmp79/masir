@@ -635,8 +635,30 @@
 
 <script>
 if ("serviceWorker" in navigator && location.protocol.indexOf('http') === 0) {
+  /* اگر نسخهٔ تازه‌ای از پوستهٔ برنامه نصب شود، صفحهٔ قدیمی پس از
+     رفتن به پس‌زمینه دوباره بارگذاری می‌شود تا کد جدید فعال شود. */
+  const hadController = !!navigator.serviceWorker.controller;
+  let shellReloading = false;
+  const applyShellUpdate = () => {
+    if (shellReloading) return;
+    shellReloading = true;
+    location.reload();
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    if (document.visibilityState === 'hidden') { applyShellUpdate(); return; }
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') applyShellUpdate();
+    }, { once: true });
+  });
   navigator.serviceWorker
     .register('./sw.js', { updateViaCache: 'none' })
+    .then((reg) => {
+      reg.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+      });
+    })
     .catch((e) => console.warn('[sw] registration failed:', e));
 }
 </script>

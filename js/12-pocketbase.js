@@ -1,7 +1,7 @@
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۲)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۳)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
@@ -1524,8 +1524,11 @@ function logoutPocketBase() {
 
 /* ============ automatic sync engine ============ */
 const AUTO_SYNC_ENABLED_KEY = 'konkur-pb-auto-sync-v1';
-const AUTO_UPLOAD_DEBOUNCE = 7000;
+const AUTO_UPLOAD_DEBOUNCE = 4000;
 const AUTO_MIN_CYCLE_GAP = 30000;
+/* تغییر محلی نباید ۳۰ ثانیه معطل بماند؛ فقط یک فاصلهٔ کوتاه برای ادغام
+   چند ویرایش پشت‌سرهم لازم است. */
+const AUTO_LOCAL_CHANGE_GAP = 2000;
 const AUTO_DOWNLOAD_MIN_GAP = 60000;
 const AUTO_POLL_INTERVAL = 10 * 60 * 1000;
 const AUTO_PROBE_GAP = 60000;
@@ -1633,7 +1636,7 @@ function scheduleAutoUpload(delay) {
   if (autoSyncUploadTimer) clearTimeout(autoSyncUploadTimer);
   autoSyncUploadTimer = setTimeout(() => {
     autoSyncUploadTimer = null;
-    const gap = AUTO_MIN_CYCLE_GAP - (Date.now() - lastCycleAt);
+    const gap = AUTO_LOCAL_CHANGE_GAP - (Date.now() - lastCycleAt);
     if (lastCycleAt && gap > 0) { scheduleAutoCycle(gap, 'local-change'); return; }
     syncCycle({ reason: 'local-change' });
   }, Math.max(0, wait));
@@ -1666,8 +1669,15 @@ async function syncCycle(options = {}) {
   if (!manual) {
     const cooldown = autoSyncCooldownUntil - Date.now();
     if (cooldown > 0) { scheduleAutoCycle(cooldown, reason); return { ok: false, cooldown: true }; }
-    const gap = AUTO_MIN_CYCLE_GAP - (Date.now() - lastCycleAt);
-    if (lastCycleAt && gap > 0) { scheduleAutoCycle(gap, reason); return { ok: false, throttled: true }; }
+    /* وقتی سرور واقعاً تغییر کرده یا کاربر تازه به برنامه برگشته،
+       فاصلهٔ ۳۰ ثانیه‌ای چرخه نباید اعمال تغییر را عقب بیندازد. */
+    const urgent = reason === 'probe' || reason === 'visible' || reason === 'focus' || reason === 'online';
+    const minGap = reason === 'local-change' ? AUTO_LOCAL_CHANGE_GAP : AUTO_MIN_CYCLE_GAP;
+    const gap = minGap - (Date.now() - lastCycleAt);
+    if (lastCycleAt && gap > 0 && !urgent) {
+      scheduleAutoCycle(gap, reason);
+      return { ok: false, throttled: true };
+    }
   }
 
   autoSyncRunning = true;
@@ -1785,12 +1795,13 @@ function onSettingsOpen() {
 }
 /* کاوش ارزان: آیا روی سرور رکوردی تازه‌تر از آخرین وضعیت شناخته‌شده هست؟
    به‌جای سینک کامل دوره‌ای، فقط این پرسش کوچک انجام می‌شود. */
-async function probeRemoteChanges() {
+async function probeRemoteChanges(force) {
   if (!autoSyncEnabled || !isLoggedIn()) return false;
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
   if (syncBusy || autoSyncRunning || probeInFlight) return false;
   const now = Date.now();
-  if (now - lastProbeAt < AUTO_PROBE_GAP) return false;
+  /* کاوش اجباری (بازگشت به برنامه) فقط چند ثانیه فاصله لازم دارد */
+  if (now - lastProbeAt < (force ? 5000 : AUTO_PROBE_GAP)) return false;
   lastProbeAt = now;
   probeInFlight = true;
   try {
@@ -1803,17 +1814,35 @@ async function probeRemoteChanges() {
     for (const store of PB_DOWNLOAD_STORES) {
       const collection = pbCollectionName(store);
       const knownMax = syncKnownMax(meta, collection);
-      const filter = knownMax
-        ? `owner="${pbFilterValue(ownerId)}" && updated > "${pbFilterValue(knownMax)}"`
-        : `owner="${pbFilterValue(ownerId)}"`;
       try {
+        /* تازه‌ترین رکورد سرور خوانده می‌شود، نه فیلتر «updated > …»؛
+           این روش به قالب زمان یا درست‌بودن فرادادهٔ محلی وابسته نیست. */
         const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, 1, {
-          filter,
-          fields: PB_MANIFEST_FIELDS,
+          filter: `owner="${pbFilterValue(ownerId)}"`,
+          sort: '-updated',
+          fields: 'id,updated',
           skipTotal: true,
           requestKey: null
         }));
-        if (res && Array.isArray(res.items) && res.items.length) return true;
+        const newest = res && Array.isArray(res.items) ? res.items[0] : null;
+        const serverMax = newest ? pbManifestTimestamp(newest) : null;
+        if (!serverMax) continue;
+        if (!knownMax || serverMax > knownMax) return true;
+        if (serverMax < knownMax) {
+          /* فراداده از سرور جلوتر است (بازگردانی پشتیبان، حذف رکوردِ آخر
+             یا ساعت نادرست). پاک‌سازی همان مجموعه تا سینک بعدی فهرست
+             کامل را بخواند و مسیر تدریجی خودش را ترمیم کند. */
+          const healed = {
+            ...meta,
+            floor: { ...(meta.floor || {}) },
+            remote: { ...(meta.remote || {}) }
+          };
+          delete healed.floor[collection];
+          delete healed.remote[collection];
+          saveSyncMeta(server, ownerId, healed);
+          console.warn('[PB] stale sync metadata for', collection, 'reset');
+          return true;
+        }
       } catch (error) {
         /* مجموعه‌ای روی سرور نیست (مثل plan/reserved)؛ کاوش ادامه می‌یابد */
       }
@@ -1826,11 +1855,23 @@ async function probeRemoteChanges() {
     probeInFlight = false;
   }
 }
-function maybeProbeRemoteChanges() {
-  return probeRemoteChanges().then(changed => {
+function maybeProbeRemoteChanges(force) {
+  return probeRemoteChanges(force).then(changed => {
     if (changed) scheduleAutoCycle(0, 'probe');
     return changed;
   }).catch(() => false);
+}
+
+/* اگر برنامه به پس‌زمینه برود، تغییرهای ذخیره‌شده بلافاصله ارسال می‌شوند
+   تا جابه‌جایی یک بلوک پیش از بستن/ترک برنامه روی سرور بنشیند. */
+function flushPendingUploadOnHide() {
+  if (!autoSyncEnabled || !isLoggedIn()) return;
+  if (autoSyncUploadTimer) { clearTimeout(autoSyncUploadTimer); autoSyncUploadTimer = null; }
+  if (syncBusy || autoSyncRunning) { autoSyncPending = true; return; }
+  readPendingChanges().then(pending => {
+    if (!pending || !pending.length) return;
+    return performUpload({ silent: true });
+  }).catch(() => {});
 }
 
 function startAutoSync() {
@@ -1850,9 +1891,12 @@ function startAutoSync() {
   };
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden || !autoSyncEnabled || !isLoggedIn()) return;
-    if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(1200, 'visible');
+    if (document.hidden) { flushPendingUploadOnHide(); return; }
+    if (!autoSyncEnabled || !isLoggedIn()) return;
+    if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(600, 'visible');
+    else maybeProbeRemoteChanges(true);
   });
+  window.addEventListener('pagehide', flushPendingUploadOnHide);
   window.addEventListener('online', () => {
     renderSyncUI();
     if (autoSyncEnabled && isLoggedIn()) scheduleAutoCycle(1500, 'online');
@@ -1860,7 +1904,8 @@ function startAutoSync() {
   window.addEventListener('offline', () => { lastAutoStatus = 'offline'; renderSyncUI(); });
   window.addEventListener('focus', () => {
     if (!autoSyncEnabled || !isLoggedIn() || document.hidden) return;
-    if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(2000, 'focus');
+    if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(800, 'focus');
+    else maybeProbeRemoteChanges(true);
   });
   setInterval(() => {
     if (document.hidden || !autoSyncEnabled || !isLoggedIn()) return;

@@ -2412,7 +2412,7 @@ ${syncProgressMarkup()}
       ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
 
       <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
-      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.8</div>
+      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.9</div>
     `;
 
     if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);

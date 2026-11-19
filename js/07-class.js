@@ -10,7 +10,14 @@ let clsSubject=state.subjects[0]?state.subjects[0].name:'';
 function getClassData(name){
   if(!state.classes[name])state.classes[name]={total:20,sessions:{}};
   const subj=state.subjects.find(s=>s.name===name);
-  if(subj)state.classes[name].total=subj.sessions||0;
+  if(subj){
+    const total=subj.sessions||0;
+    /* این تابع درون رندر فراخوانی میشود؛ نباید هر بار مقدار را بنویسد،
+       چون نوشتن روی state ردیابی شده یک تغییر محلی ثبت میکند و بعد از هر
+       دریافت، ارسال و دریافت دوباره به دنبال آن میآید (چرخهٔ بیهوده).
+       فقط زمانی بنویس که مقدار واقعاً فرق دارد. */
+    if(state.classes[name].total!==total)state.classes[name].total=total;
+  }
   return state.classes[name];
 }
 

@@ -654,8 +654,7 @@ function openSettingsOverlay(){
   try{renderSettingsPanel();}catch(e){console.error(e);}
   try{renderCommonErrors();}catch(e){console.error(e);}
   try{renderSubjectErrorsSection();}catch(e){console.error(e);}
-  // Sync UI is rendered by 12-pocketbase.js
-  try{ if(typeof renderSyncUI === 'function') renderSyncUI(); }catch(e){console.error(e);}
+  // Sync UI is rendered by 12-pocketbase.js via onSettingsOpen
   try{ if(typeof onSettingsOpen === 'function') onSettingsOpen(); }catch(e){console.error(e);}
   const verEl = document.getElementById('appVersionDisplay');
   if(verEl) verEl.textContent = APP_VERSION;

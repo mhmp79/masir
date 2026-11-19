@@ -333,7 +333,7 @@
 /* ===== SYNC STATUS / AUTO SYNC ===== */
 .sync-status-online{color:#6ee7b7}
 .sync-status-offline{color:#fda4af}
-.sync-auto-toggle{margin-top:12px}
+.sync-auto-toggle{margin-top:8px}
 .sync-auto-toggle.on{
   background:rgba(124,92,255,.12);
   border-color:rgba(124,92,255,.42);
@@ -347,13 +347,14 @@
 }
 .sync-pending-row{
   display:flex;align-items:center;justify-content:space-between;gap:10px;
-  margin-top:10px;min-width:0;
+  margin-top:6px;min-width:0;
 }
 .sync-pending{
   color:#8791a8;font-size:11px;font-weight:700;line-height:1.7;
   overflow-wrap:anywhere;
 }
 .sync-pending.pending{color:#fcd34d}
+.sync-pending.saved{color:#6ee7b7}
 .sync-now-btn{width:100%;margin-top:10px;white-space:nowrap}
 .sync-progress{
   margin-top:14px;padding:12px 14px;border-radius:12px;
@@ -380,12 +381,6 @@
   margin-top:7px;color:#aab3ca;font-size:10.5px;line-height:1.7;
   min-height:16px;
 }
-.sync-notice{
-  margin-top:12px;padding:10px 12px;border-radius:8px;
-  background:rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.30);
-  color:#6ee7b7;font-size:12px;line-height:1.8;
-}
-
 @media(max-width:520px){
   .sync-auto-toggle{padding:11px 12px}
   .sync-progress{padding:11px 12px}

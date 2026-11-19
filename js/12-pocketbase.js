@@ -1228,6 +1228,11 @@ async function performDownload(options = {}) {
       const previousRemote = meta.remote || {};
       const previousCounts = meta.counts || {};
       const previousFloor = meta.floor || {};
+      /* آیا سرور برای هر مجموعه ستون `updated` دارد؟ اگر نداشته باشد،
+         «تغییر از فلان زمان» و مقایسهٔ زمان رکوردها بی‌معناست و نباید
+         بستهٔ کامل رکوردها دوباره خوانده شود. نتیجه برای چرخه‌های بعد
+         نگه داشته می‌شود. */
+      const previousStamps = (meta.stamps && typeof meta.stamps === 'object') ? meta.stamps : {};
       /* "هر سینک = ترمیم کامل": نسخههای قبلی میتوانستند زمان تغییر رکوردی را
          «دیدهشده» ثبت کنند بدون آنکه مقدارش روی دستگاه اعمال شود؛ نتیجه
          اینکه هر دو دستگاه خود را بهروز میدانستند ولی مقدارها فرق داشت.
@@ -1293,55 +1298,77 @@ async function performDownload(options = {}) {
         const knownCount = typeof previousCounts[entry.collection] === 'number'
           ? previousCounts[entry.collection]
           : Object.keys(knownMap).length;
+        /* app-meta کوچک است (تنظیمات و شمارنده) و همیشه کامل خوانده می‌شود.
+           مجموعه‌های دیگر فقط با «حساب تعداد» و «تغییرهای زمانی» بررسی
+           می‌شوند؛ بازبینی کامل فهرست فقط در ترمیم دستی/بررسی روزانه. */
         let needManifest = deepCheck || entry.store === 'app-meta';
         let serverCount = null;
         let records = [];
-
-        if (!needManifest) {
-          setProgress('download', 5 + (i / syncStores.length) * 40, `بررسی سرور — ${entry.collection}`, true);
-          serverCount = await fetchOwnerCount(pb, entry.collection, ownerId);
-          /* نخستین بار (بدون مبنای زمانی) باید یک‌بار فهرست خوانده شود */
-          if (serverCount > 0 && !previousFloor[entry.collection]) needManifest = true;
+        let stampsSupported = previousStamps[entry.collection];
+        /* فرادادهٔ نسخه‌های قبلی ستون stamps ندارد؛ اگر هیچ زمانی برای این
+           مجموعه ثبت نشده باشد، یعنی سرور ستون updated ندارد. */
+        if (stampsSupported === undefined && !previousFloor[entry.collection] && knownCount > 0) {
+          stampsSupported = false;
         }
 
         if (needManifest) {
           setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
           records = await fetchOwnerManifest(pb, entry.collection, ownerId);
           serverCount = records.length;
-        } else if (serverCount > 0) {
-          setProgress('download', 5 + (i / syncStores.length) * 40, `دریافت تغییرات — ${entry.collection}`);
-          /* سرورهایی که ستون updated ندارند این پرسش را رد میکنند؛ در آن
-             صورت شمارش، بازبینی فهرست همان مجموعه را انجام میدهد. */
-          records = await fetchChangedSince(pb, entry.collection, ownerId, previousFloor[entry.collection])
-            .catch(() => []);
-          /* رکوردهایی که پیش‌تر روی سرور نبوده‌اند؛ بقیه فقط ویرایش‌اند */
-          const seen = new Set();
-          let added = 0;
-          records.forEach(item => {
-            const canonical = pbCanonicalLocalId(entry.store, item.localId);
-            if (!canonical || seen.has(canonical)) return;
-            seen.add(canonical);
-            if (knownMap[canonical] === undefined) added++;
-          });
-          if (knownCount + added !== serverCount) {
-            /* شاید شمارش و دریافت هم‌زمان با تغییر دیگری بوده باشند */
-            const recheck = await fetchOwnerCount(pb, entry.collection, ownerId);
-            if (recheck !== serverCount) serverCount = recheck;
-            if (knownCount + added !== serverCount) {
-              setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
-              records = await fetchOwnerManifest(pb, entry.collection, ownerId);
-              serverCount = records.length;
-              needManifest = true;
+        } else {
+          setProgress('download', 5 + (i / syncStores.length) * 40, `بررسی سرور — ${entry.collection}`, true);
+          serverCount = await fetchOwnerCount(pb, entry.collection, ownerId);
+
+          if (serverCount > 0) {
+            if (stampsSupported === false) {
+              /* سرور ستون updated ندارد: چیزی برای «تغییر از فلان زمان» نیست.
+                 فقط اختلاف تعداد، فهرست همان مجموعه را می‌خواند. */
+              records = [];
+            } else {
+              setProgress('download', 5 + (i / syncStores.length) * 40, `دریافت تغییرات — ${entry.collection}`);
+              try {
+                records = await fetchChangedSince(pb, entry.collection, ownerId, previousFloor[entry.collection]);
+              } catch (error) {
+                /* سرورهایی که ستون updated ندارند این پرسش را با 400 رد می‌کنند. */
+                records = [];
+                stampsSupported = false;
+              }
             }
+            /* رکوردهایی که پیش‌تر روی سرور نبوده‌اند؛ بقیه فقط ویرایش‌اند */
+            const seen = new Set();
+            let added = 0;
+            records.forEach(item => {
+              const canonical = pbCanonicalLocalId(entry.store, item.localId);
+              if (!canonical || seen.has(canonical)) return;
+              seen.add(canonical);
+              if (knownMap[canonical] === undefined) added++;
+            });
+            if (knownCount + added !== serverCount) {
+              /* شاید شمارش و دریافت هم‌زمان با تغییر دیگری بوده باشند */
+              const recheck = await fetchOwnerCount(pb, entry.collection, ownerId);
+              if (recheck !== serverCount) serverCount = recheck;
+              if (knownCount + added !== serverCount) {
+                setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
+                records = await fetchOwnerManifest(pb, entry.collection, ownerId);
+                serverCount = records.length;
+                needManifest = true;
+              }
+            }
+          } else if (knownCount > 0) {
+            /* مجموعه روی سرور خالی شده است؛ فهرست خالی، حذف‌ها را اعمال می‌کند */
+            setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
+            records = await fetchOwnerManifest(pb, entry.collection, ownerId);
+            serverCount = records.length;
+            needManifest = true;
           }
-        } else if (knownCount > 0) {
-          /* مجموعه روی سرور خالی شده است؛ فهرست خالی، حذف‌ها را اعمال می‌کند */
-          setProgress('download', 5 + (i / syncStores.length) * 40, `بازبینی فهرست — ${entry.collection}`);
-          records = await fetchOwnerManifest(pb, entry.collection, ownerId);
-          serverCount = records.length;
-          needManifest = true;
         }
-        fetchedByStore.set(entry.store, { records, full: needManifest, count: serverCount });
+
+        /* با فهرست تازه می‌فهمیم سرور ستون updated دارد یا نه. */
+        if (records.length) {
+          stampsSupported = records.some(item =>
+            !!item && Object.prototype.hasOwnProperty.call(item, 'updated'));
+        }
+        fetchedByStore.set(entry.store, { records, full: needManifest, count: serverCount, stamps: stampsSupported });
       }
 
       const serverTotal = syncStores.reduce((sum, entry) =>
@@ -1367,6 +1394,7 @@ async function performDownload(options = {}) {
       const nextRemote = { ...previousRemote };
       const floor = { ...previousFloor };
       const counts = { ...previousCounts };
+      const nextStamps = { ...previousStamps };
       let remoteTracker = null;
       let trackerChangedRemotely = false;
       let applied = 0;
@@ -1399,9 +1427,10 @@ async function performDownload(options = {}) {
             nextMap[canonical] = updated;
             const unchanged = prevMap[canonical] === updated;
             let needsValue = !unchanged;
-            if (!needsValue && deepCheck) {
+            /* app-meta فقط چند رکورد کوچک (پروفایل/تنظیمات/شمارنده) دارد؛
+               بدون ستون updated همیشه با مقدار کامل هم‌تراز می‌شود. */
+            if (!needsValue && (deepCheck || entry.store === 'app-meta')) {
               if (entry.store === 'app-meta') {
-                /* تنظیمات و شمارنده همیشه با مقدار کامل هم‌تراز می‌شوند */
                 needsValue = true;
               } else {
                 const storeSnapshot = localSnapshot.get(entry.store);
@@ -1513,7 +1542,11 @@ async function performDownload(options = {}) {
             if (handledCanonical.has(canonical) || skippedCanonical.has(canonical)) return false;
             if (explicitVerify || integrityOutdated) return true;
             const stamp = prevMap[canonical];
-            return !stamp || checkedMap[canonical] !== stamp;
+            /* بدون ستون updated، «زمان تغییر» نامعلوم است. مقایسهٔ مقدار همهٔ
+               رکوردها در هر سینک خودکار همان دریافت کاملِ کند است؛ تغییرها از
+               راه رویداد زنده/شمارش گرفته می‌شوند و ترمیم کامل با سینک دستی. */
+            if (!stamp) return false;
+            return checkedMap[canonical] !== stamp;
           });
           if (targetIds.length) {
             setProgress('download', 62, `بررسی ${fa(targetIds.length)} رکورد — ${entry.collection}`, true);
@@ -1562,6 +1595,7 @@ async function performDownload(options = {}) {
         const observedMax = maxUpdatedTimestamp(observedRecords);
         if (observedMax && observedMax > (floor[entry.collection] || '')) floor[entry.collection] = observedMax;
         if (typeof info.count === 'number') counts[entry.collection] = info.count;
+        if (typeof info.stamps === 'boolean') nextStamps[entry.collection] = info.stamps;
         nextRemote[entry.collection] = nextMap;
       }
 
@@ -1578,6 +1612,7 @@ async function performDownload(options = {}) {
           countsAt: now,
           integrity: PB_SYNC_INTEGRITY_VERSION,
           verify: verifyState || meta.verify || null,
+          stamps: nextStamps,
           checked: nextChecked,
           lastSyncAt: now
         });
@@ -1611,6 +1646,7 @@ async function performDownload(options = {}) {
         countsAt: now,
         integrity: PB_SYNC_INTEGRITY_VERSION,
         verify: verifyState || meta.verify || null,
+        stamps: nextStamps,
         checked: nextChecked,
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
         lastSyncAt: now
@@ -2464,7 +2500,6 @@ function onSettingsOpen() {
   refreshPendingBadge();
   if (!autoSyncEnabled || !isLoggedIn()) return;
   startRealtimePush();
-  if (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP) scheduleAutoCycle(600, 'settings');
 }
 /* کاوش ارزان: آیا روی سرور رکوردی تازه‌تر از آخرین وضعیت شناخته‌شده هست؟
    به‌جای سینک کامل دوره‌ای، فقط این پرسش کوچک انجام می‌شود. */
@@ -2612,8 +2647,9 @@ function refreshPendingBadge() {
       const identity = currentSyncIdentity();
       if (identity && identity.meta && identity.meta.tracker !== trackerSignatureOf(currentTrackerPayload())) count++;
     } catch (e) {}
-    el.textContent = count ? `${fa(count)} تغییر در انتظار ارسال` : 'همه تغییرات ذخیره شده‌اند';
+    el.textContent = count ? `${fa(count)} تغییر در انتظار ارسال` : '✓ همه تغییرات ذخیره شدند';
     el.classList.toggle('pending', count > 0);
+    el.classList.toggle('saved', count === 0);
   }).catch(() => {});
 }
 
@@ -2761,25 +2797,24 @@ function renderSyncUI() {
 
   box.innerHTML = `
     <div class="sync-card-head">
-      <div class="sync-card-title">همگامسازی ابری</div>
+      <div class="sync-card-title">همگام‌سازی ابری</div>
       <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
     </div>
-    <label class="toggle-card sync-auto-toggle ${autoSyncEnabled ? 'on' : ''}" for="syncAutoToggle">
-      <div class="sync-auto-info">
-        <div class="sync-auto-title">همگامسازی خودکار</div>
-        <div class="sync-auto-desc">تغییرات بلافاصله ارسال و بهصورت زنده دریافت میشوند.</div>
-      </div>
-      <span class="switch"><input type="checkbox" id="syncAutoToggle" ${autoSyncEnabled ? 'checked' : ''} ${busy ? 'disabled' : ''}><span></span></span>
-    </label>
     <div class="sync-pending-row">
       <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
     </div>
+    <label class="toggle-card sync-auto-toggle ${autoSyncEnabled ? 'on' : ''}" for="syncAutoToggle">
+      <div class="sync-auto-info">
+        <div class="sync-auto-title">همگام‌سازی خودکار</div>
+        <div class="sync-auto-desc">ارسال فوری تغییرات و دریافت زنده.</div>
+      </div>
+      <span class="switch"><input type="checkbox" id="syncAutoToggle" ${autoSyncEnabled ? 'checked' : ''} ${busy ? 'disabled' : ''}><span></span></span>
+    </label>
     <button class="btn primary sync-now-btn" id="syncNowBtn" ${busy ? 'disabled' : ''}>
-      ${busy ? '⏳ در حال همگامسازی…' : '🔄 همگامسازی و بررسی'}
+      ${busy ? '⏳ در حال همگام‌سازی…' : '🔄 همگام‌سازی و بررسی'}
     </button>
     ${syncProgressMarkup()}
     ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
-    ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
   `;
 
   if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);

@@ -1,7 +1,7 @@
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۳)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۴)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
@@ -294,8 +294,13 @@ function pocketBaseErrorMessage(error) {
 function isUniqueConflictError(err) {
   if (!err || err.status !== 400) return false;
   try {
-    return JSON.stringify(err.data || err.response?.data || {}).includes('validation_not_unique');
+    const text = JSON.stringify(err.data || err.response?.data || {}).toLowerCase();
+    return text.includes('validation_not_unique') || text.includes('unique');
   } catch (_) { return false; }
+}
+/* رکورد سرور پیدا نشد (حذف یا بازسازی شده)؛ شناسه باید دوباره گرفته شود */
+function isMissingRecordError(err) {
+  return !!err && err.status === 404;
 }
 /* محدودیت نرخ PocketBase: تلاش دوباره با تأخیر فزاینده */
 const PB_RATE_LIMIT_ATTEMPTS = 8;
@@ -475,6 +480,18 @@ function pbSameJsonValue(a, b) {
   };
   try { return stable(a) === stable(b); }
   catch (error) { return false; }
+}
+
+/* آیا سرور مقدار ارسالی را ذخیره نکرده است؟ فقط کلیدهای ارسالی بررسی
+   می‌شوند تا فیلدهای اضافه‌ای که سرور برمی‌گرداند خطا ایجاد نکنند. */
+function pbValueDrift(sent, saved) {
+  if (sent === undefined) return false;
+  if (saved === undefined || saved === null) return true;
+  if (typeof sent !== 'object' || sent === null || Array.isArray(sent)) {
+    return !pbSameJsonValue(sent, saved);
+  }
+  if (typeof saved !== 'object' || Array.isArray(saved)) return true;
+  return Object.keys(sent).some(key => !pbSameJsonValue(sent[key], saved[key]));
 }
 
 /* برخی مجموعه‌ها هرگز مقدار خالی ندارند؛ اگر خالی بود یعنی رکورد ناقص ذخیره شده است.
@@ -681,21 +698,52 @@ function uploadRecordPayload(item, ownerId) {
   return data;
 }
 
+/*
+ * نوشتن یک رکورد: اگر شناسهٔ سرور شناخته شده باشد PATCH، وگرنه POST.
+ * - اگر PATCH خطای ۴۰۴ بدهد (رکورد سرور حذف/بازسازی شده)، شناسه دوباره
+ *   خوانده می‌شود و در نهایت رکورد تازه ساخته می‌شود؛ ویرایش گم نمی‌شود.
+ * - پس از نوشتن، مقدارِ برگشتی سرور با مقدار ارسالی مقایسه می‌شود؛ اگر
+ *   سرور مقدار را ذخیره نکرده باشد خطا برگردانده می‌شود تا تغییر «تأیید»
+ *   نشود و در صف ارسال بماند.
+ */
 async function upsertRemoteRecord(pb, item, ownerId, remoteByLocalId) {
   const data = uploadRecordPayload(item, ownerId);
   const existing = remoteByLocalId && remoteByLocalId.get(item.localId);
-  return await withRateLimitRetry(async () => {
-    if (existing && existing.id) {
-      return await pb.collection(item.collection).update(existing.id, data, { requestKey: null });
-    }
+
+  const ensureStored = saved => {
+    if (!saved) return saved;
+    if (!pbValueDrift(data.value, saved.value)) return saved;
+    const error = new Error(`سرور مقدار «${item.collection}» را ذخیره نکرد`);
+    error.status = 409;
+    error.valueDrift = true;
+    throw error;
+  };
+  const updateById = id => pb.collection(item.collection).update(id, data, { requestKey: null });
+  const createOrAdopt = async () => {
     try {
       return await pb.collection(item.collection).create(data, { requestKey: null });
     } catch (error) {
-      if (!isUniqueConflictError(error)) throw error;
+      if (!isUniqueConflictError(error) && !isMissingRecordError(error)) throw error;
       const found = await findExistingRecord(pb, item.collection, ownerId, item.localId);
       if (!found || !found.id) throw error;
-      return await pb.collection(item.collection).update(found.id, data, { requestKey: null });
+      return await updateById(found.id);
     }
+  };
+
+  return await withRateLimitRetry(async () => {
+    if (existing && existing.id) {
+      try {
+        return ensureStored(await updateById(existing.id));
+      } catch (error) {
+        if (!isMissingRecordError(error)) throw error;
+        const found = await findExistingRecord(pb, item.collection, ownerId, item.localId);
+        if (found && found.id && found.id !== existing.id) {
+          return ensureStored(await updateById(found.id));
+        }
+        return ensureStored(await createOrAdopt());
+      }
+    }
+    return ensureStored(await createOrAdopt());
   });
 }
 
@@ -879,6 +927,8 @@ async function performUpload(options = {}) {
         errors.push({
           collection: op.collection || (op.item && op.item.collection),
           localId: op.localId || (op.item && op.item.localId),
+          status: error && error.status ? error.status : 0,
+          drift: !!(error && error.valueDrift),
           message: pocketBaseErrorMessage(error)
         });
       }
@@ -892,8 +942,14 @@ async function performUpload(options = {}) {
       /* فقط تغییرات موفق تأیید می‌شوند تا تغییرات ناموفق دوباره فرستاده شوند */
       const acked = fullSync ? [] : ops.filter(op => op.ok && op.change).map(op => op.change).concat(skipped);
       try { await acknowledgeChanges(acked); } catch (e) { console.warn('[PB] acknowledging changes failed:', e); }
-      syncError = `ارسال با ${fa(errors.length)} خطا انجام شد — ${errors[0].message}`;
-      return { ok: false, changed: changedCount, error: syncError };
+      const drifted = errors.find(entry => entry.drift);
+      /* فقط خطای احراز هویت باید کل چرخه را متوقف کند؛ بقیهٔ خطاها
+         نباید مانع دریافت تغییرات دستگاه‌های دیگر شوند. */
+      const authOnly = errors.every(entry => entry.status === 401);
+      syncError = drifted
+        ? `تغییر «${drifted.collection}» روی سرور ذخیره نشد؛ دوباره تلاش می‌شود.`
+        : `ارسال با ${fa(errors.length)} خطا انجام شد — ${errors[0].message}`;
+      return { ok: false, partial: changedCount > 0, fatal: authOnly, changed: changedCount, error: syncError };
     }
 
     /* فرادادهٔ سینک: در حالت تدریجی فقط رکوردهای همین ارسال روی نسخهٔ قبلی اعمال می‌شوند.
@@ -1113,27 +1169,35 @@ async function performDownload(options = {}) {
         !meta.countsAt ||
         (now - meta.countsAt > PB_DELETE_CHECK_GAP);
 
-      /* در بازبینی سلامت، رکوردهایی که قبلاً بدون مقدار ذخیره شده‌اند ترمیم می‌شوند.
-         حذف‌ها و ویرایش‌های محلی در انتظار ارسال نباید با نسخهٔ سرور بازنویسی شوند. */
+      /* حذف‌ها و ویرایش‌های محلی در انتظار ارسال نباید با نسخهٔ سرور بازنویسی شوند.
+         این فهرست در همهٔ مسیرها خوانده می‌شود (نه فقط بازبینی کامل) تا دریافت
+         تدریجی هم ویرایش تازهٔ کاربر را از بین نبرد. */
       let pendingDeletes = null;
       let pendingPuts = null;
-      if (deepCheck) {
-        try {
-          const pending = await readPendingChanges();
-          if (pending) {
-            pendingDeletes = new Set();
-            pendingPuts = new Set();
-            pending.forEach(change => {
-              if (!change || !change.store) return;
-              const key = `${change.store}::${change.recordId}`;
-              if (change.operation === 'delete') pendingDeletes.add(key);
-              else pendingPuts.add(key);
-            });
-          }
-        } catch (error) {
-          console.warn('[PB] reading pending changes failed:', error);
+      try {
+        const pending = await readPendingChanges();
+        if (pending) {
+          pendingDeletes = new Set();
+          pendingPuts = new Set();
+          pending.forEach(change => {
+            if (!change || !change.store) return;
+            const key = `${change.store}::${change.recordId}`;
+            if (change.operation === 'delete') pendingDeletes.add(key);
+            else pendingPuts.add(key);
+          });
         }
+      } catch (error) {
+        console.warn('[PB] reading pending changes failed:', error);
       }
+      const hasPendingChange = (store, canonical, rawLocalId) => {
+        const key = `${store}::${canonical}`;
+        const keyRaw = `${store}::${String(rawLocalId == null ? '' : rawLocalId)}`;
+        const put = !!pendingPuts && (pendingPuts.has(key) || pendingPuts.has(keyRaw));
+        const del = !!pendingDeletes && (pendingDeletes.has(key) || pendingDeletes.has(keyRaw));
+        return { put, del, any: put || del };
+      };
+      /* تغییرهای محلی که به‌خاطر در انتظار بودن اعمال نشدند؛ پس از دریافت ارسال می‌شوند */
+      let pendingSkipped = 0;
 
       /* فاز ۱: خواندن فقط داده‌های تازه، نه کل مجموعه */
       const fetchedByStore = new Map();
@@ -1234,6 +1298,9 @@ async function performDownload(options = {}) {
           seen.add(canonical);
 
           if (info.full) {
+            /* تغییر محلی در انتظار ارسال برنده است؛ مقدار سرور اعمال نمی‌شود */
+            const pending = hasPendingChange(entry.store, canonical, item.localId);
+            if (pending.any) { pendingSkipped++; return; }
             const unchanged = prevMap[canonical] === updated;
             let needsValue = !unchanged;
             if (!needsValue && deepCheck) {
@@ -1243,14 +1310,10 @@ async function performDownload(options = {}) {
               } else {
                 const storeSnapshot = localSnapshot.get(entry.store);
                 const rawLocal = storeSnapshot && storeSnapshot.get(canonical);
-                const pendingKey = `${entry.store}::${canonical}`;
-                const pendingKeyRaw = `${entry.store}::${String(item.localId)}`;
-                const pendingDelete = pendingDeletes && (pendingDeletes.has(pendingKey) || pendingDeletes.has(pendingKeyRaw));
-                const pendingPut = pendingPuts && (pendingPuts.has(pendingKey) || pendingPuts.has(pendingKeyRaw));
                 /* رکورد روی این دستگاه هست ولی بدون مقدار ذخیره شده (خرابی نسخهٔ قدیمی)،
                    یا اصلاً روی این دستگاه نیست؛ هر دو باید از سرور بازخوانی شوند. */
                 const damaged = rawLocal != null && pbLocalSnapshotDamaged(entry.store, rawLocal);
-                needsValue = !!pendingDeletes && !pendingDelete && !pendingPut && (!rawLocal || damaged);
+                needsValue = !!pendingDeletes && (!rawLocal || damaged);
               }
             }
             if (needsValue && !missingCanonical.has(canonical)) {
@@ -1261,6 +1324,11 @@ async function performDownload(options = {}) {
           }
 
           if (prevMap[canonical] === updated) return; /* بازتاب تغییر همین دستگاه */
+          if (hasPendingChange(entry.store, canonical, item.localId).any) {
+            /* ویرایش/حذف تازهٔ همین دستگاه هنوز ارسال نشده است */
+            pendingSkipped++;
+            return;
+          }
 
           if (entry.store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
             remoteTracker = item.value;
@@ -1278,6 +1346,9 @@ async function performDownload(options = {}) {
           Object.keys(prevMap).forEach(localId => {
             if (seen.has(localId)) return;
             if (entry.store === 'app-meta') return;
+            /* اگر برای این رکورد تغییری در انتظار ارسال است، حذف سرور اعمال
+               نمی‌شود تا ویرایش تازهٔ دستگاه دیگر یا حذف در انتظار از بین نرود. */
+            if (hasPendingChange(entry.store, localId, localId).any) { pendingSkipped++; return; }
             deletes.push({ store: entry.store, id: localId });
             acknowledge.push({ store: entry.store, id: localId });
             applied++;
@@ -1290,6 +1361,10 @@ async function performDownload(options = {}) {
           detailed.forEach(item => {
             const canonical = pbCanonicalLocalId(entry.store, item.localId);
             if (!canonical) return;
+            if (hasPendingChange(entry.store, canonical, item.localId).any) {
+              pendingSkipped++;
+              return;
+            }
             if (entry.store === 'app-meta') {
               if (canonical === POCKETBASE_TRACKER_ID) {
                 if (pbSameJsonValue(item.value, currentTrackerPayload())) return;
@@ -1319,6 +1394,9 @@ async function performDownload(options = {}) {
         if (typeof info.count === 'number') counts[entry.collection] = info.count;
         nextRemote[entry.collection] = nextMap;
       }
+
+      /* تغییرهای محلی‌ای که کنار گذاشته شدند باید هرچه زودتر ارسال شوند */
+      if (pendingSkipped) scheduleAutoUpload(600);
 
       if (!applied && !trackerChangedRemotely) {
         saveSyncMeta(server, ownerId, {
@@ -1685,6 +1763,7 @@ async function syncCycle(options = {}) {
   lastAutoStatus = 'syncing';
   renderSyncUI();
   let outcome = { ok: false };
+  let uploadFailure = null;
 
   try {
     await flushStorage().catch(() => {});
@@ -1714,26 +1793,35 @@ async function syncCycle(options = {}) {
     }
 
     const up = await performUpload({ silent: true });
-    if (!up || !up.ok) {
+    /* فقط خطای احراز هویت باید چرخه را متوقف کند. یک رکورد مشکل‌دار نباید
+       مانع دریافت تغییرات دستگاه‌های دیگر شود. */
+    if (!up || (!up.ok && up.fatal)) {
       outcome = up || { ok: false };
       registerAutoFailure(up && up.error);
       lastAutoStatus = 'error';
       return outcome;
+    }
+    const uploadFailed = !!up && !up.ok;
+    if (uploadFailed) {
+      uploadFailure = up.error || 'ارسال ناموفق بود';
+      registerAutoFailure(uploadFailure);
     }
 
     /* کاوش سرور یعنی تغییر واقعی پیدا شده؛ دریافت نباید به فاصلهٔ ۶۰ ثانیه‌ای محدود شود */
     const forceDownload = manual || reason === 'probe';
     const downloadAllowed = forceDownload || firstSync || (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP);
     if (!downloadAllowed) {
-      outcome = { ok: true, changed: up.changed || 0, downloadSkipped: true };
-      registerAutoSuccess();
-      lastAutoStatus = 'idle';
+      outcome = uploadFailed
+        ? { ok: false, partial: true, error: uploadFailure }
+        : { ok: true, changed: up.changed || 0, downloadSkipped: true };
+      if (!uploadFailed) { registerAutoSuccess(); lastAutoStatus = 'idle'; }
+      else lastAutoStatus = 'error';
       return outcome;
     }
     if (!manual && shouldDeferAutoDownload()) {
-      outcome = { ok: true, deferred: true };
-      registerAutoSuccess();
-      lastAutoStatus = 'idle';
+      outcome = uploadFailed ? { ok: false, partial: true, error: uploadFailure } : { ok: true, deferred: true };
+      if (!uploadFailed) { registerAutoSuccess(); lastAutoStatus = 'idle'; }
+      else lastAutoStatus = 'error';
       scheduleAutoCycle(AUTO_DEFER_RETRY, reason);
       return outcome;
     }
@@ -1741,13 +1829,18 @@ async function syncCycle(options = {}) {
     const down = await performDownload({ silent: true, deferCheck: false });
     if (down && down.ok) {
       lastDownloadAt = Date.now();
-      registerAutoSuccess();
-      lastAutoStatus = 'idle';
-      outcome = down;
+      if (uploadFailed) {
+        lastAutoStatus = 'error';
+        outcome = { ok: false, partial: true, error: uploadFailure, changed: down.changed || 0 };
+      } else {
+        registerAutoSuccess();
+        lastAutoStatus = 'idle';
+        outcome = down;
+      }
     } else if (down && down.deferred) {
       scheduleAutoCycle(AUTO_DEFER_RETRY, reason);
-      lastAutoStatus = 'idle';
-      outcome = down;
+      lastAutoStatus = uploadFailed ? 'error' : 'idle';
+      outcome = uploadFailed ? { ok: false, partial: true, error: uploadFailure } : down;
     } else {
       registerAutoFailure(down && down.error);
       lastAutoStatus = 'error';
@@ -1766,6 +1859,8 @@ async function syncCycle(options = {}) {
       autoSyncPending = false;
       scheduleAutoUpload(400);
     }
+    /* دریافت، پیام خطا را پاک می‌کند؛ خطای ارسال باید تا موفقیت بعدی دیده شود */
+    if (uploadFailure) syncError = uploadFailure;
     renderSyncUI();
     refreshPendingBadge();
     if (manual) {

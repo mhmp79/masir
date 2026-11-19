@@ -1522,6 +1522,42 @@ function flushStorage(){
   });
 }
 
+/* نوشتن تغییرات سرور؛ فقط پس از آن‌که مطمئن شدیم تغییر محلی‌ای
+   برای همان رکورد در انتظار ارسال نیست فراخوانی می‌شود. */
+function applyRemoteChangesNow(puts, deletes, acknowledge){
+  if (storageMode === 'indexeddb') {
+    if (!appStateRepository.database) return Promise.reject(new Error('ذخیره‌سازی همگام‌سازی در دسترس نیست'));
+    return new Promise((resolve, reject) => {
+      const stores = [...new Set([
+        ...puts.map(item => item.store),
+        ...deletes.map(item => item.store),
+        SYNC_PENDING_STORE
+      ])];
+      const tx = appStateRepository.database.transaction(stores, 'readwrite');
+      puts.forEach(({store, record}) => tx.objectStore(store).put(record));
+      deletes.forEach(({store, id}) => tx.objectStore(store).delete(String(id)));
+      const pending = tx.objectStore(SYNC_PENDING_STORE);
+      acknowledge.forEach(({store, id}) => pending.delete(`${store}::${id}`));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('اعمال تغییرات سرور ناموفق بود'));
+      tx.onabort = () => reject(tx.error || new Error('اعمال تغییرات سرور لغو شد'));
+    });
+  }
+  puts.forEach(({store, record}) => {
+    try { localStorage.setItem(localStorageRecordKey(store, record.id), JSON.stringify(record)); }
+    catch (error) { console.warn('[storage] writing remote record failed:', error); }
+  });
+  deletes.forEach(({store, id}) => {
+    try { localStorage.removeItem(localStorageRecordKey(store, id)); }
+    catch (error) { console.warn('[storage] deleting remote record failed:', error); }
+  });
+  acknowledge.forEach(({store, id}) => {
+    try { localStorage.removeItem(localStoragePendingKey(store, id)); }
+    catch (error) { console.warn('[storage] clearing remote change failed:', error); }
+  });
+  return Promise.resolve();
+}
+
 window.storageSync = {
   pendingChangesProvider: (limit) => {
     if(storageMode==='indexeddb' && !appStateRepository.database){
@@ -1545,7 +1581,9 @@ window.storageSync = {
     acknowledgeLocalChanges(acknowledgements);
     return Promise.resolve();
   },
-  /* اعمال تغییرات دریافتی از سرور بدون ثبت آن‌ها به‌عنوان تغییر محلی */
+  /* اعمال تغییرات دریافتی از سرور بدون ثبت آن‌ها به‌عنوان تغییر محلی.
+     اگر برای همان رکورد تغییری در انتظار ارسال باشد، نسخهٔ سرور کنار گذاشته
+     می‌شود؛ وگرنه ویرایشی که کاربر همین حالا انجام داده از بین می‌رفت. */
   applyRemoteChanges: (changes) => {
     const puts = (changes && Array.isArray(changes.puts) ? changes.puts : []).filter(item =>
       item && NORMALIZED_STORES.includes(item.store) && item.record && item.record.id != null
@@ -1556,37 +1594,22 @@ window.storageSync = {
     const acknowledge = (changes && Array.isArray(changes.acknowledge) ? changes.acknowledge : []).filter(item =>
       item && NORMALIZED_STORES.includes(item.store) && item.id != null
     );
-    if (storageMode === 'indexeddb') {
-      if (!appStateRepository.database) return Promise.reject(new Error('ذخیره‌سازی همگام‌سازی در دسترس نیست'));
-      return new Promise((resolve, reject) => {
-        const stores = [...new Set([
-          ...puts.map(item => item.store),
-          ...deletes.map(item => item.store),
-          SYNC_PENDING_STORE
-        ])];
-        const tx = appStateRepository.database.transaction(stores, 'readwrite');
-        puts.forEach(({store, record}) => tx.objectStore(store).put(record));
-        deletes.forEach(({store, id}) => tx.objectStore(store).delete(String(id)));
-        const pending = tx.objectStore(SYNC_PENDING_STORE);
-        acknowledge.forEach(({store, id}) => pending.delete(`${store}::${id}`));
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error || new Error('اعمال تغییرات سرور ناموفق بود'));
-        tx.onabort = () => reject(tx.error || new Error('اعمال تغییرات سرور لغو شد'));
-      });
-    }
-    puts.forEach(({store, record}) => {
-      try { localStorage.setItem(localStorageRecordKey(store, record.id), JSON.stringify(record)); }
-      catch (error) { console.warn('[storage] writing remote record failed:', error); }
+    if (!puts.length && !deletes.length && !acknowledge.length) return Promise.resolve();
+    const pendingRead = storageMode === 'indexeddb'
+      ? (appStateRepository.database ? appStateRepository.getPendingChanges(100000) : Promise.resolve([]))
+      : Promise.resolve(getLocalPendingChanges(100000));
+    return pendingRead.catch(() => []).then(pendingList => {
+      const guarded = new Set((pendingList || [])
+        .filter(change => change && change.store && change.recordId != null)
+        .map(change => `${change.store}::${change.recordId}`));
+      if (!guarded.size) return applyRemoteChangesNow(puts, deletes, acknowledge);
+      const keyOf = item => `${item.store}::${item.record && item.record.id != null ? item.record.id : item.id}`;
+      return applyRemoteChangesNow(
+        puts.filter(item => !guarded.has(keyOf(item))),
+        deletes.filter(item => !guarded.has(keyOf(item))),
+        acknowledge.filter(item => !guarded.has(keyOf(item)))
+      );
     });
-    deletes.forEach(({store, id}) => {
-      try { localStorage.removeItem(localStorageRecordKey(store, id)); }
-      catch (error) { console.warn('[storage] deleting remote record failed:', error); }
-    });
-    acknowledge.forEach(({store, id}) => {
-      try { localStorage.removeItem(localStoragePendingKey(store, id)); }
-      catch (error) { console.warn('[storage] clearing remote change failed:', error); }
-    });
-    return Promise.resolve();
   },
   /* خواندن دوبارهٔ state از حافظه پس از اعمال تغییرات سرور، بدون بارگذاری صفحه */
   reloadState: async () => {

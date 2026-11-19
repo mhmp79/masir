@@ -1310,7 +1310,10 @@ async function performDownload(options = {}) {
           serverCount = records.length;
         } else if (serverCount > 0) {
           setProgress('download', 5 + (i / syncStores.length) * 40, `دریافت تغییرات — ${entry.collection}`);
-          records = await fetchChangedSince(pb, entry.collection, ownerId, previousFloor[entry.collection]);
+          /* سرورهایی که ستون updated ندارند این پرسش را رد میکنند؛ در آن
+             صورت شمارش، بازبینی فهرست همان مجموعه را انجام میدهد. */
+          records = await fetchChangedSince(pb, entry.collection, ownerId, previousFloor[entry.collection])
+            .catch(() => []);
           /* رکوردهایی که پیش‌تر روی سرور نبوده‌اند؛ بقیه فقط ویرایش‌اند */
           const seen = new Set();
           let added = 0;
@@ -1783,6 +1786,7 @@ function logoutPocketBase() {
    برنامه مدام برای «چیزی تازه هست؟» سرور را بپرسد. اگر اتصال ممکن نباشد
    (پراکسی، مرورگر قدیمی، آفلاین) بی‌صدا به همان کاوش دوره‌ای برمی‌گردیم. */
 const REALTIME_RETRY_MS = 5 * 60 * 1000;
+const REALTIME_DEAD_RETRY_MS = 20 * 60 * 1000;
 const realtimePush = {
   supported: typeof EventSource !== 'undefined',
   started: false,
@@ -1790,7 +1794,9 @@ const realtimePush = {
   identity: '',
   unsubs: [],
   lastEventAt: 0,
-  failedAt: 0
+  failedAt: 0,
+  missedChecks: 0,
+  deadTransport: false
 };
 
 function realtimeIdentity() {
@@ -1802,12 +1808,38 @@ function realtimeIdentity() {
     return normalizeBaseUrl(pocketBaseBaseUrl()) + '|' + owner;
   } catch (e) { return ''; }
 }
+
+/* برخی میزبانها اتصال SSE را پس از مدتی میبندند؛ SDK بهتنهایی دوباره وصل
+   میشود و پیامهای مکرر در کنسول میگذارد. تعداد تلاشها محدود میشود و اگر
+   اتصال در عمل زنده نباشد، نشان «زنده» هم بهروز میشود تا کاوش دورهای ادامه یابد. */
+function realtimeTransportAlive() {
+  try {
+    const pb = getPocketBaseClient();
+    return !!(pb && pb.realtime && pb.realtime.isConnected);
+  } catch (error) { return false; }
+}
+function checkRealtimeTransport() {
+  if (!realtimePush.connected || !autoSyncEnabled || !isLoggedIn()) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (realtimeTransportAlive()) { realtimePush.missedChecks = 0; return; }
+  realtimePush.missedChecks++;
+  if (realtimePush.missedChecks < 2) return;
+  realtimePush.missedChecks = 0;
+  realtimePush.connected = false;
+  realtimePush.started = false;
+  realtimePush.identity = '';
+  realtimePush.failedAt = Date.now();
+  realtimePush.deadTransport = true;
+  renderSyncUI();
+}
+
 function stopRealtimePush() {
   const unsubs = realtimePush.unsubs;
   realtimePush.started = false;
   realtimePush.connected = false;
   realtimePush.identity = '';
   realtimePush.unsubs = [];
+  realtimePush.missedChecks = 0;
   /* رویدادهای صفبندی شده نباید پس از خروج یا تغییر هویت باقی بمانند */
   realtimeHints = [];
   if (realtimeApplyTimer) { clearTimeout(realtimeApplyTimer); realtimeApplyTimer = null; }
@@ -1828,12 +1860,16 @@ async function startRealtimePush() {
   const identity = realtimeIdentity();
   if (!identity) return false;
   if (realtimePush.connected || (realtimePush.started && realtimePush.identity === identity)) return realtimePush.connected;
-  if (Date.now() - realtimePush.failedAt < REALTIME_RETRY_MS) return false;
+  const retryGap = realtimePush.deadTransport ? REALTIME_DEAD_RETRY_MS : REALTIME_RETRY_MS;
+  if (Date.now() - realtimePush.failedAt < retryGap) return false;
   await stopRealtimePush();
   realtimePush.started = true;
   realtimePush.identity = identity;
   try {
     const pb = getPocketBaseClient();
+    try {
+      if (pb.realtime && typeof pb.realtime === 'object') pb.realtime.maxReconnectAttempts = 3;
+    } catch (error) {}
     const ownerId = pocketBaseUserId(pb);
     const collections = [...new Set(PB_DOWNLOAD_STORES.map(pbCollectionName))];
     for (const collection of collections) {
@@ -1847,6 +1883,8 @@ async function startRealtimePush() {
       }
       realtimePush.unsubs.push(unsub);
     }
+    realtimePush.missedChecks = 0;
+    realtimePush.deadTransport = false;
     realtimePush.connected = true;
     renderSyncUI();
     return true;
@@ -2448,38 +2486,37 @@ async function probeRemoteChanges(force) {
     if (!meta || !meta.remote) return true; /* فراداده نداریم؛ سینک کامل لازم است */
     for (const store of PB_DOWNLOAD_STORES) {
       const collection = pbCollectionName(store);
+      const knownMap = meta.remote[collection] || {};
       const knownMax = syncKnownMax(meta, collection);
       try {
-        /* تازه‌ترین رکورد سرور خوانده می‌شود، نه فیلتر «updated > …»؛
-           این روش به قالب زمان یا درست‌بودن فرادادهٔ محلی وابسته نیست. */
-        const res = await withRateLimitRetry(() => pb.collection(collection).getList(1, 1, {
-          filter: `owner="${pbFilterValue(ownerId)}"`,
-          sort: '-updated',
-          fields: 'id,updated',
-          skipTotal: true,
-          requestKey: null
-        }));
-        const newest = res && Array.isArray(res.items) ? res.items[0] : null;
-        const serverMax = newest ? pbManifestTimestamp(newest) : null;
-        if (!serverMax) continue;
-        if (!knownMax || serverMax > knownMax) return true;
-        if (serverMax < knownMax) {
-          /* فراداده از سرور جلوتر است (بازگردانی پشتیبان، حذف رکوردِ آخر
-             یا ساعت نادرست). پاک‌سازی همان مجموعه تا سینک بعدی فهرست
-             کامل را بخواند و مسیر تدریجی خودش را ترمیم کند. */
-          const healed = {
-            ...meta,
-            floor: { ...(meta.floor || {}) },
-            remote: { ...(meta.remote || {}) }
-          };
-          delete healed.floor[collection];
-          delete healed.remote[collection];
-          saveSyncMeta(server, ownerId, healed);
-          console.warn('[PB] stale sync metadata for', collection, 'reset');
+        /* برخی سرورها ستون updated ندارند؛ فهرست سبک بدون sort و بدون فیلتر
+           زمان خوانده میشود تا خطای 400 ایجاد نشود. */
+        const records = await fetchOwnerManifest(pb, collection, ownerId);
+        if (knownMax) {
+          const serverMax = maxUpdatedTimestamp(records);
+          if (!serverMax || serverMax > knownMax) return true;
+          if (serverMax < knownMax) {
+            /* فراداده جلوتر از سرور است؛ پاکسازی همان مجموعه تا سینک بعدی
+               فهرست کامل را بخواند و مسیر تدریجی خودش را ترمیم کند. */
+            const healed = {
+              ...meta,
+              floor: { ...(meta.floor || {}) },
+              remote: { ...(meta.remote || {}) }
+            };
+            delete healed.floor[collection];
+            delete healed.remote[collection];
+            saveSyncMeta(server, ownerId, healed);
+            console.warn('[PB] stale sync metadata for', collection, 'reset');
+            return true;
+          }
+        } else if (records.length !== Object.keys(knownMap).length) {
           return true;
+        } else {
+          const serverIds = new Set(records.map(item => pbCanonicalLocalId(store, item.localId)));
+          if (Object.keys(knownMap).some(id => !serverIds.has(id))) return true;
         }
       } catch (error) {
-        /* مجموعه‌ای روی سرور نیست (مثل plan/reserved)؛ کاوش ادامه می‌یابد */
+        /* مجموعهای روی سرور نیست یا موقتاً در دسترس نیست؛ کاوش ادامه مییابد */
       }
     }
     return false;
@@ -2551,6 +2588,7 @@ function startAutoSync() {
     if (document.hidden || !autoSyncEnabled || !isLoggedIn()) return;
     if (Date.now() - lastDownloadAt >= AUTO_POLL_INTERVAL) { scheduleAutoCycle(0, 'poll'); return; }
     /* با اتصال زنده، پرس‌وجوی دقیقه‌ای لازم نیست؛ همان پایش ده‌دقیقه‌ای می‌ماند */
+    checkRealtimeTransport();
     if (realtimePush.connected) return;
     startRealtimePush();
     maybeProbeRemoteChanges();

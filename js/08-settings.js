@@ -28,6 +28,7 @@ function renderProfileSection(){
   if(editFieldsEl) editFieldsEl.hidden = true;
   if(editBtn) editBtn.setAttribute('aria-expanded','false');
   updateProfileHint();
+  try{ if(typeof renderSyncUI==='function') renderSyncUI(); }catch(e){}
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');

@@ -1,7 +1,7 @@
 'use strict';
 
 /* ============================================================
-   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۵)
+   POCKETBASE — همگام‌سازی خودکار دوطرفه (نسخه ۴.۲.۱۰)
    - هر کاربر با ایمیل/رمز خودش وارد می‌شود؛ داده‌ها با فیلد owner جدا می‌شوند
    - ارسال تدریجی: فقط رکوردهایی که تغییر کرده‌اند ارسال می‌شوند
    - دریافت تدریجی: فقط رکوردهایی که از آخرین سینک `updated` تازه‌تری دارند
@@ -10,6 +10,8 @@
      به‌علاوهٔ رکوردهای تازه مقایسه می‌شود؛ فقط در صورت اختلاف، فهرست کامل
      همان مجموعه خوانده می‌شود
    - اگر تغییری برای ارسال یا دریافت نباشد، عملاً هیچ داده‌ای جابه‌جا نمی‌شود
+   - رویداد زندهٔ PocketBase دقیقاً همان رکورد را اعمال میکند؛ بدون
+     بازبینی فهرست یا شمارش کل مجموعهها
    - اولین سینک دستگاه تازه اول دریافت می‌کند تا دادهٔ سرور بازنویسی نشود
    - هر ۶۰ ثانیه یک «کاوش ارزان» انجام می‌شود: فقط پرسیده می‌شود آیا رکوردی
      تازه‌تر از آخرین وضعیت شناخته‌شده روی سرور هست یا نه؛ سینک کامل فقط
@@ -1806,6 +1808,9 @@ function stopRealtimePush() {
   realtimePush.connected = false;
   realtimePush.identity = '';
   realtimePush.unsubs = [];
+  /* رویدادهای صفبندی شده نباید پس از خروج یا تغییر هویت باقی بمانند */
+  realtimeHints = [];
+  if (realtimeApplyTimer) { clearTimeout(realtimeApplyTimer); realtimeApplyTimer = null; }
   unsubs.forEach(unsub => {
     try {
       const out = unsub();
@@ -1854,25 +1859,262 @@ async function startRealtimePush() {
 }
 /* رویداد سرور فقط «یک تغییر هست» را اعلام می‌کند؛ اعمال آن با همان مسیر
    تدریجیِ آزموده‌شده انجام می‌شود تا ادغام فیلدها و ویرایش‌های معلق حفظ شوند. */
+/* رویداد سرور دقیقاً همان رکوردی را که تغییر کرده اعلام میکند. بهجای
+   بازبینی تمام مجموعهها، فقط همان نشانهها را نگه میداریم و اعمال میکنیم. */
+const REALTIME_APPLY_DELAY = 120;
+let realtimeHints = [];
+let realtimeApplyTimer = null;
+let realtimeApplyRunning = false;
+
+function queueRealtimeHint(hint) {
+  const key = hint.collection + '::' + hint.canonical + '::' + hint.action;
+  const index = realtimeHints.findIndex(item =>
+    item.collection + '::' + item.canonical + '::' + item.action === key);
+  if (index >= 0) {
+    const current = realtimeHints[index];
+    if (!hint.stamp || !current.stamp || hint.stamp >= current.stamp) realtimeHints[index] = hint;
+  } else {
+    realtimeHints.push(hint);
+    if (realtimeHints.length > 200) realtimeHints.shift();
+  }
+  scheduleRealtimeApply();
+}
+
+function scheduleRealtimeApply(delay) {
+  if (realtimeApplyTimer) clearTimeout(realtimeApplyTimer);
+  realtimeApplyTimer = setTimeout(() => {
+    realtimeApplyTimer = null;
+    applyRealtimeHints().catch(error => {
+      console.warn('[PB] realtime apply failed:', error);
+      realtimePending = true;
+      scheduleAutoCycle(500, 'realtime');
+    });
+  }, delay === undefined ? REALTIME_APPLY_DELAY : delay);
+}
+
 function handleRealtimeEvent(store, collection, event, ownerId) {
   try {
     if (!event || !event.record) return;
     if (event.record.owner && ownerId && event.record.owner !== ownerId) return;
     if (!isLoggedIn()) return;
     realtimePush.lastEventAt = Date.now();
-    realtimePending = true;
+    const canonical = pbCanonicalLocalId(store, event.record.localId);
+    if (!canonical) return;
     const server = normalizeBaseUrl(pocketBaseBaseUrl());
     const meta = loadSyncMeta(server, ownerId);
-    const canonical = pbCanonicalLocalId(store, event.record.localId);
-    if (canonical && event.action !== 'delete' && meta && meta.remote && meta.remote[collection]) {
-      const stamp = pbManifestTimestamp(event.record);
+    const stamp = pbManifestTimestamp(event.record);
+    if (event.action !== 'delete' && meta && meta.remote && meta.remote[collection]) {
       const known = meta.remote[collection][canonical];
       /* پژواک نوشتن خودمان یا رکوردی که همین حالا اعمال شده */
       if (stamp && known && stamp <= known) return;
     }
-    scheduleAutoCycle(150, 'realtime');
+    queueRealtimeHint({
+      store, collection, canonical,
+      localId: String(event.record.localId == null ? '' : event.record.localId),
+      action: event.action || 'update',
+      stamp,
+      record: event.record
+    });
   } catch (error) {
     console.warn('[PB] realtime event failed:', error);
+  }
+}
+
+/* اعمال هدفمند رویدادهای زنده: نه فهرست کامل، نه شمارش، نه بازبینی رکوردهای بیربط.
+   تنها رکوردهایی که سرور اعلام کرده با همان قواعد ایمن سینک تدریجی نوشته میشوند. */
+async function applyRealtimeHints() {
+  if (!realtimeHints.length) return;
+  if (!autoSyncEnabled || !isLoggedIn()) { realtimeHints = []; return; }
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    realtimeHints = [];
+    realtimePending = true;
+    return;
+  }
+  if (syncBusy || autoSyncRunning || realtimeApplyRunning) {
+    scheduleRealtimeApply(300);
+    return;
+  }
+  const hints = realtimeHints.splice(0);
+  const identity = currentSyncIdentity();
+  if (!identity || !identity.meta ||
+      !window.storageSync || typeof window.storageSync.applyRemoteChanges !== 'function') {
+    realtimePending = true;
+    scheduleAutoCycle(150, 'realtime');
+    return;
+  }
+
+  realtimeApplyRunning = true;
+  lastAutoStatus = 'syncing';
+  renderSyncUI();
+  let fallbackFull = false;
+  try {
+    await flushStorage().catch(() => {});
+    const pending = await readPendingChanges().catch(() => null);
+    const pendingPut = new Set();
+    const pendingDel = new Set();
+    (pending || []).forEach(change => {
+      if (!change || !change.store) return;
+      const key = `${change.store}::${change.recordId}`;
+      if (change.operation === 'delete') pendingDel.add(key);
+      else pendingPut.add(key);
+    });
+    const pendingFor = (store, canonical, rawLocalId) => {
+      const keys = [`${store}::${canonical}`, `${store}::${String(rawLocalId == null ? '' : rawLocalId)}`];
+      const put = keys.some(key => pendingPut.has(key));
+      const del = keys.some(key => pendingDel.has(key));
+      return { put, del, any: put || del };
+    };
+
+    const pb = await requirePocketBaseAuth();
+    const ownerId = pocketBaseUserId(pb);
+    const server = normalizeBaseUrl(pocketBaseBaseUrl());
+    const meta = loadSyncMeta(server, ownerId) || identity.meta;
+    const nextMeta = {
+      ...meta,
+      remote: { ...(meta.remote || {}) },
+      checked: { ...(meta.checked || {}) },
+      floor: { ...(meta.floor || {}) },
+      counts: { ...(meta.counts || {}) }
+    };
+    Object.keys(nextMeta.remote).forEach(collection => {
+      nextMeta.remote[collection] = { ...(nextMeta.remote[collection] || {}) };
+    });
+    Object.keys(nextMeta.checked).forEach(collection => {
+      nextMeta.checked[collection] = { ...(nextMeta.checked[collection] || {}) };
+    });
+
+    /* چند رویداد پشتسرهم برای یک رکورد: تازهترینشان برنده است. */
+    const groups = new Map();
+    hints.forEach(hint => {
+      const known = (nextMeta.remote[hint.collection] || {})[hint.canonical];
+      if (hint.action !== 'delete' && hint.stamp && known && hint.stamp <= known) return;
+      const key = hint.collection + '::' + hint.canonical;
+      const previous = groups.get(key);
+      const newer = !previous || !hint.stamp || !previous.stamp || hint.stamp >= previous.stamp;
+      if (newer || (hint.action === 'delete' && previous && previous.action !== 'delete')) {
+        groups.set(key, hint);
+      }
+    });
+    if (!groups.size) {
+      lastAutoStatus = 'idle';
+      return { ok: true, changed: 0, noChanges: true };
+    }
+
+    /* رویداد معمولی مقدار رکورد را هم دارد؛ فقط اگر ناقص بود همان رکورد را میخوانیم. */
+    const missingByCollection = new Map();
+    groups.forEach(hint => {
+      if (hint.action === 'delete') return;
+      const record = hint.record;
+      if (record && Object.prototype.hasOwnProperty.call(record, 'value')) return;
+      const set = missingByCollection.get(hint.collection) || new Set();
+      set.add(hint.localId);
+      missingByCollection.set(hint.collection, set);
+    });
+    for (const [collection, ids] of missingByCollection) {
+      const fetched = await fetchRemoteValuesByLocalIds(pb, collection, ownerId, [...ids]);
+      fetched.forEach(item => {
+        const store = pbStoreForCollection(collection);
+        const canonical = pbCanonicalLocalId(store, item.localId);
+        const hint = groups.get(collection + '::' + canonical);
+        if (hint) hint.record = item;
+      });
+    }
+
+    const localSnapshot = normalizedStorageSnapshot(compactStateForStorage(state));
+    const puts = [];
+    const deletes = [];
+    const acknowledge = [];
+    const touchedCollections = new Set();
+    let applied = 0;
+    let remoteTracker = null;
+
+    groups.forEach(hint => {
+      const { store, collection, canonical, action, localId } = hint;
+      const remoteMap = nextMeta.remote[collection] || (nextMeta.remote[collection] = {});
+      const checkedMap = nextMeta.checked[collection] || (nextMeta.checked[collection] = {});
+      if (action === 'delete') {
+        if (!canonical || (store === 'app-meta' && canonical === DB_STATE_ID)) return;
+        if (pendingFor(store, canonical, localId).any) return;
+        deletes.push({ store, id: canonical });
+        acknowledge.push({ store, id: canonical });
+        delete remoteMap[canonical];
+        delete checkedMap[canonical];
+        touchedCollections.add(collection);
+        applied++;
+        return;
+      }
+      const item = hint.record;
+      if (!item || !Object.prototype.hasOwnProperty.call(item, 'value')) {
+        fallbackFull = true; /* رکورد روی سرور نیست؛ بازبینی فهرست لازم است */
+        return;
+      }
+      if (pendingFor(store, canonical, localId).any) return;
+      const updated = hint.stamp || pbManifestTimestamp(item) || '';
+      if (store === 'app-meta' && canonical === POCKETBASE_TRACKER_ID) {
+        if (!pbSameJsonValue(item.value, currentTrackerPayload())) remoteTracker = item.value;
+        if (updated) {
+          remoteMap[canonical] = updated;
+          checkedMap[canonical] = updated;
+          if (updated > (nextMeta.floor[collection] || '')) nextMeta.floor[collection] = updated;
+        }
+        touchedCollections.add(collection);
+        return;
+      }
+      const record = pbRemoteRecordToLocal(store, item, localSnapshot);
+      if (!record) { fallbackFull = true; return; }
+      puts.push({ store, record });
+      acknowledge.push({ store, id: record.id });
+      if (updated) {
+        remoteMap[canonical] = updated;
+        checkedMap[canonical] = updated;
+        if (updated > (nextMeta.floor[collection] || '')) nextMeta.floor[collection] = updated;
+      }
+      touchedCollections.add(collection);
+      applied++;
+    });
+
+    touchedCollections.forEach(collection => {
+      nextMeta.counts[collection] = Object.keys(nextMeta.remote[collection] || {}).length;
+    });
+
+    if (applied || remoteTracker) {
+      autoSyncSuppressUpload++;
+      try {
+        save();
+        await flushStorage();
+        await window.storageSync.applyRemoteChanges({ puts, deletes, acknowledge });
+        if (remoteTracker) applyRemoteTracker(remoteTracker);
+      } finally {
+        autoSyncSuppressUpload--;
+      }
+      const now = Date.now();
+      nextMeta.lastSyncAt = now;
+      saveSyncMeta(server, ownerId, {
+        ...nextMeta,
+        tracker: remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null)
+      });
+      setLastSyncTimestamp(now);
+      syncNotice = `✓ ${fa(applied)} تغییر زنده اعمال شد`;
+      await refreshAppAfterSync();
+    } else {
+      saveSyncMeta(server, ownerId, nextMeta);
+    }
+
+    if (fallbackFull) {
+      realtimePending = true;
+      scheduleAutoCycle(200, 'realtime');
+    }
+    lastAutoStatus = 'idle';
+    return { ok: true, changed: applied };
+  } catch (error) {
+    console.warn('[PB] targeted realtime failed:', error);
+    realtimePending = true;
+    scheduleAutoCycle(300, 'realtime');
+    lastAutoStatus = 'error';
+    return { ok: false, error };
+  } finally {
+    realtimeApplyRunning = false;
+    renderSyncUI();
   }
 }
 
@@ -2356,138 +2598,89 @@ function syncProgressMarkup() {
     </div>`;
 }
 
-function syncFootText(online, lastSync) {
-  if (!online) return 'اتصال اینترنت برقرار نیست؛ پس از برقراری، همگام‌سازی خودکار ادامه می‌یابد.';
-  if (!autoSyncEnabled) return 'همگام‌سازی خودکار خاموش است؛ با دکمهٔ بالا دستی همگام کن.';
-  if (lastAutoStatus === 'syncing') return 'در حال بررسی تغییرات…';
-  if (realtimePush.connected) return `دریافت زنده فعال است؛ آخرین بررسی: ${lastSync}`;
-  return `آخرین بررسی: ${lastSync}`;
+let accountRenderState = '';
+
+function syncStateBadge(online, loggedIn, busy) {
+  if (!loggedIn) return { text: 'نیاز به ورود', cls: 'warn' };
+  if (busy) return { text: 'در حال سینک', cls: 'busy' };
+  if (!online) return { text: 'آفلاین', cls: 'warn' };
+  if (!autoSyncEnabled) return { text: 'خاموش', cls: 'warn' };
+  if (realtimePush.connected) return { text: 'زنده', cls: 'live' };
+  return { text: 'آماده', cls: '' };
 }
 
-function renderSyncUI() {
-  const box = document.getElementById('syncUI');
+/* هویت حساب و پروفایل در یک نقطه دیده میشود: نام و رشته در بالا، ایمیل و
+   ورود/خروج بلافاصله زیر همان کارت. */
+function renderAccountUI(loggedIn, email, online, busy, lastSync) {
+  const box = document.getElementById('accountUI');
   if (!box) return;
-
-  const loggedIn = isLoggedIn();
-  const email = getLoggedInEmail();
-  const lastSync = formatLastSync();
-  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
-  const busy = !!syncBusy || autoSyncRunning;
+  const stateKey = loggedIn
+    ? `in|${email}|${online}|${busy}|${lastSync}`
+    : 'out';
+  const active = document.activeElement;
+  if (active && box.contains(active) &&
+      /^(INPUT|TEXTAREA|SELECT)$/.test(String(active.tagName || '').toUpperCase()) &&
+      accountRenderState === stateKey) return;
+  accountRenderState = stateKey;
 
   if (loggedIn) {
+    const initial = String(email || '?').trim().charAt(0).toUpperCase() || '?';
     box.innerHTML = `
-      <div class="profile-summary sync-profile-summary">
-        <div class="profile-summary-info">
-          <div class="profile-display-name">همگام‌سازی ابری</div>
-          <div class="profile-summary-meta">
-            <span dir="ltr">${esc(email || 'حساب متصل')}</span>
-            <span class="profile-meta-divider">•</span>
-            <span class="sync-status-${online ? 'online' : 'offline'}">${online ? 'آنلاین' : 'آفلاین'}</span>
-            <span class="profile-meta-divider">•</span>
-            <span>آخرین سینک: ${lastSync}</span>
-          </div>
+      <div class="account-row">
+        <span class="account-avatar">${esc(initial)}</span>
+        <div class="account-identity">
+          <div class="account-email" dir="ltr">${esc(email || 'حساب متصل')}</div>
+          <div class="account-sub"><span class="sync-status-${online ? 'online' : 'offline'}">${online ? 'آنلاین' : 'آفلاین'}</span> • آخرین سینک: ${esc(lastSync)}</div>
         </div>
-        <button class="btn ghost sync-profile-button" id="syncLogoutBtn" ${busy ? 'disabled' : ''}>🚪 خروج</button>
-      </div>
-
-      <label class="toggle-card sync-auto-toggle ${autoSyncEnabled ? 'on' : ''}" for="syncAutoToggle">
-        <div class="sync-auto-info">
-          <div class="sync-auto-title">همگام‌سازی خودکار</div>
-          <div class="sync-auto-desc">هر تغییر بلافاصله با حجم کم روی حساب شما ذخیره میشود، تغییرات دستگاههای دیگر بهصورت زنده دریافت میشود و هر سینک شامل بررسی کامل با سرور است.</div>
-        </div>
-        <span class="switch"><input type="checkbox" id="syncAutoToggle" ${autoSyncEnabled ? 'checked' : ''} ${busy ? 'disabled' : ''}><span></span></span>
-      </label>
-
-      <div class="sync-pending-row">
-        <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
-      </div>
-
-      <button class="btn primary sync-now-btn" id="syncNowBtn" ${busy ? 'disabled' : ''}>
-        ${busy ? '⏳ در حال همگامسازی و بررسی…' : '🔄 همگامسازی و بررسی کامل'}
-      </button>
-
-${syncProgressMarkup()}
-
-      ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
-      ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
-
-      <div class="sync-auto-foot">${esc(syncFootText(online, lastSync))}</div>
-      <div class="sync-auto-foot" dir="ltr">sync engine v4.2.9</div>
-    `;
-
-    if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);
-
+        <button class="btn ghost account-btn" id="syncLogoutBtn" ${busy ? 'disabled' : ''}>خروج</button>
+      </div>`;
     const logoutBtn = document.getElementById('syncLogoutBtn');
-    const nowBtn = document.getElementById('syncNowBtn');
-    const toggle = document.getElementById('syncAutoToggle');
-
-    if (nowBtn) nowBtn.onclick = () => { syncNow(); };
-    if (toggle) toggle.onchange = () => setAutoSyncEnabled(!!toggle.checked);
     if (logoutBtn) logoutBtn.onclick = () => {
       if (busy) return;
-      if (!confirm('از حساب کاربری خارج می‌شوید؟')) return;
+      if (!confirm('از حساب کاربری خارج میشوید؟')) return;
       logoutPocketBase();
       toast('خارج شدید');
       renderSyncUI();
     };
-    refreshPendingBadge();
     return;
   }
 
   box.innerHTML = `
-    <div class="profile-summary sync-profile-summary">
-      <div class="profile-summary-info">
-        <div class="profile-display-name">همگام‌سازی ابری</div>
-        <div class="profile-summary-meta">
-          <span>حسابی متصل نشده</span>
-          <span class="profile-meta-divider">•</span>
-          <span>آخرین سینک: ${lastSync}</span>
-        </div>
+    <div class="account-row">
+      <span class="account-avatar muted-avatar">👤</span>
+      <div class="account-identity">
+        <div class="account-email">حساب کاربری متصل نیست</div>
+        <div class="account-sub">برای همگامسازی وارد شوید</div>
       </div>
     </div>
-
-    <div class="sync-profile-details">
-      <div class="muted mb-12 fs-11h lh-185">
-        با ایمیل و رمز عبور وارد شوید؛ داده‌های هر کاربر جداگانه روی حساب خودش ذخیره می‌شود و پس از ورود، همه‌چیز به‌صورت خودکار و کم‌حجم همگام می‌شود. نیازی به ارسال یا دریافت دستی نیست.
-      </div>
-      <div class="sync-login-form">
-        <label class="lbl" for="syncEmail">ایمیل / نام کاربری</label>
-        <input class="input" id="syncEmail" type="email" placeholder="example@domain.com" dir="ltr" autocomplete="username" inputmode="email">
-        <label class="lbl" for="syncPassword">رمز عبور</label>
-        <input class="input" id="syncPassword" type="password" placeholder="••••••••" autocomplete="current-password">
-        <div id="syncLoginError" class="sync-login-error"></div>
-        <button class="btn primary sync-now-btn" id="syncLoginBtn">🔐 ورود و همگام‌سازی</button>
-      </div>
-    </div>
-  `;
-
+    <div class="account-login-form">
+      <input class="input" id="syncEmail" type="email" placeholder="ایمیل" dir="ltr" autocomplete="username" inputmode="email" aria-label="ایمیل">
+      <input class="input" id="syncPassword" type="password" placeholder="رمز عبور" autocomplete="current-password" aria-label="رمز عبور">
+      <button class="btn primary" id="syncLoginBtn">ورود</button>
+      <div id="syncLoginError" class="sync-login-error"></div>
+    </div>`;
   const loginBtn = document.getElementById('syncLoginBtn');
   const passwordEl = document.getElementById('syncPassword');
   if (passwordEl) passwordEl.onkeydown = event => {
     if (event.key === 'Enter') { event.preventDefault(); if (loginBtn) loginBtn.click(); }
   };
-
   if (!loginBtn) return;
   loginBtn.onclick = async () => {
     const emailEl = document.getElementById('syncEmail');
     const errEl = document.getElementById('syncLoginError');
-    const email = (emailEl ? emailEl.value : '').trim();
+    const emailValue = (emailEl ? emailEl.value : '').trim();
     const password = passwordEl ? passwordEl.value : '';
-
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
-    if (!email || !password) {
-      if (errEl) { errEl.textContent = 'لطفاً ایمیل و رمز عبور را وارد کنید.'; errEl.classList.add('show'); }
+    if (!emailValue || !password) {
+      if (errEl) { errEl.textContent = 'ایمیل و رمز عبور را وارد کنید.'; errEl.classList.add('show'); }
       return;
     }
-
     loginBtn.disabled = true;
-    loginBtn.textContent = '⏳ در حال ورود…';
+    loginBtn.textContent = '⏳…';
     try {
-      await loginWithPassword(email, password);
+      await loginWithPassword(emailValue, password);
       syncError = null;
-      syncNotice = autoSyncEnabled
-        ? '✓ وارد شدید؛ همگام‌سازی خودکار آغاز شد.'
-        : '✓ وارد شدید؛ برای انتقال داده «همگام‌سازی اکنون» را بزنید.';
+      syncNotice = autoSyncEnabled ? '✓ وارد شدید؛ همگامسازی خودکار آغاز شد.' : '✓ وارد شدید.';
       toast('✓ وارد شدید');
       renderSyncUI();
       startAutoSync();
@@ -2499,9 +2692,64 @@ ${syncProgressMarkup()}
         errEl.classList.add('show');
       }
       loginBtn.disabled = false;
-      loginBtn.textContent = '🔐 ورود و همگام‌سازی';
+      loginBtn.textContent = 'ورود';
     }
   };
+}
+
+function renderSyncUI() {
+  const box = document.getElementById('syncUI');
+  if (!box) return;
+
+  const loggedIn = isLoggedIn();
+  const email = getLoggedInEmail();
+  const lastSync = formatLastSync();
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  const busy = !!syncBusy || autoSyncRunning || realtimeApplyRunning;
+  const badge = syncStateBadge(online, loggedIn, busy);
+
+  /* حساب کاربری بخشی از همان کارت پروفایل است، نه بخش جداگانه تنظیمات. */
+  renderAccountUI(loggedIn, email, online, busy, lastSync);
+
+  if (!loggedIn) {
+    box.innerHTML = `
+      <div class="sync-card-head">
+        <div class="sync-card-title">همگامسازی ابری</div>
+        <span class="sync-state-pill warn">${badge.text}</span>
+      </div>
+      <div class="sync-empty-note">پس از ورود، تنظیمات همگامسازی اینجا نمایش داده میشود.</div>`;
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="sync-card-head">
+      <div class="sync-card-title">همگامسازی ابری</div>
+      <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
+    </div>
+    <label class="toggle-card sync-auto-toggle ${autoSyncEnabled ? 'on' : ''}" for="syncAutoToggle">
+      <div class="sync-auto-info">
+        <div class="sync-auto-title">همگامسازی خودکار</div>
+        <div class="sync-auto-desc">تغییرات بلافاصله ارسال و بهصورت زنده دریافت میشوند.</div>
+      </div>
+      <span class="switch"><input type="checkbox" id="syncAutoToggle" ${autoSyncEnabled ? 'checked' : ''} ${busy ? 'disabled' : ''}><span></span></span>
+    </label>
+    <div class="sync-pending-row">
+      <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
+    </div>
+    <button class="btn primary sync-now-btn" id="syncNowBtn" ${busy ? 'disabled' : ''}>
+      ${busy ? '⏳ در حال همگامسازی…' : '🔄 همگامسازی و بررسی'}
+    </button>
+    ${syncProgressMarkup()}
+    ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
+    ${syncNotice ? `<div class="sync-notice">${esc(syncNotice)}</div>` : ''}
+  `;
+
+  if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);
+  const nowBtn = document.getElementById('syncNowBtn');
+  const toggle = document.getElementById('syncAutoToggle');
+  if (nowBtn) nowBtn.onclick = () => { syncNow(); };
+  if (toggle) toggle.onchange = () => setAutoSyncEnabled(!!toggle.checked);
+  refreshPendingBadge();
 }
 
 /* Expose for external calls */

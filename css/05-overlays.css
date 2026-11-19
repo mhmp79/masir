@@ -18,6 +18,13 @@
   background:linear-gradient(135deg,#7c5cff,#22d3ee);
   box-shadow:0 10px 26px -10px #7c5cff;
 }
+.logo.app-logo{
+  border-radius:50%;
+  background-image:url('../icons/icon-192.png');
+  background-size:cover;background-position:center;
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 8px 20px -8px rgba(124,92,255,.85);
+}
 .brand-title{font-weight:800;font-size:15px;letter-spacing:.2px}
 .topbar-actions{display:flex;gap:8px;align-items:center}
 

@@ -4284,6 +4284,62 @@ input.ex-subj{
 .chart-legend-line{width:12px;height:3px;border-radius:2px}
 
 
+/* ============ TASK SPEC v1.2.0 — FEAT-4 RESPONSIVE LAYOUT ============ */
+.exam-sidebar-fab,.exam-sidebar-backdrop{display:none}
+@media (min-width:1024px){
+  .exam-layout{
+    display:grid;
+    grid-template-columns:280px minmax(0,1fr);
+    gap:14px;align-items:start;
+  }
+  .exam-side{
+    position:sticky;top:16px;
+    max-height:90vh;overflow-y:auto;min-height:0;
+  }
+  .exam-main{min-width:0}
+  #view-exam.analysis-mode .exam-layout{grid-template-columns:minmax(0,1fr)}
+  #view-exam.analysis-mode .exam-side{display:none}
+}
+@media (min-width:768px) and (max-width:1023px){
+  .exam-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
+  .exam-calendar-summary{display:flex}
+  .exam-calendar-details:not([open]) > .card{display:none}
+  .exam-side{
+    position:sticky;top:16px;max-height:90vh;
+    overflow-y:auto;min-height:0;
+  }
+  .exam-main{min-width:0}
+}
+@media (max-width:767px){
+  .exam-sidebar-fab{
+    position:fixed;right:16px;
+    bottom:calc(84px + env(safe-area-inset-bottom,0px));
+    z-index:65;display:flex;align-items:center;justify-content:center;
+    width:50px;height:50px;border-radius:50%;
+    border:1px solid rgba(234,179,8,.55);
+    background:linear-gradient(155deg,rgba(234,179,8,.95),rgba(245,158,11,.85));
+    color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
+    font-family:inherit;cursor:pointer;
+  }
+  .exam-sidebar-backdrop{
+    position:fixed;inset:0;z-index:70;
+    background:rgba(0,0,0,.58);display:block;
+  }
+  .exam-sidebar-backdrop[hidden]{display:none}
+  #view-exam .exam-side{
+    position:fixed;right:0;bottom:0;z-index:75;
+    width:min(88vw,380px);max-height:86vh;overflow-y:auto;
+    padding:12px 12px calc(18px + env(safe-area-inset-bottom,0px));
+    border-radius:18px 18px 0 0;
+    background:#111522;border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 -14px 40px rgba(0,0,0,.5);
+    transform:translateY(105%);transition:transform .24s ease;
+  }
+  #view-exam.sidebar-open .exam-side{transform:none}
+  #view-exam.analysis-mode .exam-sidebar-fab{display:none}
+}
+
+
 /* ============ TASK SPEC v1.2.0 — FEAT-1/2/3 EXAM NOTES ============ */
 .note-subject-picker-title span{color:#8b94ad;font-size:9px;font-weight:500}
 .note-subject-option{
@@ -6720,6 +6776,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           </div>
         </div>
       </div>
+      <button type="button" id="examSidebarToggle" class="exam-sidebar-fab" aria-label="نمایش تقویم آزمون" aria-expanded="false">📅</button>
+      <div class="exam-sidebar-backdrop" id="examSidebarBackdrop" hidden></div>
     </section>
 
     <!-- ===== OVERVIEW ===== -->
@@ -13579,6 +13637,21 @@ function analysisProgressColor(pct){
 /* ⭐ تب اصلی سکشن آزمون (آزمون‌ها / تحلیل آزمون) */
 let examViewMode='exams';
 
+/* FEAT-4: mobile calendar drawer. Desktop/tablet keep the inline sidebar. */
+function setExamSidebarOpen(open){
+  const view=document.getElementById('view-exam');
+  const toggle=document.getElementById('examSidebarToggle');
+  const backdrop=document.getElementById('examSidebarBackdrop');
+  if(!view)return;
+  view.classList.toggle('sidebar-open',!!open);
+  if(toggle)toggle.setAttribute('aria-expanded',String(!!open));
+  if(backdrop)backdrop.hidden=!open;
+  if(open){
+    const details=document.getElementById('examCalendarDetails');
+    if(details)details.open=true;
+  }
+}
+
 function applyExamViewMode(){
   const listPane=document.getElementById('examListPane');
   const analysisPane=document.getElementById('examAnalysisPane');
@@ -13821,6 +13894,13 @@ function renderExamCalendar(){
 document.getElementById('examCalPrev').onclick=()=>{examCalMonth--;if(examCalMonth<1){examCalMonth=12;examCalYear--;}renderExamCalendar();};
 document.getElementById('examCalNext').onclick=()=>{examCalMonth++;if(examCalMonth>12){examCalMonth=1;examCalYear++;}renderExamCalendar();};
 document.getElementById('examCalToday').onclick=()=>{examCalYear=TODAY_J.jy;examCalMonth=TODAY_J.jm;renderExamCalendar();};
+const _examSidebarToggle=document.getElementById('examSidebarToggle');
+if(_examSidebarToggle)_examSidebarToggle.onclick=()=>{
+  const view=document.getElementById('view-exam');
+  setExamSidebarOpen(!(view&&view.classList.contains('sidebar-open')));
+};
+const _examSidebarBackdrop=document.getElementById('examSidebarBackdrop');
+if(_examSidebarBackdrop)_examSidebarBackdrop.onclick=()=>setExamSidebarOpen(false);
 
 /* ⭐ NEW: روی موبایل بعد از کلیک روی روز، تقویم بسته بشه */
 const _examCalGrid=document.getElementById('examCalGrid');
@@ -21752,8 +21832,13 @@ function setupBackExitGuard(){
       try{ closeModal(); }catch(_){}
       rearm(); return;
     }
+    const examDrawer=document.getElementById('view-exam');
+    if(examDrawer && examDrawer.classList.contains('sidebar-open')){
+      try{ setExamSidebarOpen(false); }catch(_){}
+      rearm(); return;
+    }
 
-    /* ۲) بازگشت از تب‌های دیگر به داشبورد */
+    /* ۲) بازگشت از تب‌ها به داشبورد */
     const active=document.querySelector('.nav-btn.active');
     const viewName=active ? active.dataset.view : 'dashboard';
     if(viewName && viewName!=='dashboard'){

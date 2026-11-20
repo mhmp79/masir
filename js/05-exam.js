@@ -41,6 +41,21 @@ function analysisProgressColor(pct){
 /* ⭐ تب اصلی سکشن آزمون (آزمون‌ها / تحلیل آزمون) */
 let examViewMode='exams';
 
+/* FEAT-4: mobile calendar drawer. Desktop/tablet keep the inline sidebar. */
+function setExamSidebarOpen(open){
+  const view=document.getElementById('view-exam');
+  const toggle=document.getElementById('examSidebarToggle');
+  const backdrop=document.getElementById('examSidebarBackdrop');
+  if(!view)return;
+  view.classList.toggle('sidebar-open',!!open);
+  if(toggle)toggle.setAttribute('aria-expanded',String(!!open));
+  if(backdrop)backdrop.hidden=!open;
+  if(open){
+    const details=document.getElementById('examCalendarDetails');
+    if(details)details.open=true;
+  }
+}
+
 function applyExamViewMode(){
   const listPane=document.getElementById('examListPane');
   const analysisPane=document.getElementById('examAnalysisPane');
@@ -283,6 +298,13 @@ function renderExamCalendar(){
 document.getElementById('examCalPrev').onclick=()=>{examCalMonth--;if(examCalMonth<1){examCalMonth=12;examCalYear--;}renderExamCalendar();};
 document.getElementById('examCalNext').onclick=()=>{examCalMonth++;if(examCalMonth>12){examCalMonth=1;examCalYear++;}renderExamCalendar();};
 document.getElementById('examCalToday').onclick=()=>{examCalYear=TODAY_J.jy;examCalMonth=TODAY_J.jm;renderExamCalendar();};
+const _examSidebarToggle=document.getElementById('examSidebarToggle');
+if(_examSidebarToggle)_examSidebarToggle.onclick=()=>{
+  const view=document.getElementById('view-exam');
+  setExamSidebarOpen(!(view&&view.classList.contains('sidebar-open')));
+};
+const _examSidebarBackdrop=document.getElementById('examSidebarBackdrop');
+if(_examSidebarBackdrop)_examSidebarBackdrop.onclick=()=>setExamSidebarOpen(false);
 
 /* ⭐ NEW: روی موبایل بعد از کلیک روی روز، تقویم بسته بشه */
 const _examCalGrid=document.getElementById('examCalGrid');

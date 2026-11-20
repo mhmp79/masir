@@ -157,6 +157,7 @@ function renderDashboard(){
   renderMonthlyHeatmap();
   renderPie();
   renderExamDashChart();
+  try{ renderExamInsights(); }catch(e){ console.warn('[dashboard] exam insights failed:',e); }
 }
 document.getElementById('dashPrevDay').onclick=()=>{dashDay--;renderDashboard();};
 document.getElementById('dashNextDay').onclick=()=>{if(dashDay>=TODAY_JDN)return;dashDay++;renderDashboard();};

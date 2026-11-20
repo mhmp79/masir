@@ -131,7 +131,7 @@ test('FEAT-1: every analysis field counts independently', () => {
   fields.forEach(field => {
     assert.strictEqual(isQuestionAnalyzed({ ...base, [field]: 'text' }), true, field);
   });
-  ['errorTypes', 'specialTags'].forEach(field => {
+  ['errorTypes', 'specialTags', 'questionTypes'].forEach(field => {
     assert.strictEqual(isQuestionAnalyzed({ ...base, [field]: ['id'] }), true, field);
   });
   assert.strictEqual(isQuestionAnalyzed({ ...base, reviewSolvable: false }), true);
@@ -164,11 +164,11 @@ test('FEAT-3: wrong/blank questions are not prefilled from exam topics', () => {
   assert.deepStrictEqual(Array.from(questions[3].topics), ['احتمال']);
 });
 
-const p2Utils = loadFunctions('js/00-utils.js', [
+const p3Utils = loadFunctions('js/00-utils.js', [
   'levenshtein', 'jaccard', 'normalizeTypeLabel', 'questionTypeSimilarity',
   'suggestQuestionTypeGroups'
 ]);
-const { questionTypeSimilarity, suggestQuestionTypeGroups } = p2Utils;
+const { questionTypeSimilarity, suggestQuestionTypeGroups } = p3Utils;
 
 /* ---------- FEAT-6/7: question type similarity + grouping ---------- */
 test('FEAT-6: similar type labels score at least 0.65', () => {
@@ -197,6 +197,45 @@ test('FEAT-6: auto-group needs 2+ types and 30% share', () => {
   assert.strictEqual(suggestQuestionTypeGroups(tooSmallShare).length, 0, '2 of 10 types = 20% share');
 });
 
-console.log('TASK SPEC v1.2.0 — P2 checks');
+test('FEAT-8: pending questions never count as analyzed in dashboard insights', () => {
+  const sandbox = loadFunctions('js/05-exam.js', ['isQuestionAnalyzed', 'examInsights'], {
+    state: {
+      subjects: [{ name: 'ریاضی', type: 'specialized' }],
+      exams: [{
+        id: 'e1',
+        questions: [
+          { id: 'q1', subject: 'ریاضی', status: 'wrong', note: 'note', questionTypes: [] },
+          { id: 'q2', subject: 'ریاضی', status: 'pending', note: 'draft only', questionTypes: [] }
+        ]
+      }]
+    },
+    getSortedQuestions: (exam) => exam.questions
+  });
+  const d = sandbox.examInsights();
+  assert.strictEqual(d.total, 2);
+  assert.strictEqual(d.answered, 1);
+  assert.strictEqual(d.analyzed, 1, 'pending question with text must not count as analyzed');
+});
+
+/* ---------- Static integration checks ---------- */
+test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
+  const core = read('js/01-core.js');
+  const settings = read('js/08-settings.js');
+  const exam = read('js/05-exam.js');
+  assert.ok(core.includes('questionTypes') && core.includes('emphasis') && core.includes('group'));
+  assert.ok(/data-qt-merge/.test(settings) && /confirm\(/.test(settings));
+  assert.ok(/data-edit-question-type/.test(exam) && /q\.questionTypes=s\.questionTypes/.test(exam));
+});
+
+test('FEAT-8: dashboard exam insights card is rendered', () => {
+  const html = read('index.html');
+  const dashboard = read('js/02-dashboard.js');
+  const exam = read('js/05-exam.js');
+  assert.ok(html.includes('examInsightsCard'));
+  assert.ok(dashboard.includes('renderExamInsights()'));
+  assert.ok(/function renderExamInsights\(/.test(exam));
+});
+
+console.log('TASK SPEC v1.2.0 — P3 checks');
 console.log(results.join('\n'));
 console.log(process.exitCode ? 'FAILED' : 'ALL PASSED');

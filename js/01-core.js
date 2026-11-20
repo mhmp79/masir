@@ -610,6 +610,13 @@ function normalizeSubject(s){
     ? s.specialTags.map(e=>({id:String(e.id||uid()), label:String(e.label||'')}))
     : (DEFAULT_SPECIALIZED_TAGS[s.name]||[]).map(e=>({...e}));
 
+  /* TASK SPEC v1.2.0 — FEAT-7: question types, note emphasis and subject group. */
+  let questionTypes = Array.isArray(s.questionTypes)
+    ? s.questionTypes.map(e=>({id:String(e.id||uid()), label:String(e.label||'').slice(0,60)})).filter(e=>e.label)
+    : [];
+  const emphasis=['note','question-type','both'].includes(s.emphasis)?s.emphasis:'note';
+  const group=String(s.group||'').slice(0,40);
+
   let lessonsByGrade=null;
   let freeLessons={'دهم':[],'یازدهم':[],'دوازدهم':[]};
   if(type==='general'){
@@ -689,6 +696,9 @@ function normalizeSubject(s){
     ...(topicsByField?{topicsByField,topicsByFieldVersion:3}:{}),
     errors,
     specialTags,
+    questionTypes,
+    emphasis,
+    ...(group?{group}:{}),
     lessonRecords,
     topicRecords,
     chapterSections,
@@ -707,6 +717,7 @@ function normalizeQuestion(q){
     errorTypes: Array.isArray(q.errorTypes) ? q.errorTypes.filter(t => typeof t === 'string') : [],
     errorDetails: (q.errorDetails && typeof q.errorDetails === 'object') ? JSON.parse(JSON.stringify(q.errorDetails)) : {},
     specialTags: Array.isArray(q.specialTags) ? q.specialTags.filter(t => typeof t === 'string') : [],
+    questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
     starred: !!q.starred,
     questionText: String(q.questionText || ''),
     answerText: String(q.answerText || ''),

@@ -394,3 +394,19 @@
   border:1px solid rgba(234,179,8,.30);
   border-radius:8px;font-size:11px;color:#fcd34d;
 }
+
+/* Task Spec v1.2.0 - question types */
+.qt-list{display:flex;flex-direction:column;gap:6px}
+.qt-row{display:grid;grid-template-columns:minmax(0,1fr) 52px 28px;gap:6px;align-items:center}
+.qt-row .qt-label{padding:7px 9px;font-size:11.5px}
+.qt-usage{font-size:9.5px;color:#8b94ad;text-align:center;font-variant-numeric:tabular-nums}
+.qt-del{width:28px;height:32px;border:1px solid rgba(244,63,94,.28);border-radius:8px;background:rgba(244,63,94,.08);color:#fda4af;font-size:16px;font-family:inherit;cursor:pointer}
+.qt-add-row{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:6px;margin-top:8px}
+.qt-add-row .btn{padding:7px 4px}
+.qt-empty{padding:8px 10px;border:1px dashed rgba(255,255,255,.12);border-radius:8px;color:#8b94ad;font-size:10.5px}
+.qt-suggest{padding:9px 10px;margin-bottom:6px;border:1px solid rgba(34,211,238,.28);border-radius:9px;background:rgba(34,211,238,.06)}
+.qt-suggest-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#cbd3e8}
+.qt-score{color:#4de2f5;font-size:10px;font-weight:800;font-variant-numeric:tabular-nums}
+.qt-suggest-labels{margin-top:5px;font-size:11.5px;font-weight:700;color:#fff;line-height:1.7}
+.qt-suggest-meta{margin-top:3px;font-size:9.5px;color:#8b94ad}
+.qt-merge-btn{margin-top:7px;padding:6px 10px;font-size:10.5px}

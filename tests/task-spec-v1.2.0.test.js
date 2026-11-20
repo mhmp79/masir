@@ -218,6 +218,16 @@ test('FEAT-8: pending questions never count as analyzed in dashboard insights', 
 });
 
 /* ---------- Static integration checks ---------- */
+test('P4: exam layout uses 280px grid, sticky sidebar and mobile drawer', () => {
+  const css = read('css/09-exam.css');
+  const html = read('index.html');
+  assert.ok(/grid-template-columns:\s*280px minmax\(0,1fr\)/.test(css));
+  assert.ok(/position:sticky;top:16px/.test(css));
+  assert.ok(/max-height:90vh/.test(css));
+  assert.ok(/overflow-y:auto/.test(css));
+  assert.ok(html.includes('examSidebarToggle'), 'mobile drawer button missing');
+});
+
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
   const core = read('js/01-core.js');
   const settings = read('js/08-settings.js');
@@ -236,6 +246,6 @@ test('FEAT-8: dashboard exam insights card is rendered', () => {
   assert.ok(/function renderExamInsights\(/.test(exam));
 });
 
-console.log('TASK SPEC v1.2.0 — P3 checks');
+console.log('TASK SPEC v1.2.0 — P4 checks');
 console.log(results.join('\n'));
 console.log(process.exitCode ? 'FAILED' : 'ALL PASSED');

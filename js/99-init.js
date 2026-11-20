@@ -47,8 +47,13 @@ function setupBackExitGuard(){
       try{ closeModal(); }catch(_){}
       rearm(); return;
     }
+    const examDrawer=document.getElementById('view-exam');
+    if(examDrawer && examDrawer.classList.contains('sidebar-open')){
+      try{ setExamSidebarOpen(false); }catch(_){}
+      rearm(); return;
+    }
 
-    /* ۲) بازگشت از تب‌های دیگر به داشبورد */
+    /* ۲) بازگشت از تب‌ها به داشبورد */
     const active=document.querySelector('.nav-btn.active');
     const viewName=active ? active.dataset.view : 'dashboard';
     if(viewName && viewName!=='dashboard'){

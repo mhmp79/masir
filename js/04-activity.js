@@ -288,9 +288,9 @@ function openEditActivityModal(a,onDone,draft){
     </div>
     <div id="eaTestFields" class="mt-12 ${testsEnabled&&canTests?'':'hidden'}">
       <div class="grid3">
-        <input class="input" id="eaCorrect" type="number" value="${testCounts.correct??''}" placeholder="درست">
-        <input class="input" id="eaWrong" type="number" value="${testCounts.wrong??''}" placeholder="غلط">
-        <input class="input" id="eaBlank" type="number" value="${testCounts.blank??''}" placeholder="نزده">
+        <input dir="ltr" inputmode="numeric" class="input num-input" id="eaCorrect" type="text" value="${testCounts.correct??''}" placeholder="درست">
+        <input dir="ltr" inputmode="numeric" class="input num-input" id="eaWrong" type="text" value="${testCounts.wrong??''}" placeholder="غلط">
+        <input dir="ltr" inputmode="numeric" class="input num-input" id="eaBlank" type="text" value="${testCounts.blank??''}" placeholder="نزده">
       </div>
     </div>
     <div class="row mt-16">

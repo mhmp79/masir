@@ -236,9 +236,9 @@ function renderCellEditorBody(){
           <label class="switch"><input type="checkbox" data-field="hasTests" ${hasTests?'checked':''}><span></span></label>
         </div>
         <div data-tests-fields class="grid3 cell-tests-grid ${hasTests?'':'hidden'}">
-          <input class="input cell-test-input" type="number" data-field="correct" value="${hasTests?act.tests.correct:''}" placeholder="درست">
-          <input class="input cell-test-input" type="number" data-field="wrong" value="${hasTests?act.tests.wrong:''}" placeholder="غلط">
-          <input class="input cell-test-input" type="number" data-field="blank" value="${hasTests?act.tests.blank:''}" placeholder="نزده">
+          <input dir="ltr" inputmode="numeric" class="input cell-test-input num-input" type="text" data-field="correct" value="${hasTests?act.tests.correct:''}" placeholder="درست">
+          <input dir="ltr" inputmode="numeric" class="input cell-test-input num-input" type="text" data-field="wrong" value="${hasTests?act.tests.wrong:''}" placeholder="غلط">
+          <input dir="ltr" inputmode="numeric" class="input cell-test-input num-input" type="text" data-field="blank" value="${hasTests?act.tests.blank:''}" placeholder="نزده">
         </div>
       </div>`;
   }).join('');

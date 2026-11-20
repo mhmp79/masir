@@ -164,11 +164,42 @@ test('FEAT-3: wrong/blank questions are not prefilled from exam topics', () => {
   assert.deepStrictEqual(Array.from(questions[3].topics), ['احتمال']);
 });
 
-const p3Utils = loadFunctions('js/00-utils.js', [
-  'levenshtein', 'jaccard', 'normalizeTypeLabel', 'questionTypeSimilarity',
-  'suggestQuestionTypeGroups'
+/* ---------- FEAT-5: digit helpers ---------- */
+const utils = loadFunctions('js/00-utils.js', [
+  'toFaDigits', 'toEnDigits', 'levenshtein', 'jaccard',
+  'normalizeTypeLabel', 'questionTypeSimilarity', 'suggestQuestionTypeGroups',
+  'normalizeNumericInputValue'
 ]);
-const { questionTypeSimilarity, suggestQuestionTypeGroups } = p3Utils;
+const {
+  toFaDigits, toEnDigits, levenshtein, jaccard,
+  questionTypeSimilarity, suggestQuestionTypeGroups, normalizeNumericInputValue
+} = utils;
+
+test('FEAT-5: digit conversion is idempotent', () => {
+  assert.strictEqual(toFaDigits('a1b2'), 'a۱b۲');
+  assert.strictEqual(toFaDigits(toFaDigits('a1b2')), 'a۱b۲');
+  assert.strictEqual(toEnDigits('a۱b۲'), 'a1b2');
+  assert.strictEqual(toEnDigits('a١b٢'), 'a1b2');
+  assert.strictEqual(toEnDigits(toEnDigits('a۱b۲')), 'a1b2');
+});
+
+test('FEAT-5: levenshtein and jaccard are pure', () => {
+  assert.strictEqual(levenshtein('kitten', 'sitting'), 3);
+  assert.strictEqual(jaccard('a b c', 'a b d'), 0.5);
+});
+
+test('FEAT-5: numeric input normalization preserves caret offset', () => {
+  const out = normalizeNumericInputValue('12a۳');
+  assert.strictEqual(out.value, '123');
+  assert.strictEqual(out.removed, 1);
+});
+
+test('FEAT-5: removals after the caret do not move the caret', () => {
+  const out = normalizeNumericInputValue('12a345', 2, 2);
+  assert.strictEqual(out.value, '12345');
+  assert.strictEqual(out.removed, 0);
+  assert.strictEqual(out.removedEnd, 0);
+});
 
 /* ---------- FEAT-6/7: question type similarity + grouping ---------- */
 test('FEAT-6: similar type labels score at least 0.65', () => {
@@ -246,6 +277,6 @@ test('FEAT-8: dashboard exam insights card is rendered', () => {
   assert.ok(/function renderExamInsights\(/.test(exam));
 });
 
-console.log('TASK SPEC v1.2.0 — P4 checks');
+console.log('TASK SPEC v1.2.0 — all phase checks');
 console.log(results.join('\n'));
 console.log(process.exitCode ? 'FAILED' : 'ALL PASSED');

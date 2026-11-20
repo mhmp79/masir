@@ -1723,7 +1723,7 @@ function openSessionEditor(sid, defaults) {
     <label class="lbl">مبحث</label>
     <input class="input" id="seTopic" value="${esc(s.topic)}" placeholder="مثلاً: فصل ۳">
     <label class="lbl">مدت (دقیقه)</label>
-    <input class="input" id="seDur" type="number" min="15" max="720" step="15" value="${s.durMin}">
+    <input dir="ltr" inputmode="numeric" class="input num-input" id="seDur" type="text" min="15" max="720" step="15" value="${s.durMin}">
     <label class="lbl">روز</label>
     <div class="date-row">
       <button class="input date-btn" id="seDateBtn" type="button">${dateLabel} 📅</button>

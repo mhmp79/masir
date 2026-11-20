@@ -2,10 +2,25 @@
 
 /* ============================================================
    UTILS — shared pure helpers
-   نسخه ۱.۰.۰ — string similarity
+   نسخه ۱.۰.۰ — digit conversion + string similarity
    ============================================================ */
 
 const FA_DIGITS_MAP = '۰۱۲۳۴۵۶۷۸۹';
+const EN_DIGIT_RE = /[0-9]/g;
+const FA_DIGIT_RE = /[۰-۹]/g;
+const ANY_LOCAL_DIGIT_RE = /[۰-۹٠-٩]/g;
+
+/** Convert every ASCII digit in a string to its Persian/Farsi glyph. */
+function toFaDigits(value) {
+  return String(value == null ? '' : value).replace(EN_DIGIT_RE, (d) => FA_DIGITS_MAP[+d]);
+}
+
+/** Convert every Persian/Farsi digit in a string to its ASCII digit. */
+function toEnDigits(value) {
+  return String(value == null ? '' : value).replace(ANY_LOCAL_DIGIT_RE, (d) =>
+    String(d.charCodeAt(0) >= 0x06F0 ? FA_DIGITS_MAP.indexOf(d) : d.charCodeAt(0) - 0x0660)
+  );
+}
 
 /** Levenshtein edit distance (case-sensitive by design; callers normalize). */
 function levenshtein(a, b) {
@@ -107,11 +122,52 @@ function suggestQuestionTypeGroups(types, options) {
     .sort((a, b) => b.score - a.score || b.count - a.count);
 }
 
+/* ---------- FEAT-5: delegated numeric input normalization ----------
+   Numeric fields are text inputs so Persian digits can be typed. Values are
+   normalized to ASCII immediately (1:1), keeping the caret where the user
+   left it. Date inputs are intentionally not matched. */
+function normalizeNumericInputValue(value, caretStart, caretEnd) {
+  const converted = toEnDigits(value).replace(/٫/g, '.');
+  const start = caretStart == null ? converted.length : +caretStart;
+  const end = caretEnd == null ? start : +caretEnd;
+  let clean = '';
+  let removedBeforeStart = 0;
+  let removedBeforeEnd = 0;
+  for (let i = 0; i < converted.length; i++) {
+    const char = converted[i];
+    if (/[0-9.\-]/.test(char)) clean += char;
+    else {
+      if (i < start) removedBeforeStart++;
+      if (i < end) removedBeforeEnd++;
+    }
+  }
+  return { value: clean, removed: removedBeforeStart, removedEnd: removedBeforeEnd };
+}
+
+function handleNumericInput(event) {
+  const input = event && event.target;
+  if (!input || !input.classList || !input.classList.contains('num-input')) return;
+  if (typeof input.selectionStart !== 'number') return;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  const normalized = normalizeNumericInputValue(input.value, start, end);
+  if (normalized.value === input.value) return;
+  input.value = normalized.value;
+  const preservedStart = Math.max(0, start - normalized.removed);
+  const preservedEnd = Math.max(preservedStart, end - normalized.removedEnd);
+  try { input.setSelectionRange(preservedStart, preservedEnd); } catch (_) {}
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('input', handleNumericInput, true);
+  document.addEventListener('change', handleNumericInput, true);
+}
 
 /* Test/debug hook: harmless in the browser, useful for node-based checks. */
 if (typeof globalThis !== 'undefined') {
   globalThis.__masirUtils = {
-    levenshtein, jaccard,
+    toFaDigits, toEnDigits, levenshtein, jaccard,
     normalizeTypeLabel, questionTypeSimilarity, suggestQuestionTypeGroups,
+    normalizeNumericInputValue
   };
 }

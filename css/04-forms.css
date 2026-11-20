@@ -236,3 +236,11 @@ select option{background:#0d1524;color:var(--txt)}
   border-style:solid;border-color:#22d3ee;
   background:rgba(34,211,238,.10);
 }
+
+/* TASK SPEC v1.2.0 — FEAT-5 numeric text inputs */
+.num-input{
+  font-variant-numeric:tabular-nums;
+  unicode-bidi:isolate;
+}
+.num-input::-webkit-inner-spin-button,
+.num-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}

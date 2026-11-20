@@ -321,7 +321,7 @@ function openSubjectAdvancedModal(name){
       return `<div class="adv-grade-block">
         <div class="adv-grade-lesson-row" data-grade="${esc(g)}">
           <div class="aglr-label">${esc(g)}</div>
-          <div class="aglr-input"><input class="input adv-lessons-input" type="number" min="0" max="200" data-grade="${esc(g)}" value="${val}" placeholder="۰" ${isLocked?'disabled':''}></div>
+          <div class="aglr-input"><input dir="ltr" inputmode="numeric" class="input adv-lessons-input num-input" type="text" min="0" max="200" data-grade="${esc(g)}" value="${val}" placeholder="۰" ${isLocked?'disabled':''}></div>
           <div class="aglr-unit">درس</div>
           <div class="aglr-free-label" title="شماره درس‌های آزاد با کاما">آزاد:</div>
           <input class="input adv-free-input" type="text" data-grade="${esc(g)}" value="${esc(freeVal)}" placeholder="—" ${isLocked?'disabled':''}>
@@ -335,7 +335,7 @@ function openSubjectAdvancedModal(name){
         <button class="icon-btn" data-close>✕</button>
       </div>
       <label class="lbl mt-0">تعداد جلسات کلاس</label>
-      <input class="input" type="number" id="advSessions" min="0" max="200" value="${s.sessions||0}">
+      <input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="advSessions" min="0" max="200" value="${s.sessions||0}">
       <div class="muted fs-11 mt-6">در بخش «کلاس‌ها» استفاده می‌شود</div>
       ${!isLocked?`
         <div class="err-sep"></div>
@@ -417,9 +417,9 @@ function openSubjectAdvancedModal(name){
       </div>
       <div class="grid2">
         <div><label class="lbl mt-0">تعداد جلسات کلاس</label>
-          <input class="input" type="number" id="advSessions" min="0" max="200" value="${s.sessions||0}"></div>
+          <input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="advSessions" min="0" max="200" value="${s.sessions||0}"></div>
         <div><label class="lbl mt-0">تعداد سوال پیش\u200cفرض آزمون</label>
-          <input class="input" type="number" id="advDefaultQ" min="0" max="200" value="${s.defaultQ||0}"></div>
+          <input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="advDefaultQ" min="0" max="200" value="${s.defaultQ||0}"></div>
       </div>
       <div class="grid2">
         <div><label class="lbl">گروه درس</label>

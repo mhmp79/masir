@@ -729,6 +729,15 @@ select option{background:#0d1524;color:var(--txt)}
   background:rgba(34,211,238,.10);
 }
 
+/* TASK SPEC v1.2.0 — FEAT-5 numeric text inputs */
+.num-input{
+  font-variant-numeric:tabular-nums;
+  unicode-bidi:isolate;
+}
+.num-input::-webkit-inner-spin-button,
+.num-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+
 /* ===== css/05-overlays.css ===== */
 /* ============================================================
    OVERLAYS — Topbar, Nav, Modal, Toast, WR-shell
@@ -6601,9 +6610,9 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
               </div>
               <div id="actTestFields" class="hidden mt-12">
                 <div class="grid3">
-                  <input class="input" id="actCorrect" type="number" placeholder="درست">
-                  <input class="input" id="actWrong" type="number" placeholder="غلط">
-                  <input class="input" id="actBlank" type="number" placeholder="نزده">
+                  <input dir="ltr" inputmode="numeric" class="input num-input" id="actCorrect" type="text" placeholder="درست">
+                  <input dir="ltr" inputmode="numeric" class="input num-input" id="actWrong" type="text" placeholder="غلط">
+                  <input dir="ltr" inputmode="numeric" class="input num-input" id="actBlank" type="text" placeholder="نزده">
                 </div>
                 <div class="text-center mt-12 fs-13">درصد: <b id="actPercentLive" class="fs-18 text-acc2">۰٪</b></div>
               </div>
@@ -6630,15 +6639,15 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
                   <div class="grid3">
                     <div>
                       <label class="lbl mt-0">مطالعه (دقیقه)</label>
-                      <input class="input timer-num-input" id="pomWork" type="number" min="1" max="180" value="25">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="pomWork" type="text" min="1" max="180" value="25">
                     </div>
                     <div>
                       <label class="lbl mt-0">استراحت</label>
-                      <input class="input timer-num-input" id="pomBreak" type="number" min="1" max="60" value="5">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="pomBreak" type="text" min="1" max="60" value="5">
                     </div>
                     <div>
                       <label class="lbl mt-0">تکرار</label>
-                      <input class="input timer-num-input" id="pomReps" type="number" min="1" max="12" value="4">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="pomReps" type="text" min="1" max="12" value="4">
                     </div>
                   </div>
                 </div>
@@ -6646,11 +6655,11 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
                   <div class="grid2">
                     <div>
                       <label class="lbl mt-0">مطالعه (دقیقه)</label>
-                      <input class="input timer-num-input" id="flowStudy" type="number" min="5" max="180" value="60">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="flowStudy" type="text" min="5" max="180" value="60">
                     </div>
                     <div>
                       <label class="lbl mt-0">استراحت</label>
-                      <input class="input timer-num-input" id="flowBreak" type="number" min="1" max="60" value="10">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="flowBreak" type="text" min="1" max="60" value="10">
                     </div>
                   </div>
                   <div class="muted text-center mt-8 fs-11" id="flowRatioInfo">—</div>
@@ -6950,7 +6959,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           </div>
           <div id="examSettingsBody" class="hidden">
             <div class="setting-row"><div class="sr-label">نام پیش‌فرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
-            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input class="input input-sm" type="number" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
+            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input dir="ltr" inputmode="numeric" class="input input-sm num-input" type="text" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
           </div>
           <div class="err-sep"></div>
           <div class="err-sec-title">🏷️ تنظیمات اشتباهات</div>
@@ -7057,10 +7066,25 @@ if ("serviceWorker" in navigator && location.protocol.indexOf('http') === 0) {
 
 /* ============================================================
    UTILS — shared pure helpers
-   نسخه ۱.۰.۰ — string similarity
+   نسخه ۱.۰.۰ — digit conversion + string similarity
    ============================================================ */
 
 const FA_DIGITS_MAP = '۰۱۲۳۴۵۶۷۸۹';
+const EN_DIGIT_RE = /[0-9]/g;
+const FA_DIGIT_RE = /[۰-۹]/g;
+const ANY_LOCAL_DIGIT_RE = /[۰-۹٠-٩]/g;
+
+/** Convert every ASCII digit in a string to its Persian/Farsi glyph. */
+function toFaDigits(value) {
+  return String(value == null ? '' : value).replace(EN_DIGIT_RE, (d) => FA_DIGITS_MAP[+d]);
+}
+
+/** Convert every Persian/Farsi digit in a string to its ASCII digit. */
+function toEnDigits(value) {
+  return String(value == null ? '' : value).replace(ANY_LOCAL_DIGIT_RE, (d) =>
+    String(d.charCodeAt(0) >= 0x06F0 ? FA_DIGITS_MAP.indexOf(d) : d.charCodeAt(0) - 0x0660)
+  );
+}
 
 /** Levenshtein edit distance (case-sensitive by design; callers normalize). */
 function levenshtein(a, b) {
@@ -7162,12 +7186,53 @@ function suggestQuestionTypeGroups(types, options) {
     .sort((a, b) => b.score - a.score || b.count - a.count);
 }
 
+/* ---------- FEAT-5: delegated numeric input normalization ----------
+   Numeric fields are text inputs so Persian digits can be typed. Values are
+   normalized to ASCII immediately (1:1), keeping the caret where the user
+   left it. Date inputs are intentionally not matched. */
+function normalizeNumericInputValue(value, caretStart, caretEnd) {
+  const converted = toEnDigits(value).replace(/٫/g, '.');
+  const start = caretStart == null ? converted.length : +caretStart;
+  const end = caretEnd == null ? start : +caretEnd;
+  let clean = '';
+  let removedBeforeStart = 0;
+  let removedBeforeEnd = 0;
+  for (let i = 0; i < converted.length; i++) {
+    const char = converted[i];
+    if (/[0-9.\-]/.test(char)) clean += char;
+    else {
+      if (i < start) removedBeforeStart++;
+      if (i < end) removedBeforeEnd++;
+    }
+  }
+  return { value: clean, removed: removedBeforeStart, removedEnd: removedBeforeEnd };
+}
+
+function handleNumericInput(event) {
+  const input = event && event.target;
+  if (!input || !input.classList || !input.classList.contains('num-input')) return;
+  if (typeof input.selectionStart !== 'number') return;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  const normalized = normalizeNumericInputValue(input.value, start, end);
+  if (normalized.value === input.value) return;
+  input.value = normalized.value;
+  const preservedStart = Math.max(0, start - normalized.removed);
+  const preservedEnd = Math.max(preservedStart, end - normalized.removedEnd);
+  try { input.setSelectionRange(preservedStart, preservedEnd); } catch (_) {}
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('input', handleNumericInput, true);
+  document.addEventListener('change', handleNumericInput, true);
+}
 
 /* Test/debug hook: harmless in the browser, useful for node-based checks. */
 if (typeof globalThis !== 'undefined') {
   globalThis.__masirUtils = {
-    levenshtein, jaccard,
+    toFaDigits, toEnDigits, levenshtein, jaccard,
     normalizeTypeLabel, questionTypeSimilarity, suggestQuestionTypeGroups,
+    normalizeNumericInputValue
   };
 }
 
@@ -9142,7 +9207,7 @@ function createTimePair(container,opts){
   const initial=opts.value;
   let hVal='',mVal='';
   if(initial!=null&&!isNaN(initial)){const total=+initial;hVal=Math.floor(total/60);mVal=total%60;}
-  container.innerHTML=`<input class="time-part time-h" type="number" min="0" max="24" inputmode="numeric" placeholder="ساعت" value="${hVal!==''?hVal:''}"><span class="time-sep">:</span><input class="time-part time-m" type="number" min="0" max="59" inputmode="numeric" placeholder="دقیقه" value="${mVal!==''?pad2(mVal):''}">`;
+  container.innerHTML=`<input dir="ltr" class="time-part time-h num-input" type="text" min="0" max="24" inputmode="numeric" placeholder="ساعت" value="${hVal!==''?hVal:''}"><span class="time-sep">:</span><input dir="ltr" class="time-part time-m num-input" type="text" min="0" max="59" inputmode="numeric" placeholder="دقیقه" value="${mVal!==''?pad2(mVal):''}">`;
   const hEl=container.querySelector('.time-h');
   const mEl=container.querySelector('.time-m');
   hEl.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();mEl.focus();if(mEl.select)mEl.select();}});
@@ -9629,7 +9694,7 @@ document.getElementById('dashPrevDay').onclick=()=>{dashDay--;renderDashboard();
 document.getElementById('dashNextDay').onclick=()=>{if(dashDay>=TODAY_JDN)return;dashDay++;renderDashboard();};
 document.querySelectorAll('.pie-tab').forEach((b)=>{b.addEventListener('click',()=>{currentPie=b.dataset.pie;document.querySelectorAll('.pie-tab').forEach((x)=>x.classList.toggle('active',x===b));renderPie();});});
 document.getElementById('editGoalBtn').onclick=()=>{
-  openModal(`<div class="modal-head"><div class="card-title">هدف هفتگی</div><button class="icon-btn" data-close>✕</button></div><label class="lbl mt-0">ساعت</label><input class="input" type="number" id="goalInput" min="1" max="120" value="${state.settings.goalHours||40}"><div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="goalSave">ذخیره</button></div>`);
+  openModal(`<div class="modal-head"><div class="card-title">هدف هفتگی</div><button class="icon-btn" data-close>✕</button></div><label class="lbl mt-0">ساعت</label><input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="goalInput" min="1" max="120" value="${state.settings.goalHours||40}"><div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="goalSave">ذخیره</button></div>`);
   document.getElementById('goalSave').onclick=()=>{const v=Math.max(1,Math.min(120,+document.getElementById('goalInput').value||40));state.settings.goalHours=v;save();closeModal();renderDashboard();toast('ذخیره شد ✓');};
 };
 document.getElementById('openExamCompareBtn').onclick=()=>openExamCompare();
@@ -12463,7 +12528,7 @@ function openSessionEditor(sid, defaults) {
     <label class="lbl">مبحث</label>
     <input class="input" id="seTopic" value="${esc(s.topic)}" placeholder="مثلاً: فصل ۳">
     <label class="lbl">مدت (دقیقه)</label>
-    <input class="input" id="seDur" type="number" min="15" max="720" step="15" value="${s.durMin}">
+    <input dir="ltr" inputmode="numeric" class="input num-input" id="seDur" type="text" min="15" max="720" step="15" value="${s.durMin}">
     <label class="lbl">روز</label>
     <div class="date-row">
       <button class="input date-btn" id="seDateBtn" type="button">${dateLabel} 📅</button>
@@ -13164,9 +13229,9 @@ function openEditActivityModal(a,onDone,draft){
     </div>
     <div id="eaTestFields" class="mt-12 ${testsEnabled&&canTests?'':'hidden'}">
       <div class="grid3">
-        <input class="input" id="eaCorrect" type="number" value="${testCounts.correct??''}" placeholder="درست">
-        <input class="input" id="eaWrong" type="number" value="${testCounts.wrong??''}" placeholder="غلط">
-        <input class="input" id="eaBlank" type="number" value="${testCounts.blank??''}" placeholder="نزده">
+        <input dir="ltr" inputmode="numeric" class="input num-input" id="eaCorrect" type="text" value="${testCounts.correct??''}" placeholder="درست">
+        <input dir="ltr" inputmode="numeric" class="input num-input" id="eaWrong" type="text" value="${testCounts.wrong??''}" placeholder="غلط">
+        <input dir="ltr" inputmode="numeric" class="input num-input" id="eaBlank" type="text" value="${testCounts.blank??''}" placeholder="نزده">
       </div>
     </div>
     <div class="row mt-16">
@@ -14106,7 +14171,7 @@ function openNewExamModal(presetDate,draft){
     });
   };
   const renderCounts=()=>{
-    box.innerHTML=examSubjects.map(s=>`<div class="es-subj-row" style="border-color:${s.color}30;background:${s.color}06"><span class="es-dot" style="background:${s.color}"></span><span class="es-name" style="color:${s.color}">${esc(s.name)}</span><input class="etp-count" type="number" min="0" max="200" value="${counts[s.name]||0}" data-subj="${esc(s.name)}"><span class="es-unit-label">سوال</span></div>`).join('');
+    box.innerHTML=examSubjects.map(s=>`<div class="es-subj-row" style="border-color:${s.color}30;background:${s.color}06"><span class="es-dot" style="background:${s.color}"></span><span class="es-name" style="color:${s.color}">${esc(s.name)}</span><input dir="ltr" inputmode="numeric" class="etp-count num-input" type="text" min="0" max="200" value="${counts[s.name]||0}" data-subj="${esc(s.name)}"><span class="es-unit-label">سوال</span></div>`).join('');
     box.querySelectorAll('.etp-count').forEach(inp=>inp.oninput=()=>{counts[inp.dataset.subj]=Math.max(0,Math.min(200,+inp.value||0));});
   };
   renderCounts();
@@ -14251,7 +14316,7 @@ function openExamSettingsModal(id){
     <div class="setting-row">
       <div class="sr-label" style="color:${s.color}">${esc(s.name)}</div>
       <div class="sr-control">
-        <input class="input es-count-input" type="number" min="0" max="200" value="${currentCounts[s.name]}" data-subj="${esc(s.name)}">
+        <input dir="ltr" inputmode="numeric" class="input es-count-input num-input" type="text" min="0" max="200" value="${currentCounts[s.name]}" data-subj="${esc(s.name)}">
         <span class="fs-10h text-muted">سوال</span>
       </div>
     </div>
@@ -14961,11 +15026,11 @@ function openExamResultsModal(id){
   const examSubjects=state.subjects.filter(s=>s.type==='specialized');
   const subjData=exam.subjects||{};const values={};
   examSubjects.forEach(s=>{const d=subjData[s.name]||{};values[s.name]={correct:d.correct!=null?String(d.correct):'',wrong:d.wrong!=null?String(d.wrong):'',blank:d.blank!=null?String(d.blank):'',taraz:d.taraz!=null?String(d.taraz):''};});
-  openModal(`<div class="modal-head"><div class="card-title text-amber">📊 ثبت نتیجه آزمون</div><button class="icon-btn" data-close>✕</button></div><div class="wr-scroll"><table class="results-table"><thead><tr><th>درس</th><th>درست</th><th>غلط</th><th>نزده</th><th>درصد</th><th>تراز</th></tr></thead><tbody id="exResBody"></tbody><tfoot><tr class="total-row"><td class="text-amber">کل</td><td id="exTotC" class="text-ok">۰</td><td id="exTotW" class="text-rose">۰</td><td id="exTotB" class="text-soft">۰</td><td colspan="2">—</td></tr></tfoot></table></div><div id="exResultMismatchStatus"></div><div class="grid2 mt-12"><div><label class="lbl">تراز کل</label><input class="input" type="number" id="exTotalTaraz" value="${exam.totalTaraz!=null?exam.totalTaraz:''}" placeholder="مثلاً 6000"></div><div><label class="lbl">شرکت‌کننده</label><input class="input" type="number" id="exParts" value="${exam.participants!=null?exam.participants:''}" placeholder="مثلاً 50000"></div></div><div class="grid2 mt-12"><div><label class="lbl">رتبه کشوری</label><input class="input" type="number" id="exRankC" value="${exam.rankCountry!=null?exam.rankCountry:(exam.rank!=null?exam.rank:'')}"></div><div><label class="lbl">رتبه منطقه</label><input class="input" type="number" id="exRankR" value="${exam.rankRegion!=null?exam.rankRegion:''}"></div></div><button class="btn primary gold mt-18" id="exResSave">ذخیره</button>`);
+  openModal(`<div class="modal-head"><div class="card-title text-amber">📊 ثبت نتیجه آزمون</div><button class="icon-btn" data-close>✕</button></div><div class="wr-scroll"><table class="results-table"><thead><tr><th>درس</th><th>درست</th><th>غلط</th><th>نزده</th><th>درصد</th><th>تراز</th></tr></thead><tbody id="exResBody"></tbody><tfoot><tr class="total-row"><td class="text-amber">کل</td><td id="exTotC" class="text-ok">۰</td><td id="exTotW" class="text-rose">۰</td><td id="exTotB" class="text-soft">۰</td><td colspan="2">—</td></tr></tfoot></table></div><div id="exResultMismatchStatus"></div><div class="grid2 mt-12"><div><label class="lbl">تراز کل</label><input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="exTotalTaraz" value="${exam.totalTaraz!=null?exam.totalTaraz:''}" placeholder="مثلاً 6000"></div><div><label class="lbl">شرکت‌کننده</label><input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="exParts" value="${exam.participants!=null?exam.participants:''}" placeholder="مثلاً 50000"></div></div><div class="grid2 mt-12"><div><label class="lbl">رتبه کشوری</label><input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="exRankC" value="${exam.rankCountry!=null?exam.rankCountry:(exam.rank!=null?exam.rank:'')}"></div><div><label class="lbl">رتبه منطقه</label><input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="exRankR" value="${exam.rankRegion!=null?exam.rankRegion:''}"></div></div><button class="btn primary gold mt-18" id="exResSave">ذخیره</button>`);
   const renderBody=()=>{
     document.getElementById('exResBody').innerHTML=examSubjects.map(s=>{
       const v=values[s.name];const c=+v.correct||0,w=+v.wrong||0,b=+v.blank||0;const pct=examPctFromCounts(c,w,b,true);
-      return`<tr><td>${esc(s.name)}</td><td><input class="ex-subj" type="number" min="0" data-subj="${esc(s.name)}" data-field="correct" value="${v.correct}" placeholder="—"></td><td><input class="ex-subj" type="number" min="0" data-subj="${esc(s.name)}" data-field="wrong" value="${v.wrong}" placeholder="—"></td><td><input class="ex-subj" type="number" min="0" data-subj="${esc(s.name)}" data-field="blank" value="${v.blank}" placeholder="—"></td><td class="text-cyan fw-800">${pct==null?'—':fa(Math.round(pct))+'٪'}</td><td><input class="ex-subj" type="number" min="0" data-subj="${esc(s.name)}" data-field="taraz" value="${v.taraz}" placeholder="—"></td></tr>`;
+      return`<tr><td>${esc(s.name)}</td><td><input dir="ltr" inputmode="numeric" type="text" min="0" class="ex-subj num-input" data-subj="${esc(s.name)}" data-field="correct" value="${v.correct}" placeholder="—"></td><td><input dir="ltr" inputmode="numeric" type="text" min="0" class="ex-subj num-input" data-subj="${esc(s.name)}" data-field="wrong" value="${v.wrong}" placeholder="—"></td><td><input dir="ltr" inputmode="numeric" type="text" min="0" class="ex-subj num-input" data-subj="${esc(s.name)}" data-field="blank" value="${v.blank}" placeholder="—"></td><td class="text-cyan fw-800">${pct==null?'—':fa(Math.round(pct))+'٪'}</td><td><input dir="ltr" inputmode="numeric" type="text" min="0" class="ex-subj num-input" data-subj="${esc(s.name)}" data-field="taraz" value="${v.taraz}" placeholder="—"></td></tr>`;
     }).join('');
     attach();
   };
@@ -14998,7 +15063,7 @@ function openAddQuestionsModal(id){
   const counts={};examSubjects.forEach(s=>counts[s.name]=s.defaultQ||30);
   openModal(`<div class="modal-head"><div class="card-title">افزودن سوالات</div><button class="icon-btn" data-close>✕</button></div><div id="aqSubs" class="mt-6"></div><div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="aqSave">ساخت</button></div>`);
   const box=document.getElementById('aqSubs');
-  box.innerHTML=examSubjects.map(s=>`<div class="aq-row" style="border-color:${s.color}30;background:${s.color}06"><span class="es-dot" style="background:${s.color}"></span><span class="aq-subj" style="color:${s.color}">${esc(s.name)}</span><input type="number" min="0" max="200" class="aq-count" data-subj="${esc(s.name)}" value="${counts[s.name]||0}"><span class="aq-unit">سوال</span></div>`).join('');
+  box.innerHTML=examSubjects.map(s=>`<div class="aq-row" style="border-color:${s.color}30;background:${s.color}06"><span class="es-dot" style="background:${s.color}"></span><span class="aq-subj" style="color:${s.color}">${esc(s.name)}</span><input dir="ltr" inputmode="numeric" type="text" min="0" max="200" class="aq-count num-input" data-subj="${esc(s.name)}" value="${counts[s.name]||0}"><span class="aq-unit">سوال</span></div>`).join('');
   box.querySelectorAll('.aq-count').forEach(inp=>inp.oninput=()=>{counts[inp.dataset.subj]=Math.max(0,Math.min(200,+inp.value||0));});
   document.getElementById('aqSave').onclick=()=>{
     let globalNum=Math.max(0,...exam.questions.map(q=>q.number))+1;
@@ -16842,7 +16907,7 @@ function openSubjectAdvancedModal(name){
       return `<div class="adv-grade-block">
         <div class="adv-grade-lesson-row" data-grade="${esc(g)}">
           <div class="aglr-label">${esc(g)}</div>
-          <div class="aglr-input"><input class="input adv-lessons-input" type="number" min="0" max="200" data-grade="${esc(g)}" value="${val}" placeholder="۰" ${isLocked?'disabled':''}></div>
+          <div class="aglr-input"><input dir="ltr" inputmode="numeric" class="input adv-lessons-input num-input" type="text" min="0" max="200" data-grade="${esc(g)}" value="${val}" placeholder="۰" ${isLocked?'disabled':''}></div>
           <div class="aglr-unit">درس</div>
           <div class="aglr-free-label" title="شماره درس‌های آزاد با کاما">آزاد:</div>
           <input class="input adv-free-input" type="text" data-grade="${esc(g)}" value="${esc(freeVal)}" placeholder="—" ${isLocked?'disabled':''}>
@@ -16856,7 +16921,7 @@ function openSubjectAdvancedModal(name){
         <button class="icon-btn" data-close>✕</button>
       </div>
       <label class="lbl mt-0">تعداد جلسات کلاس</label>
-      <input class="input" type="number" id="advSessions" min="0" max="200" value="${s.sessions||0}">
+      <input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="advSessions" min="0" max="200" value="${s.sessions||0}">
       <div class="muted fs-11 mt-6">در بخش «کلاس‌ها» استفاده می‌شود</div>
       ${!isLocked?`
         <div class="err-sep"></div>
@@ -16938,9 +17003,9 @@ function openSubjectAdvancedModal(name){
       </div>
       <div class="grid2">
         <div><label class="lbl mt-0">تعداد جلسات کلاس</label>
-          <input class="input" type="number" id="advSessions" min="0" max="200" value="${s.sessions||0}"></div>
+          <input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="advSessions" min="0" max="200" value="${s.sessions||0}"></div>
         <div><label class="lbl mt-0">تعداد سوال پیش\u200cفرض آزمون</label>
-          <input class="input" type="number" id="advDefaultQ" min="0" max="200" value="${s.defaultQ||0}"></div>
+          <input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="advDefaultQ" min="0" max="200" value="${s.defaultQ||0}"></div>
       </div>
       <div class="grid2">
         <div><label class="lbl">گروه درس</label>
@@ -17547,9 +17612,9 @@ function renderCellEditorBody(){
           <label class="switch"><input type="checkbox" data-field="hasTests" ${hasTests?'checked':''}><span></span></label>
         </div>
         <div data-tests-fields class="grid3 cell-tests-grid ${hasTests?'':'hidden'}">
-          <input class="input cell-test-input" type="number" data-field="correct" value="${hasTests?act.tests.correct:''}" placeholder="درست">
-          <input class="input cell-test-input" type="number" data-field="wrong" value="${hasTests?act.tests.wrong:''}" placeholder="غلط">
-          <input class="input cell-test-input" type="number" data-field="blank" value="${hasTests?act.tests.blank:''}" placeholder="نزده">
+          <input dir="ltr" inputmode="numeric" class="input cell-test-input num-input" type="text" data-field="correct" value="${hasTests?act.tests.correct:''}" placeholder="درست">
+          <input dir="ltr" inputmode="numeric" class="input cell-test-input num-input" type="text" data-field="wrong" value="${hasTests?act.tests.wrong:''}" placeholder="غلط">
+          <input dir="ltr" inputmode="numeric" class="input cell-test-input num-input" type="text" data-field="blank" value="${hasTests?act.tests.blank:''}" placeholder="نزده">
         </div>
       </div>`;
   }).join('');
@@ -18263,9 +18328,9 @@ function openUnifiedSaveModal(){
         </div>
         <div id="umTestFields" class="hidden">
           <div class="grid3">
-            <input class="input" id="umCorrect" type="number" placeholder="درست" min="0">
-            <input class="input" id="umWrong" type="number" placeholder="غلط" min="0">
-            <input class="input" id="umBlank" type="number" placeholder="نزده" min="0">
+            <input dir="ltr" inputmode="numeric" class="input num-input" id="umCorrect" type="text" placeholder="درست" min="0">
+            <input dir="ltr" inputmode="numeric" class="input num-input" id="umWrong" type="text" placeholder="غلط" min="0">
+            <input dir="ltr" inputmode="numeric" class="input num-input" id="umBlank" type="text" placeholder="نزده" min="0">
           </div>
           <div id="umTestPct" class="text-center mt-10 fs-12">درصد: <b class="text-aqua fs-16">۰٪</b></div>
         </div>

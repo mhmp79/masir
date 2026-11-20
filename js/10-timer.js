@@ -384,9 +384,9 @@ function openUnifiedSaveModal(){
         </div>
         <div id="umTestFields" class="hidden">
           <div class="grid3">
-            <input class="input" id="umCorrect" type="number" placeholder="درست" min="0">
-            <input class="input" id="umWrong" type="number" placeholder="غلط" min="0">
-            <input class="input" id="umBlank" type="number" placeholder="نزده" min="0">
+            <input dir="ltr" inputmode="numeric" class="input num-input" id="umCorrect" type="text" placeholder="درست" min="0">
+            <input dir="ltr" inputmode="numeric" class="input num-input" id="umWrong" type="text" placeholder="غلط" min="0">
+            <input dir="ltr" inputmode="numeric" class="input num-input" id="umBlank" type="text" placeholder="نزده" min="0">
           </div>
           <div id="umTestPct" class="text-center mt-10 fs-12">درصد: <b class="text-aqua fs-16">۰٪</b></div>
         </div>

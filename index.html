@@ -228,9 +228,9 @@
               </div>
               <div id="actTestFields" class="hidden mt-12">
                 <div class="grid3">
-                  <input class="input" id="actCorrect" type="number" placeholder="درست">
-                  <input class="input" id="actWrong" type="number" placeholder="غلط">
-                  <input class="input" id="actBlank" type="number" placeholder="نزده">
+                  <input dir="ltr" inputmode="numeric" class="input num-input" id="actCorrect" type="text" placeholder="درست">
+                  <input dir="ltr" inputmode="numeric" class="input num-input" id="actWrong" type="text" placeholder="غلط">
+                  <input dir="ltr" inputmode="numeric" class="input num-input" id="actBlank" type="text" placeholder="نزده">
                 </div>
                 <div class="text-center mt-12 fs-13">درصد: <b id="actPercentLive" class="fs-18 text-acc2">۰٪</b></div>
               </div>
@@ -257,15 +257,15 @@
                   <div class="grid3">
                     <div>
                       <label class="lbl mt-0">مطالعه (دقیقه)</label>
-                      <input class="input timer-num-input" id="pomWork" type="number" min="1" max="180" value="25">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="pomWork" type="text" min="1" max="180" value="25">
                     </div>
                     <div>
                       <label class="lbl mt-0">استراحت</label>
-                      <input class="input timer-num-input" id="pomBreak" type="number" min="1" max="60" value="5">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="pomBreak" type="text" min="1" max="60" value="5">
                     </div>
                     <div>
                       <label class="lbl mt-0">تکرار</label>
-                      <input class="input timer-num-input" id="pomReps" type="number" min="1" max="12" value="4">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="pomReps" type="text" min="1" max="12" value="4">
                     </div>
                   </div>
                 </div>
@@ -273,11 +273,11 @@
                   <div class="grid2">
                     <div>
                       <label class="lbl mt-0">مطالعه (دقیقه)</label>
-                      <input class="input timer-num-input" id="flowStudy" type="number" min="5" max="180" value="60">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="flowStudy" type="text" min="5" max="180" value="60">
                     </div>
                     <div>
                       <label class="lbl mt-0">استراحت</label>
-                      <input class="input timer-num-input" id="flowBreak" type="number" min="1" max="60" value="10">
+                      <input dir="ltr" inputmode="numeric" class="input timer-num-input num-input" id="flowBreak" type="text" min="1" max="60" value="10">
                     </div>
                   </div>
                   <div class="muted text-center mt-8 fs-11" id="flowRatioInfo">—</div>
@@ -577,7 +577,7 @@
           </div>
           <div id="examSettingsBody" class="hidden">
             <div class="setting-row"><div class="sr-label">نام پیش‌فرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
-            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input class="input input-sm" type="number" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
+            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input dir="ltr" inputmode="numeric" class="input input-sm num-input" type="text" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
           </div>
           <div class="err-sep"></div>
           <div class="err-sec-title">🏷️ تنظیمات اشتباهات</div>

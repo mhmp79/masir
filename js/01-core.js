@@ -1967,7 +1967,7 @@ function createTimePair(container,opts){
   const initial=opts.value;
   let hVal='',mVal='';
   if(initial!=null&&!isNaN(initial)){const total=+initial;hVal=Math.floor(total/60);mVal=total%60;}
-  container.innerHTML=`<input class="time-part time-h" type="number" min="0" max="24" inputmode="numeric" placeholder="ساعت" value="${hVal!==''?hVal:''}"><span class="time-sep">:</span><input class="time-part time-m" type="number" min="0" max="59" inputmode="numeric" placeholder="دقیقه" value="${mVal!==''?pad2(mVal):''}">`;
+  container.innerHTML=`<input dir="ltr" class="time-part time-h num-input" type="text" min="0" max="24" inputmode="numeric" placeholder="ساعت" value="${hVal!==''?hVal:''}"><span class="time-sep">:</span><input dir="ltr" class="time-part time-m num-input" type="text" min="0" max="59" inputmode="numeric" placeholder="دقیقه" value="${mVal!==''?pad2(mVal):''}">`;
   const hEl=container.querySelector('.time-h');
   const mEl=container.querySelector('.time-m');
   hEl.addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();mEl.focus();if(mEl.select)mEl.select();}});

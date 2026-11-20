@@ -163,7 +163,7 @@ document.getElementById('dashPrevDay').onclick=()=>{dashDay--;renderDashboard();
 document.getElementById('dashNextDay').onclick=()=>{if(dashDay>=TODAY_JDN)return;dashDay++;renderDashboard();};
 document.querySelectorAll('.pie-tab').forEach((b)=>{b.addEventListener('click',()=>{currentPie=b.dataset.pie;document.querySelectorAll('.pie-tab').forEach((x)=>x.classList.toggle('active',x===b));renderPie();});});
 document.getElementById('editGoalBtn').onclick=()=>{
-  openModal(`<div class="modal-head"><div class="card-title">هدف هفتگی</div><button class="icon-btn" data-close>✕</button></div><label class="lbl mt-0">ساعت</label><input class="input" type="number" id="goalInput" min="1" max="120" value="${state.settings.goalHours||40}"><div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="goalSave">ذخیره</button></div>`);
+  openModal(`<div class="modal-head"><div class="card-title">هدف هفتگی</div><button class="icon-btn" data-close>✕</button></div><label class="lbl mt-0">ساعت</label><input dir="ltr" inputmode="numeric" class="input num-input" type="text" id="goalInput" min="1" max="120" value="${state.settings.goalHours||40}"><div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="goalSave">ذخیره</button></div>`);
   document.getElementById('goalSave').onclick=()=>{const v=Math.max(1,Math.min(120,+document.getElementById('goalInput').value||40));state.settings.goalHours=v;save();closeModal();renderDashboard();toast('ذخیره شد ✓');};
 };
 document.getElementById('openExamCompareBtn').onclick=()=>openExamCompare();

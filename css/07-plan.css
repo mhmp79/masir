@@ -1449,3 +1449,24 @@ body.creating-block .pool-drop-wrap {
   .phases-table thead th:not(.gt-corner) { min-width: 52px; }
   .ph-time { font-size: 7px; }
 }
+
+/* ============ TASK SPEC v1.2.0 — BUGFIX-1 horizontal chain ============ */
+.tl-chain-scroll{
+  width:100%;overflow-x:auto;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;
+}
+.tl-chain{
+  position:relative;height:24px;min-width:100%;
+  background:rgba(255,255,255,.04);border-radius:8px;
+}
+.tl-chain-block{
+  position:absolute;top:2px;height:20px;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 5px;border-radius:6px;overflow:hidden;
+  background:rgba(124,92,255,.42);border:1px solid rgba(167,139,250,.55);
+  color:#fff;font-size:9px;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(0,0,0,.22);
+}
+.tl-chain-block.done{
+  background:rgba(16,185,129,.32);border-color:rgba(52,211,153,.55);
+}

@@ -657,26 +657,19 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.font='500 22px Vazirmatn, Tahoma, sans-serif';
     x.fillText('مطالعه‌ای ثبت نشده',tlLeft+tlW/2,tlTop+tlH/2);
   }else{
-    const sorted=[...allTimelineItems].sort((a,b)=>a.startMin-b.startMin);
-    const laneEnds=[];const assignments=[];
-    sorted.forEach(a=>{
-      const aStart=Math.max(a.startMin,START_MIN);
-      const aEnd=Math.min(a.endMin,END_MIN);
-      if(aEnd<=aStart)return;
-      let lane=0;
-      while(lane<laneEnds.length&&laneEnds[lane]>aStart)lane++;
-      laneEnds[lane]=aEnd;
-      assignments.push({a,lane,aStart,aEnd});
+    /* BUGFIX-1: sorted, non-overlapping horizontal chain. Touching blocks
+       share an edge; real gaps stay proportional; short blocks stay readable. */
+    const layout=layoutTimelineBlocks(allTimelineItems,tlW,{
+      startMin:START_MIN,endMin:END_MIN,minWidth:32,minGap:4
     });
-    const laneCount=Math.max(1,laneEnds.length);
-    const laneH=blockH/laneCount;
+    const by=blockY+2;
+    const bh=blockH-4;
+    const rad=Math.min(10,bh/2);
 
-    assignments.forEach(({a,lane,aStart,aEnd})=>{
-      const bx=tlLeft+(aStart-START_MIN)/totalRange*tlW;
-      const bw=Math.max(8,(aEnd-aStart)/totalRange*tlW);
-      const by=blockY+lane*laneH+2;
-      const bh=laneH-4;
-      const rad=Math.min(10,bh/2);
+    layout.blocks.forEach(a=>{
+      const bx=tlLeft+a.left;
+      const bw=Math.max(1,Math.min(a.width,tlLeft+tlW-bx));
+      if(bw<=0)return;
 
       if(a._kind==='sleep'){
         x.save();
@@ -785,14 +778,14 @@ function drawReportTimelineWeekSection(x,W,pad,y0,d){
 
     const dayActs=countedActivities([k]).filter(a=>a.subject!==OTHER_SUBJECT&&a.startMin!=null&&a.endMin!=null);
     let dayTotal=0;
-    dayActs.forEach(a=>{
-      dayTotal+=(+a.minutes||0);
-      const s=Math.max(a.startMin,minT);
-      const e=Math.min(a.endMin,maxT);
-      if(e<=s)return;
+    dayActs.forEach(a=>{dayTotal+=(+a.minutes||0);});
+    const rowLayout=layoutTimelineBlocks(dayActs,barW,{
+      startMin:minT,endMin:maxT,minWidth:12,minGap:2
+    });
+    rowLayout.blocks.forEach(a=>{
       const c=subjColor(a.subject);
-      const x1=barL+((s-minT)/rangeMin)*barW;
-      const w=Math.max(3,((e-s)/rangeMin)*barW);
+      const x1=barL+a.left;
+      const w=Math.max(1,Math.min(a.width,barL+barW-x1));
       x.fillStyle=c;
       x.fillRect(x1,rowY+10,w,rowH-20);
     });

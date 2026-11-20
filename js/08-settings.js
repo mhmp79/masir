@@ -152,9 +152,17 @@ function renderSubjectManager(){
     (isFixed?'':'<button type="button" class="subj-del" data-name="'+esc(s.name)+'" aria-label="حذف درس '+esc(s.name)+'">×</button>')+
     '</div>';
   };
-  box.innerHTML=
-    (specialized.length?'<div class="subject-group-label">دروس تخصصی</div>'+specialized.map(subjectRowHTML).join(''):'')+
-    (general.length?'<div class="subject-group-label">دروس عمومی</div>'+general.map(subjectRowHTML).join(''):'');
+  /* FEAT-6: custom subject groups are used when set; otherwise keep the
+     built-in specialized/general separation. */
+  const groups=new Map();
+  [...specialized,...general].forEach(subject=>{
+    const label=subject.group?subject.group:(subject.type==='specialized'?'دروس تخصصی':'دروس عمومی');
+    if(!groups.has(label))groups.set(label,[]);
+    groups.get(label).push(subject);
+  });
+  box.innerHTML=[...groups.entries()].map(([label,subjects])=>
+    `<div class="subject-group-label">${esc(label)}</div>`+subjects.map(subjectRowHTML).join('')
+  ).join('');
 }
 
 document.getElementById('subjectManager').addEventListener('change',(e)=>{
@@ -287,7 +295,7 @@ document.getElementById('addSubjectBtn').onclick=()=>{
     topics:{'دهم':[],'یازدهم':[],'دوازدهم':[]},
     chapterSections:{'دهم':{},'یازدهم':{},'دوازدهم':{}},
     lessonSections:{'دهم':{},'یازدهم':{},'دوازدهم':{}},
-    errors:[],specialTags:[],lessonRecords:{},topicRecords:{}
+    errors:[],specialTags:[],questionTypes:[],emphasis:'note',group:'',lessonRecords:{},topicRecords:{}
   });
   state.classes[name]={total:20,sessions:{}};
   save();renderSubjectManager();try{refreshAll();}catch(_){}
@@ -375,26 +383,135 @@ function openSubjectAdvancedModal(name){
     return;
   }
 
-  openModal(`
-    <div class="modal-head">
-      <div class="card-title">تنظیمات پیشرفته: ${esc(s.name)} ${isLocked?'<span class="text-amber fs-10">🔒</span>':''}</div>
-      <button class="icon-btn" data-close>✕</button>
-    </div>
-    <label class="lbl">تعداد جلسات کلاس</label>
-    <input class="input" type="number" id="advSessions" min="0" max="200" value="${s.sessions||0}">
-    <label class="lbl">تعداد سوال پیش‌فرض آزمون</label>
-    <input class="input" type="number" id="advDefaultQ" min="0" max="200" value="${s.defaultQ||0}">
-    <button class="btn primary mt-16" id="advSave">ذخیره</button>
-  `);
+  /* FEAT-6/7: question types live with the subject. Similarity suggestions
+     are never applied automatically — the user must confirm every merge. */
+  let draftTypes=(s.questionTypes||[]).map(t=>({id:String(t.id||uid()),label:String(t.label||'')})).filter(t=>t.label);
+  let draftEmphasis=['note','question-type','both'].includes(s.emphasis)?s.emphasis:'note';
+  let draftGroup=s.group||'';
 
-  document.getElementById('advSave').onclick=()=>{
-    const sess=Math.max(0,Math.min(200,+document.getElementById('advSessions').value||0));
-    const q=Math.max(0,Math.min(200,+document.getElementById('advDefaultQ').value||0));
-    s.sessions=sess;s.defaultQ=q;
-    if(state.classes[s.name])state.classes[s.name].total=sess;
-    save();closeModal();renderSubjectManager();try{refreshAll();}catch(_){}
-    toast('ذخیره شد');
+  const typeUsage=(id)=>state.exams.reduce((sum,exam)=>
+    sum+(exam.questions||[]).filter(q=>(q.questionTypes||[]).includes(id)).length,0);
+
+  const suggestionsHTML=()=>{
+    const groups=typeof suggestQuestionTypeGroups==='function'?suggestQuestionTypeGroups(draftTypes):[];
+    if(!groups.length)return '<div class="qt-empty">پیشنهادی برای ادغام وجود ندارد.</div>';
+    return groups.map((group,gi)=>`<div class="qt-suggest">
+      <div class="qt-suggest-head"><b>پیشنهاد ادغام</b><span class="qt-score">${fa(Math.round(group.score*100))}٪</span></div>
+      <div class="qt-suggest-labels">${group.members.map(m=>esc(m.label)).join(' + ')}</div>
+      <div class="qt-suggest-meta">${fa(group.count)} تیپ • ${fa(Math.round(group.share*100))}٪ از تیپ\u200cهای درس</div>
+      <button type="button" class="btn ghost qt-merge-btn" data-qt-merge="${gi}">ادغام</button>
+    </div>`).join('');
   };
+
+  const renderSpecModal=()=>{
+    const typeRows=draftTypes.map((t,i)=>`<div class="qt-row">
+      <input class="input qt-label" value="${esc(t.label)}" data-qt-input="${i}" placeholder="نام تیپ سوال" maxlength="60">
+      <span class="qt-usage" title="تعداد سوال\u200cهای استفاده\u200cکننده">${fa(typeUsage(t.id))}</span>
+      <button type="button" class="qt-del" data-qt-del="${i}" aria-label="حذف تیپ">×</button>
+    </div>`).join('');
+
+    openModal(`
+      <div class="modal-head">
+        <div class="card-title">تنظیمات پیشرفته: ${esc(s.name)} ${isLocked?'<span class="text-amber fs-10">🔒</span>':''}</div>
+        <button class=\"icon-btn\" data-close>✕</button>
+      </div>
+      <div class="grid2">
+        <div><label class="lbl mt-0">تعداد جلسات کلاس</label>
+          <input class="input" type="number" id="advSessions" min="0" max="200" value="${s.sessions||0}"></div>
+        <div><label class="lbl mt-0">تعداد سوال پیش\u200cفرض آزمون</label>
+          <input class="input" type="number" id="advDefaultQ" min="0" max="200" value="${s.defaultQ||0}"></div>
+      </div>
+      <div class="grid2">
+        <div><label class="lbl">گروه درس</label>
+          <input class="input" id="advGroup" value="${esc(draftGroup)}" placeholder="مثلاً: ریاضیات" maxlength="40"></div>
+        <div><label class="lbl">تمرکز کارت تحلیل</label>
+          <select class="input" id="advEmphasis">
+            <option value="note" ${draftEmphasis==='note'?'selected':''}>نکته</option>
+            <option value="question-type" ${draftEmphasis==='question-type'?'selected':''}>تیپ سوال</option>
+            <option value="both" ${draftEmphasis==='both'?'selected':''}>هر دو</option>
+          </select></div>
+      </div>
+      <div class="err-sep"></div>
+      <div class="err-sec-title">🎯 تیپ\u200cهای سوال</div>
+      <div class="muted fs-10h mb-10 lh-185">تیپ\u200cها مشابه هم که باشند پیشنهاد ادغام نشان داده می\u200cشود؛ ادغام فقط با تأیید تو انجام می\u200cشود.</div>
+      <div class="qt-list">${typeRows||'<div class="qt-empty">هنوز تیپ سوالی تعریف نشده</div>'}</div>
+      <div class="qt-add-row">
+        <input class="input" id="newQuestionType" placeholder="تیپ سوال جدید..." maxlength="60">
+        <button type="button" class="btn cyan-soft" id="addQuestionType">＋</button>
+      </div>
+      <div class="err-sep"></div>
+      <div class="err-sec-title">🔗 پیشنهاد ادغام تیپ\u200cها</div>
+      <div id="qtSuggestions">${suggestionsHTML()}</div>
+      <button class="btn primary mt-16" id="advSave">ذخیره</button>
+    `);
+
+    document.querySelectorAll('#modalContent [data-close]').forEach(b=>b.onclick=closeModal);
+
+    const syncDraftFromDOM=()=>{
+      document.querySelectorAll('[data-qt-input]').forEach(inp=>{
+        const idx=+inp.dataset.qtInput;
+        if(draftTypes[idx])draftTypes[idx].label=inp.value.trim();
+      });
+      const groupEl=document.getElementById('advGroup');
+      const emphasisEl=document.getElementById('advEmphasis');
+      if(groupEl)draftGroup=groupEl.value.trim();
+      if(emphasisEl)draftEmphasis=emphasisEl.value;
+    };
+
+    document.querySelectorAll('[data-qt-del]').forEach(btn=>btn.onclick=()=>{
+      syncDraftFromDOM();
+      const idx=+btn.dataset.qtDel;
+      const type=draftTypes[idx];
+      if(!type)return;
+      if(!confirm(`تیپ «${type.label}» حذف شود؟`))return;
+      draftTypes.splice(idx,1);
+      renderSpecModal();
+    });
+
+    const addBtn=document.getElementById('addQuestionType');
+    if(addBtn)addBtn.onclick=()=>{
+      syncDraftFromDOM();
+      const input=document.getElementById('newQuestionType');
+      const label=(input&&input.value||'').trim();
+      if(!label)return;
+      if(draftTypes.some(t=>t.label===label)){toast('تکراری است');return;}
+      draftTypes.push({id:'qt_'+uid(),label});
+      renderSpecModal();
+    };
+
+    document.querySelectorAll('[data-qt-merge]').forEach(btn=>btn.onclick=()=>{
+      syncDraftFromDOM();
+      const groups=typeof suggestQuestionTypeGroups==='function'?suggestQuestionTypeGroups(draftTypes):[];
+      const group=groups[+btn.dataset.qtMerge];
+      if(!group)return;
+      const target=group.members[0];
+      const sourceIds=group.members.slice(1).map(m=>m.id);
+      const labels=group.members.map(m=>m.label).join(' + ');
+      if(!confirm(`تیپ\u200cهای «${labels}» در «${target.label}» ادغام شوند؟ سوال\u200cها به تیپ جدید منتقل می\u200cشوند.`))return;
+      state.exams.forEach(exam=>{
+        (exam.questions||[]).forEach(q=>{
+          if(!Array.isArray(q.questionTypes)||!q.questionTypes.length)return;
+          const replaced=q.questionTypes.map(id=>sourceIds.includes(id)?target.id:id);
+          q.questionTypes=[...new Set(replaced)];
+        });
+      });
+      draftTypes=draftTypes.filter(t=>!sourceIds.includes(t.id));
+      renderSpecModal();
+      toast('تیپ\u200cها ادغام شدند');
+    });
+
+    document.getElementById('advSave').onclick=()=>{
+      syncDraftFromDOM();
+      const sess=Math.max(0,Math.min(200,+document.getElementById('advSessions').value||0));
+      const q=Math.max(0,Math.min(200,+document.getElementById('advDefaultQ').value||0));
+      s.sessions=sess;s.defaultQ=q;
+      s.questionTypes=draftTypes;s.emphasis=draftEmphasis;s.group=draftGroup;
+      if(state.classes[s.name])state.classes[s.name].total=sess;
+      save();closeModal();renderSubjectManager();try{refreshAll();}catch(_){}
+      toast('ذخیره شد');
+    };
+  };
+  renderSpecModal();
 }
 
 /* ============ LESSON SECTIONS MANAGER ============ */

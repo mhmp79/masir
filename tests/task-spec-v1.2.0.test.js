@@ -164,6 +164,39 @@ test('FEAT-3: wrong/blank questions are not prefilled from exam topics', () => {
   assert.deepStrictEqual(Array.from(questions[3].topics), ['احتمال']);
 });
 
-console.log('TASK SPEC v1.2.0 — P1 checks');
+const p2Utils = loadFunctions('js/00-utils.js', [
+  'levenshtein', 'jaccard', 'normalizeTypeLabel', 'questionTypeSimilarity',
+  'suggestQuestionTypeGroups'
+]);
+const { questionTypeSimilarity, suggestQuestionTypeGroups } = p2Utils;
+
+/* ---------- FEAT-6/7: question type similarity + grouping ---------- */
+test('FEAT-6: similar type labels score at least 0.65', () => {
+  assert.ok(questionTypeSimilarity('مثلثات', 'مثلثات ۱') >= 0.65);
+  assert.ok(questionTypeSimilarity('احتمال', 'احتمالات') >= 0.65);
+  assert.ok(questionTypeSimilarity('مثلثات', '能夠') < 0.65);
+});
+
+test('FEAT-6: auto-group needs 2+ types and 30% share', () => {
+  const pair = [
+    { id: 'a', label: 'مثلثات' },
+    { id: 'b', label: 'مثلثات ۱' },
+    { id: 'c', label: 'احتمال' },
+    { id: 'd', label: 'hcp' }
+  ];
+  const groups = suggestQuestionTypeGroups(pair);
+  assert.strictEqual(groups.length, 1, '2 of 4 types = 50% share');
+  assert.ok(groups[0].share >= 0.3);
+
+  const tooSmallShare = [
+    ...pair,
+    { id: 'e', label: 'e' }, { id: 'f', label: 'f' },
+    { id: 'g', label: 'g' }, { id: 'h', label: 'h' },
+    { id: 'i', label: 'i' }, { id: 'j', label: 'j' }
+  ];
+  assert.strictEqual(suggestQuestionTypeGroups(tooSmallShare).length, 0, '2 of 10 types = 20% share');
+});
+
+console.log('TASK SPEC v1.2.0 — P2 checks');
 console.log(results.join('\n'));
 console.log(process.exitCode ? 'FAILED' : 'ALL PASSED');

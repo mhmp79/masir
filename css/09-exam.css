@@ -1079,3 +1079,39 @@ input.ex-subj{
 
 .chart-legend-item{display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;font-size:10px;color:#cbd3e8}
 .chart-legend-line{width:12px;height:3px;border-radius:2px}
+
+
+/* ============ TASK SPEC v1.2.0 — FEAT-1/2/3 EXAM NOTES ============ */
+.note-subject-picker-title span{color:#8b94ad;font-size:9px;font-weight:500}
+.note-subject-option{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto auto;
+  grid-template-rows:auto 4px;
+  gap:2px 8px;
+  align-items:center;
+}
+.nsp-main{display:flex;align-items:center;gap:7px;min-width:0}
+.nsp-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nsp-counts{font-size:9px;color:#aab3ca;font-variant-numeric:tabular-nums;white-space:nowrap}
+.nsp-pct{font-size:10px;font-weight:800;min-width:34px;text-align:left;font-variant-numeric:tabular-nums}
+.nsp-progress{
+  grid-column:1 / -1;height:4px;border-radius:4px;
+  background:rgba(255,255,255,.08);overflow:hidden;
+}
+.nsp-progress-fill{display:block;height:100%;border-radius:4px;transition:width .2s ease}
+.nc-save-indicator{
+  margin-right:auto;font-size:9px;font-weight:700;white-space:nowrap;
+  color:#fcd34d;opacity:0;transition:opacity .2s ease;
+}
+.nc-save-indicator.saved{color:#6ee7b7;opacity:1}
+.nc-save-indicator:not(.saved){opacity:1}
+.nc-edit-topic-chip.suggested{
+  border-style:dashed;
+  border-color:rgba(77,226,245,.58);
+  color:#9beaf5;
+  background:rgba(34,211,238,.06);
+}
+.nc-chip-plus{margin-right:3px;font-size:11px;line-height:1}
+.note-item[data-emphasis='question-type'] .nc-note-fold{order:5}
+.note-item[data-emphasis='question-type'] .nc-edit-section{order:1}
+.note-item[data-emphasis='both'] .nc-note-fold{order:2}

@@ -1145,12 +1145,75 @@ function mergeSessions(sessions) {
     const last = groups[groups.length - 1];
     if (last && last.subject === s.subject && last.topic === s.topic && last.done === s.done && last.startMin + last.durMin === s.startMin) {
       last.durMin += s.durMin;
+      last.endMin = last.startMin + last.durMin;
+      last._end = last.endMin;
       last._ids.push(s.id);
     } else {
-      groups.push({ ...s, _end: s.startMin + s.durMin, _ids: [s.id] });
+      const endMin = s.endMin != null ? +s.endMin : s.startMin + s.durMin;
+      groups.push({ ...s, endMin, _end: endMin, _ids: [s.id] });
     }
   });
   return groups;
+}
+
+/* ---------- BUGFIX-1: horizontal block chain layout ----------
+   Pure layout used by the timeline renderers. Blocks are sorted by start,
+   touching blocks share an edge, gaps stay proportional, short blocks keep a
+   readable minimum width, and an overflowing chain stays scrollable instead of
+   drawing on top of itself. */
+function timelineBlockRange(block) {
+  const start = +block.startMin || 0;
+  const end = block.endMin != null ? +block.endMin : start + (+block.durMin || 0);
+  return { start, end: Math.max(start, end) };
+}
+
+function layoutTimelineBlocks(blocks, containerWidth, options) {
+  const opts = options || {};
+  const list = (blocks || []).filter(Boolean).map((block, index) => ({
+    block, index, ...timelineBlockRange(block)
+  }));
+  const available = Math.max(1, +containerWidth || 1);
+  if (!list.length) return { blocks: [], contentWidth: available, scrollable: false, pxPerMin: 0 };
+
+  list.sort((a, b) => a.start - b.start || a.end - b.end || a.index - b.index);
+  const minWidth = Math.max(1, opts.minWidth == null ? 32 : +opts.minWidth || 32);
+  const minGap = Math.max(0, opts.minGap == null ? 4 : +opts.minGap || 0);
+  const domainStart = opts.startMin != null ? +opts.startMin : Math.min(...list.map(item => item.start));
+  const domainEnd = opts.endMin != null ? +opts.endMin : Math.max(...list.map(item => item.end));
+  const span = Math.max(1, domainEnd - domainStart);
+  const pxPerMin = available / span;
+
+  let cursor = 0;
+  let previous = null;
+  const laidOut = [];
+  list.forEach(item => {
+    const start = Math.max(domainStart, item.start);
+    const end = Math.min(domainEnd, item.end);
+    if (end <= start) return;
+    const width = Math.max(minWidth, (end - start) * pxPerMin);
+    const touching = !!previous && start <= previous._layoutEnd;
+    const gap = !previous ? 0 : (touching ? 0 : Math.max(minGap, (start - previous._layoutEnd) * pxPerMin));
+    const left = previous ? Math.max(previous.left + previous.width + gap, cursor + gap) : 0;
+    const placed = { ...item.block, _layoutStart: start, _layoutEnd: end, left, width };
+    laidOut.push(placed);
+    previous = placed;
+    cursor = left + width;
+  });
+  const contentWidth = Math.max(available, cursor);
+  return { blocks: laidOut, contentWidth, scrollable: contentWidth > available + 0.5, pxPerMin };
+}
+
+/* DOM helper used when a chain would overflow: the wrapper scrolls, blocks never overlap. */
+function timelineChainHTML(blocks, containerWidth, options) {
+  const layout = layoutTimelineBlocks(blocks, containerWidth, options);
+  const inner = layout.blocks.map(block =>
+    `<div class="tl-chain-block${block.done ? ' done' : ''}" style="left:${block.left.toFixed(2)}px;width:${block.width.toFixed(2)}px" title="${esc(block.subject || block.topic || '')}">${esc(block.subject || block.topic || '')}</div>`
+  ).join('');
+  return `<div class="tl-chain-scroll" style="overflow-x:${layout.scrollable ? 'auto' : 'hidden'}"><div class="tl-chain" style="width:${Math.ceil(layout.contentWidth)}px">${inner}</div></div>`;
+}
+
+if (typeof globalThis !== 'undefined') {
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, assignLanes };
 }
 
 function assignLanes(items) {

@@ -2105,19 +2105,24 @@ function applyHideClasses(){
   if(state.settings.hideClasses&&classTab&&classTab.classList.contains('active')&&typeof setOverviewTab==='function')setOverviewTab('specialized');
 }
 
+const CTX_ICONS={
+  report:'<svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h6"/></svg>',
+  plan:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+  compare:'<svg viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="8" width="7" height="12" rx="2"/></svg>'
+};
 function updateContextButton(viewName){
   const btn=document.getElementById('contextActionBtn');
   const labelEl=document.getElementById('contextActionLabel');
   if(!btn||!labelEl)return;
   const configs={
-    dashboard:{icon:'📊',label:'گزارش',title:'گزارش تصویری روزانه/هفتگی',handler:()=>openReport('day')},
-    plan:{icon:'🖼️',label:'برنامه هفتگی',title:'خروجی تصویری برنامه هفتگی',handler:openPlanImagePicker},
-    exam:{icon:'📊',label:'مقایسه آزمون‌ها',title:'مقایسه آزمون‌های آزمایشی',handler:openExamCompare}
+    dashboard:{icon:CTX_ICONS.report,label:'خروجی گزارش',title:'خروجی تصویری روزانه/هفتگی',handler:()=>openReport('day')},
+    plan:{icon:CTX_ICONS.plan,label:'خروجی برنامه',title:'خروجی تصویری برنامه هفتگی',handler:openPlanImagePicker},
+    exam:{icon:CTX_ICONS.compare,label:'خروجی مقایسه',title:'خروجی تصویری مقایسه آزمون‌ها',handler:openExamCompare}
   };
   const cfg=configs[viewName];
   if(!cfg||viewName==='overview'||viewName==='class'||viewName==='activity'){btn.classList.add('hidden');return;}
   btn.classList.remove('hidden');
-  btn.querySelector('.ctx-icon').textContent=cfg.icon;
+  btn.querySelector('.ctx-icon').innerHTML=cfg.icon;
   labelEl.textContent=cfg.label;
   btn.title=cfg.title;
   btn.onclick=cfg.handler;

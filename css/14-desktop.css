@@ -14,6 +14,7 @@
   .app { max-width: 100%; padding: 16px 24px 100px; }
   .topbar { margin: 0 0 14px; padding: 13px 16px; }
   .nav { max-width: 100%; }
+  #settingsOverlay .wr-shell { max-width: 100%; padding: 104px 24px calc(110px + env(safe-area-inset-bottom)); }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -118,7 +119,6 @@
     border-radius: 0; box-shadow: none;
     overflow-y: auto;
   }
-  .nav::before { display: none; }
   .nav-btn {
     flex: 0 0 auto; width: 100%;
     flex-direction: row; justify-content: flex-start; align-items: center;
@@ -127,9 +127,7 @@
     border-radius: 12px; font-size: 13px;
     background: transparent; box-shadow: none; transform: none;
   }
-  .nav-btn:nth-child(3) { margin-top: 0; }
-  .nav-btn:nth-child(3)::before { display: none; }
-  .nav-btn svg { width: 22px; height: 22px; flex: 0 0 22px; filter: none !important; }
+  .nav-btn svg { width: 22px; height: 22px; flex: 0 0 22px; }
   .nav-btn span { font-size: 13px; font-weight: 600; }
   .nav-btn.active {
     color: #fff;
@@ -140,6 +138,12 @@
     backdrop-filter: none; -webkit-backdrop-filter: none;
   }
   .nav-btn:not(.active):hover { color: #cfd6ea; }
+
+  #settingsOverlay {
+    left: var(--sidebar-w); top: var(--topbar-h);
+    right: 0; bottom: 0;
+  }
+  #settingsOverlay .wr-shell { max-width: 1120px; padding: var(--main-pad); }
 
   main {
     grid-area: main;

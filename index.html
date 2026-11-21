@@ -381,11 +381,7 @@
           </details>
         </aside>
         <aside class="exam-analysis-side" id="examAnalysisSide" hidden>
-          <div class="card note-tag-sidebar" data-note-tag-sidebar>
-            <div class="note-tag-sidebar-title">🏷️ فقط سلکشن تگ تحلیل سوال (پیشنهادی)</div>
-            <div class="note-tag-sidebar-hint">مبحث، تیپ سوال و تگهای اشتباه فقط همان سوالی را که در بخش اصلی انتخاب کرده&#8204;اید تغییر می&#8204;دهند.</div>
-            <div id="analysisTagBox"></div>
-          </div>
+          <div class="card ga-filter-sidebar" id="analysisFilterBox"></div>
         </aside>
         <div class="exam-main">
           <div id="examListPane">
@@ -402,29 +398,18 @@
             </div>
           </div>
           <div id="examAnalysisPane" class="hidden">
-            <div class="card analysis-exam-picker-card">
-              <div class="d-flex items-center justify-between gap-8 flex-wrap">
-                <div class="card-title mb-0">🔍 تحلیل سوالات آزمون</div>
-                <select class="input" id="analysisExamSelect" aria-label="انتخاب آزمون"></select>
-              </div>
-              <div class="muted mt-8" id="analysisExamHint">سوال غلط یا نزده را از لیست اصلی انتخاب کن؛ تگهای آن در ساید چپ نمایش داده می&#8204;شوند.</div>
+            <div class="card exam-analysis-header-card">
+              <div class="card-title">🔍 تحلیل جامع آزمونها</div>
+              <div class="muted" id="gaSub">—</div>
             </div>
-            <div id="examNotesBody"></div>
-            <details class="card exam-global-analysis-fold">
-              <summary>🔍 تحلیل جامع آزمونها</summary>
-              <div class="exam-analysis-header-card mt-12">
-                <div class="card-title">تجزیه و تحلیل تمام آزمونها</div>
-                <div class="muted" id="gaSub">—</div>
-              </div>
-              <div id="gaBody"></div>
-            </details>
+            <div id="gaBody"></div>
           </div>
         </div>
       </div>
       <button type="button" id="examSidebarToggle" class="exam-sidebar-fab" aria-label="نمایش تقویم آزمون" aria-expanded="false">📅</button>
       <div class="exam-sidebar-backdrop" id="examSidebarBackdrop" hidden></div>
-      <button type="button" id="noteTagToggle" class="note-tag-fab" aria-label="نمایش تگهای سوال" aria-expanded="false" hidden>🏷️</button>
-      <div id="noteTagBackdrop" class="note-tag-backdrop" hidden></div>
+      <button type="button" id="gaFilterToggle" class="ga-filter-fab" aria-label="نمایش فیلترهای تحلیل" aria-expanded="false" hidden>🏷️</button>
+      <div id="gaFilterBackdrop" class="ga-filter-backdrop" hidden></div>
     </section>
 
     <!-- ===== OVERVIEW ===== -->

@@ -430,10 +430,19 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   border:1px solid rgba(255,255,255,.14);
   box-shadow:0 12px 28px -16px #7c5cff;
 }
+/* Dashboard report uses the same export shell as the plan dialog. */
+.plan-export-modal #reportBody{margin-top:10px}
+.plan-export-modal #reportBody .plan-preview{padding:8px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.07)}
+.plan-export-modal #dlReport{
+  position:sticky;bottom:0;z-index:5;margin-top:10px;
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 12px 28px -16px #7c5cff;
+}
 .plan-export-modal .report-madeby{margin-top:8px}
 @media (min-width:768px){
   .plan-export-modal .report-modal-head{margin:-24px -24px 14px;padding:14px 24px;border-radius:24px 24px 14px 14px}
   .plan-export-modal .plan-preview{max-height:38vh}
   .plan-export-modal .plan-preview img{max-height:36vh}
   .plan-export-modal #piDownload{position:static;box-shadow:none}
+  .plan-export-modal #dlReport{position:static;box-shadow:none}
 }

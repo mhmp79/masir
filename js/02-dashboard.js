@@ -288,8 +288,14 @@ function openReport(kind){
   reportKind=kind||'day';
   reportAnchor=TODAY_JDN;
   openModal(`
-    <div class="modal-head">
-      <div class="card-title">گزارش تصویری</div>
+    <div class="modal-head report-modal-head">
+      <div class="wr-top-right">
+        <div class="wr-logo report-modal-logo">📊</div>
+        <div class="min-w-0">
+          <div class="card-title mb-0">گزارش تصویری</div>
+          <div class="wr-sub">پیشنمایش و دانلود خروجی روزانه / هفتگی</div>
+        </div>
+      </div>
       <button class="icon-btn" data-close>✕</button>
     </div>
     <div class="seg" id="reportSeg">
@@ -310,7 +316,7 @@ function openReport(kind){
     <button class="btn primary mt-6" id="dlReport">⬇ دانلود تصویر گزارش روز</button>
     <div class="report-madeby">Made by MH.Mahdipanah</div>
   `);
-  document.getElementById('modalContent').classList.add('report-modal');
+  document.getElementById('modalContent').classList.add('report-modal', 'plan-export-modal');
   document.querySelectorAll('#reportSeg .seg-btn').forEach((b)=>{b.onclick=()=>{reportKind=b.dataset.kind;updateReportView();};});
   document.getElementById('rPrev').onclick=()=>{reportAnchor-=(reportKind==='day'?1:7);updateReportView();};
   document.getElementById('rNext').onclick=()=>{const step=(reportKind==='day'?1:7);if(reportAnchor+step>TODAY_JDN)return;reportAnchor+=step;updateReportView();};
@@ -327,7 +333,7 @@ function renderDayReportPreview(){
     if(bodyEl._reportToken!==token) return;
     try{
       const url=cv.toDataURL('image/png');
-      bodyEl.innerHTML=`<div class="cwr-preview"><img src="${url}" alt="پیش‌نمایش گزارش روزانه"></div>`;
+      bodyEl.innerHTML=`<div class="cwr-preview plan-preview"><img src="${url}" alt="پیش‌نمایش گزارش روزانه"></div>`;
     }catch(e){
       bodyEl.innerHTML='<div class="muted report-empty">خطا در نمایش پیش‌نمایش</div>';
     }
@@ -358,7 +364,7 @@ function updateReportView(){
           if(bodyEl._reportToken!==token) return;
           try{
             const url=cv.toDataURL('image/png');
-            bodyEl.innerHTML=`<div class="cwr-preview"><img src="${url}" alt="پیش‌نمایش گزارش هفتگی"></div>`;
+            bodyEl.innerHTML=`<div class="cwr-preview plan-preview"><img src="${url}" alt="پیش‌نمایش گزارش هفتگی"></div>`;
           }catch(e){
             bodyEl.innerHTML='<div class="muted report-empty">خطا در نمایش پیش‌نمایش</div>';
           }
@@ -610,6 +616,33 @@ function drawSleepPhoneStrip(x,W,pad,boxY,d){
 /* ============================================================
    TIMELINE — روز
    ============================================================ */
+/* Canvas timeline must use the same minute axis as the hour grid. The DOM
+   layout helper widens short blocks for readability, which shifts later blocks
+   away from their real times in an image; overlapping items use lanes instead. */
+function reportTimelineExactLayout(items,tlW,startMin,endMin){
+  const domainStart=+startMin||0,domainEnd=+endMin||domainStart+1440;
+  const span=Math.max(1,domainEnd-domainStart);
+  const pxPerMin=tlW/span;
+  const list=(items||[]).filter(Boolean).map((item,index)=>{
+    const start=+(item.startMin!=null?item.startMin:item.start)||0;
+    const end=item.endMin!=null?+item.endMin:start+(+item.durMin||0);
+    return {...item,index,start,end:Math.max(start,end)};
+  }).filter(item=>item.end>domainStart&&item.start<domainEnd)
+    .sort((a,b)=>a.start-b.start||a.end-b.end||a.index-b.index);
+  const laneEnds=[];
+  list.forEach(item=>{
+    const start=Math.max(domainStart,item.start),end=Math.min(domainEnd,item.end);
+    const left=(start-domainStart)*pxPerMin;
+    const right=(end-domainStart)*pxPerMin;
+    let lane=laneEnds.findIndex(laneEnd=>laneEnd<=left+.5);
+    if(lane<0){lane=laneEnds.length;laneEnds.push(0);}
+    laneEnds[lane]=right;
+    item._layoutStart=start;item._layoutEnd=end;
+    item.left=left;item.width=Math.max(1,right-left);item._lane=lane;
+  });
+  return {blocks:list,lanes:Math.max(1,laneEnds.length),pxPerMin};
+}
+
 function drawReportTimelineDaySection(x,W,pad,y0,d){
   const R=W-pad;
   x.textAlign='right';
@@ -619,12 +652,12 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
   x.textAlign='left';
   x.fillStyle='rgba(255,255,255,.4)';
   x.font='500 20px Vazirmatn, Tahoma, sans-serif';
-  x.fillText(`${fa(START_HOUR)}:۰۰ تا ${fa(END_HOUR)}:۰۰`,pad+10,y0+28);
+  x.fillText(`${minToStr(START_MIN)} تا ${minToStr(END_MIN)}`,pad+10,y0+28);
 
   const tlLeft=pad+10,tlRight=W-pad-10;
   const tlW=tlRight-tlLeft;
   const tlTop=y0+60,tlH=130;
-  const totalRange=END_MIN-START_MIN;
+  const totalRange=Math.max(1,END_MIN-START_MIN);
 
   rr(x,tlLeft,tlTop,tlW,tlH,22);
   const trackGrad=x.createLinearGradient(tlLeft,tlTop,tlLeft,tlTop+tlH);
@@ -634,15 +667,16 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
   x.fillStyle=trackGrad;x.fill();
   x.strokeStyle='rgba(255,255,255,.18)';x.lineWidth=2;x.stroke();
 
-  for(let h=START_HOUR;h<=END_HOUR;h+=3){
-    const hx=tlLeft+(h*60-START_MIN)/totalRange*tlW;
+  const tickStep=180;
+  for(let m=Math.ceil(START_MIN/tickStep)*tickStep;m<=END_MIN;m+=tickStep){
+    const hx=tlLeft+(m-START_MIN)/totalRange*tlW;
     x.beginPath();x.moveTo(hx,tlTop+10);x.lineTo(hx,tlTop+tlH-10);
     x.strokeStyle='rgba(255,255,255,.08)';x.lineWidth=1;x.stroke();
     const clampedHx=Math.max(tlLeft+24,Math.min(tlRight-24,hx));
     x.textAlign='center';x.textBaseline='top';
     x.fillStyle='rgba(255,255,255,.42)';
     x.font='500 17px Vazirmatn, Tahoma, sans-serif';
-    x.fillText(fa(h)+':۰۰',clampedHx,tlTop+tlH+12);
+    x.fillText(minToStr(m),clampedHx,tlTop+tlH+12);
   }
 
   const blockY=tlTop+24,blockH=tlH-48;
@@ -658,35 +692,44 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.font='500 22px Vazirmatn, Tahoma, sans-serif';
     x.fillText('مطالعه‌ای ثبت نشده',tlLeft+tlW/2,tlTop+tlH/2);
   }else{
-    /* BUGFIX-1: sorted, non-overlapping horizontal chain. Touching blocks
-       share an edge; real gaps stay proportional; short blocks stay readable. */
-    const layout=layoutTimelineBlocks(allTimelineItems,tlW,{
-      startMin:START_MIN,endMin:END_MIN,minWidth:32,minGap:4
-    });
+    /* Blocks stay on the real minute axis; overlaps use vertical lanes so a
+       later activity is never pushed under the wrong hour label. */
+    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN);
     const by=blockY+2;
-    const bh=blockH-4;
-    const rad=Math.min(10,bh/2);
+    const laneH=Math.max(8,Math.min(26,Math.floor((blockH-4)/layout.lanes)));
+    const bh=Math.max(6,laneH-4);
+    const rad=Math.min(8,bh/2);
 
     layout.blocks.forEach(a=>{
       const bx=tlLeft+a.left;
       const bw=Math.max(1,Math.min(a.width,tlLeft+tlW-bx));
-      if(bw<=0)return;
+      const byLane=by+a._lane*laneH;
+      if(bw<=0||byLane+bh>tlTop+tlH-4)return;
+      const timeLabel=`${minToStr(a._layoutStart)}–${minToStr(a._layoutEnd)}`;
 
       if(a._kind==='sleep'){
         x.save();
-        rr(x,bx+1,by,bw-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         x.fillStyle='rgba(99,102,241,.28)';x.fill();
         x.clip();
         x.strokeStyle='rgba(99,102,241,.70)';x.lineWidth=2;
-        for(let i=-bh;i<bw+bh;i+=8){x.beginPath();x.moveTo(bx+i,by);x.lineTo(bx+i+bh,by+bh);x.stroke();}
+        for(let i=-bh;i<bw+bh;i+=8){x.beginPath();x.moveTo(bx+i,byLane);x.lineTo(bx+i+bh,byLane+bh);x.stroke();}
         x.restore();
-        rr(x,bx+1,by,bw-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         x.strokeStyle='rgba(99,102,241,.88)';x.lineWidth=2;x.stroke();
-        if(bw>55&&bh>16){
+        if(bw>55&&bh>18){
           x.fillStyle='#c7d2fe';
           x.font='700 11px Vazirmatn, Tahoma, sans-serif';
           x.textAlign='center';x.textBaseline='middle';
-          x.fillText('🌙 خواب',bx+bw/2,by+bh/2);
+          x.fillText('🌙 خواب',bx+bw/2,byLane+bh/2-6);
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.fillStyle='rgba(199,210,254,.8)';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
+        }else if(bw>34&&bh>12){
+          x.fillStyle='#c7d2fe';
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
         }
       }else{
         const c=subjColor(a.subject);
@@ -694,27 +737,42 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
         x.save();
         x.shadowColor=c+'aa';
         x.shadowBlur=18;x.shadowOffsetY=2;
-        rr(x,bx+1,by,bw-2,bh,rad);
-        const grad=x.createLinearGradient(bx,by,bx,by+bh);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
+        const grad=x.createLinearGradient(bx,byLane,bx,byLane+bh);
         grad.addColorStop(0,c+'ee');
         grad.addColorStop(.5,c+'bb');
         grad.addColorStop(1,c+'88');
         x.fillStyle=grad;x.fill();
         x.restore();
-        rr(x,bx+1,by,bw-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         if(isOther){
           x.strokeStyle='rgba(255,255,255,.7)';x.lineWidth=1.8;
           x.setLineDash([4,3]);x.stroke();x.setLineDash([]);
         }else{
           x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.5;x.stroke();
         }
-        if(bw>40&&bh>14){
-          x.fillStyle='#fff';
-          x.font='700 10px Vazirmatn, Tahoma, sans-serif';
-          x.textAlign='center';x.textBaseline='middle';
+        if(bw>58&&bh>18){
           let name=isOther&&a.topic?a.topic:a.subject;
           while(x.measureText(name).width>bw-10&&name.length>2)name=name.slice(0,-1);
-          x.fillText(name,bx+bw/2,by+bh/2);
+          x.fillStyle='#fff';
+          x.textAlign='center';x.textBaseline='middle';
+          x.font='700 10px Vazirmatn, Tahoma, sans-serif';
+          x.fillText(name,bx+bw/2,byLane+bh/2-6);
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.fillStyle='rgba(255,255,255,.78)';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
+        }else if(bw>34&&bh>12){
+          x.fillStyle='#fff';
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
+        }else if(bw>24&&bh>12){
+          let name=isOther&&a.topic?a.topic:a.subject;
+          while(x.measureText(name).width>bw-8&&name.length>2)name=name.slice(0,-1);
+          x.fillStyle='#fff';
+          x.font='700 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(name,bx+bw/2,byLane+bh/2);
         }
       }
     });

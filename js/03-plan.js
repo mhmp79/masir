@@ -298,6 +298,27 @@ function loadExamTopics() {
   });
 }
 
+/* When exam topics are edited, exam-linked sessions keep their old topic label.
+   Relabel only sessions whose topic is no longer valid, never removing or
+   rescheduling them, so no study time or history is lost. */
+function syncExamSessionsTopics(examId) {
+  const exam = state.exams.find(e => e.id === examId);
+  if (!exam || !exam.topics) return 0;
+  let changed = 0;
+  state.sessions.forEach(s => {
+    if (s.examId !== examId) return;
+    const val = exam.topics[s.subject];
+    let topics = [];
+    if (Array.isArray(val)) topics = val;
+    else if (val && typeof val === 'object') Object.values(val).forEach(v => { if (Array.isArray(v)) topics.push(...v); });
+    if (topics.includes(s.topic)) return;
+    const next = topics.length === 1 ? topics[0] : '';
+    if (s.topic !== next) { s.topic = next; changed++; }
+  });
+  if (examSelectedId === examId) loadExamTopics();
+  return changed;
+}
+
 function renderTopicSetup() {
   const card = document.getElementById('planTopicSetupCard');
   const box = document.getElementById('planTopicSetup');
@@ -1227,7 +1248,7 @@ function visualLaneEnd(item) {
 }
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes };
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes, syncExamSessionsTopics };
 }
 
 function assignLanes(items) {
@@ -1313,7 +1334,7 @@ function renderTimelineDay(dayKey) {
   });
 
   let html = '';
-  HOURS.forEach(h => { html += `<div class="tl-row"><span class="tl-hour">${fa(h)}:۰۰</span></div>`; });
+  HOURS.forEach(h => { html += `<div class="tl-row"><span class="tl-hour">${fa(h)}:۰۰</span><i class="tl-quarter q1"></i><i class="tl-quarter q2"></i><i class="tl-quarter q3"></i></div>`; });
 
   merged.forEach(g => {
     const it = idx.sess[g._ids[0]];

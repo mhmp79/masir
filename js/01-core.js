@@ -931,7 +931,15 @@ function stateFromNormalizedRecords(records){
   });
   const examsById=new Map(stateData.exams.map(exam=>[String(exam.id),exam]));
   ordered('questions').forEach(record=>{
-    const exam=examsById.get(String(record.examId));
+    /* Old synced rows may have been written before examId was added. The
+       local key is still `examId::questionId`, so recover the link instead of
+       dropping the question, note or answer when rebuilding state. */
+    let examId=String(record.examId||'');
+    if(!examsById.has(examId)){
+      const inlineId=String(record.id||'').split('::')[0];
+      if(inlineId&&examsById.has(inlineId))examId=inlineId;
+    }
+    const exam=examsById.get(examId);
     if(exam)exam.questions.push(record.value);
   });
   if(sessionsMigrated)stateData._sessionsMigrated=true;

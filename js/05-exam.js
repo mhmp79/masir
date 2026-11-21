@@ -724,9 +724,11 @@ function openExamSettingsModal(id){
     Object.entries(examTopics).forEach(([k,v])=>{if(Array.isArray(v)&&v.length)tp[k]=v.slice();});
     exam.topics=tp;
     applyExamTopicsToQuestions(exam);
+    if(typeof syncExamSessionsTopics==='function')syncExamSessionsTopics(id);
     save();closeModal();
     if(currentExamId===id)renderExamOverlay();
     renderExamSection();renderDashboard();
+    if(typeof renderPlan==='function')renderPlan();
     toast('تنظیمات ذخیره شد ✓');
   };
   document.getElementById('esDeleteExam').onclick=()=>{

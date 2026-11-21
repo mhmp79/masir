@@ -262,49 +262,48 @@ test('BUGFIX: note/question/answer edits are tracked as question sync mutations'
   assert.strictEqual(questionMutation.record().value.answerText, 'جواب تازه');
 });
 
-test('REWORK: image report blocks are wider and still follow the minute axis', () => {
-  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineImageLayout', 'reportTimelineItemName']);
+test('REWORK: image report uses an exact vertical minute rail', () => {
+  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineVerticalLayout', 'reportTimelineItemName']);
   const items = [
     { id: 'a', startMin: 480, endMin: 540 },
     { id: 'b', startMin: 510, endMin: 570 },
     { id: 'c', startMin: 600, endMin: 615 }
   ];
-  const out = ctx.reportTimelineImageLayout(items, 960, 0, 1440, 48, 1.6);
+  const out = ctx.reportTimelineVerticalLayout(items, 0, 1440, 18);
   assert.strictEqual(out.blocks.length, 3);
-  assert.strictEqual(out.blocks[0].left, 320, '08:00 must stay at one third of the 24h axis');
-  assert.strictEqual(out.blocks[0].exactWidth, 40, 'the real duration must stay available');
-  assert.strictEqual(out.blocks[0].width, 64, 'a 60 minute block must be visibly wider than the raw duration');
-  assert.strictEqual(out.blocks[1].left, 340, 'overlapping items keep their real x position');
-  assert.strictEqual(out.blocks[1]._lane, 1, 'overlaps move to a lane, not a later time');
-  assert.strictEqual(out.blocks[2].left, 400, 'gaps stay proportional');
+  assert.strictEqual(out.blocks[0].top, 144, '08:00 sits at 8 * 18px on the hour rail');
+  assert.strictEqual(out.blocks[0].height, 18, 'a 60 minute block is exactly one hour tall');
+  assert.strictEqual(out.blocks[1].top, 153, 'overlapping items keep their real minute position');
+  assert.strictEqual(out.blocks[1]._lane, 1, 'overlaps use side-by-side lanes');
+  assert.strictEqual(out.blocks[2].top, 180, 'gaps stay proportional');
   assert.strictEqual(out.blocks[2]._lane, 0, 'a later non-overlapping item reuses the first lane');
   assert.strictEqual(out.lanes, 2);
 
   const dashboard = read('js/02-dashboard.js');
   const section = dashboard.slice(dashboard.indexOf('function drawReportTimelineDaySection'),
     dashboard.indexOf('function drawReportTimelineWeekSection'));
-  const shortOnly = ctx.reportTimelineImageLayout([{ startMin: 600, endMin: 615 }], 960, 0, 1440, 48, 1.6);
-  assert.strictEqual(shortOnly.blocks[0].exactWidth, 10, 'the real duration must stay available');
-  assert.strictEqual(shortOnly.blocks[0].width, 48, 'short blocks need a readable minimum width');
-  const endOnly = ctx.reportTimelineImageLayout([{ startMin: 1435, endMin: 1440 }], 960, 0, 1440, 48, 1.6);
-  assert.ok(endOnly.blocks[0].left + endOnly.blocks[0].width <= 960, 'widening must stay inside the timeline');
-  assert.ok(section.includes('reportTimelineImageLayout(allTimelineItems,tlW,START_MIN,END_MIN,48,1.6)'),
-    'daily image timeline must use the wider fitted layout');
-  assert.ok(section.includes('minToStr(START_MIN)') && section.includes('minToStr(m)'),
-    'timeline labels must use the shared minute formatter');
-  assert.ok(!section.includes('layoutTimelineBlocks('), 'daily report must not shift blocks with minWidth/minGap');
+  const shortOnly = ctx.reportTimelineVerticalLayout([{ startMin: 600, endMin: 615 }], 0, 1440, 18);
+  assert.strictEqual(shortOnly.blocks[0].height, 4.5, '15 minutes stays 15 minutes tall, not stretched');
+  const endOnly = ctx.reportTimelineVerticalLayout([{ startMin: 1435, endMin: 1440 }], 0, 1440, 18);
+  assert.ok(endOnly.blocks[0].top + endOnly.blocks[0].height <= 432, 'the last block stays inside the rail');
+  assert.ok(section.includes('reportTimelineVerticalLayout(allTimelineItems,START_MIN,END_MIN,hourH)'),
+    'daily image timeline must use the exact vertical layout');
+  assert.ok(section.includes('m+=60') && section.includes('minToStr(m)'),
+    'the hour rail must label every real hour');
+  assert.ok(!section.includes('reportTimelineImageLayout') && !section.includes('widthScale'),
+    'stretched horizontal blocks must be gone');
+  assert.ok(dashboard.includes('(isDay?REPORT_TIMELINE_DAY_HEIGHT:'),
+    'canvas height must reserve space for the readable vertical rail');
 
   assert.strictEqual(ctx.reportTimelineItemName({ subject: 'ریاضی' }), 'ریاضی');
   assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'other', subject: 'دیگر', topic: 'سایر' }), 'سایر');
   assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'sleep' }), '🌙 خواب');
-  assert.ok(section.includes('reportTimelineItemName(a)'), 'blocks must show only the item name');
+  assert.ok(section.includes('reportTimelineItemName(a)'), 'blocks still show only the item name');
   assert.ok(!section.includes('timeLabel'), 'blocks must not print clock times inside them');
-  assert.ok(section.includes('tlH=160') && dashboard.includes('(isDay?290:'),
-    'the image timeline needs enough height for readable, uncluttered blocks');
 });
 
-test('FEAT: volume planning shows activities with clear ranges and no tick marks', () => {
-  const ctx = loadFunctions('js/03-plan.js', ['phaseCellItems']);
+test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
+  const ctx = loadFunctions('js/03-plan.js', ['itemTimeRange', 'phaseCellItems']);
   const sessions = [
     { id: 's1', startMin: 480, durMin: 60 },
     { id: 's2', startMin: 600, durMin: 60, activityId: 'a-linked' }
@@ -321,10 +320,28 @@ test('FEAT: volume planning shows activities with clear ranges and no tick marks
   assert.strictEqual(out[1]._kind, 'activity');
   assert.strictEqual(out[2]._kind, 'session');
 
-  const pillCtx = loadFunctions('js/03-plan.js', ['phasePillTimeLabel', 'renderPhasePill'], {
-    minToStr: (m) => `T${m}`
-  });
+  const pillCtx = loadFunctions('js/03-plan.js',
+    ['itemTimeRange', 'phasePillTimeLabel', 'renderPhasePill'], {
+      minToStr: (m) => `T${m}`
+    });
   assert.strictEqual(pillCtx.phasePillTimeLabel(480, 540), 'T480–T540');
+
+  /* A 16:00–22:00 block must own phases 9, 10 and 11 only, with each pill
+     showing its own two-hour slice instead of the full shifted range. */
+  const longBlock = { id: 'long', _kind: 'session', subject: 'ریاضی', startMin: 960, durMin: 360 };
+  const expected = { 9: 'T960–T1080', 10: 'T1080–T1200', 11: 'T1200–T1320' };
+  Object.keys(expected).forEach((p) => {
+    const start = (+p - 1) * 120;
+    const cells = ctx.phaseCellItems('day1', [longBlock], [], start, start + 120);
+    assert.strictEqual(cells.length, 1, `phase ${p} must contain the continuous block`);
+    const pill = pillCtx.renderPhasePill(cells[0], start, start + 120);
+    assert.ok(pill.includes(`<span class="sp-dur">${expected[p]}</span>`),
+      `phase ${p} must show its own ${expected[p]} slice`);
+    assert.ok(pill.includes(`data-seg-start="${start}" data-seg-end="${start + 120}"`));
+  });
+  assert.strictEqual(ctx.phaseCellItems('day1', [longBlock], [], 1320, 1440).length, 0,
+    'a block ending at 22:00 must not spill into phase 12');
+
   const activityPill = pillCtx.renderPhasePill(
     { id: 'a1', _kind: 'activity', subject: 'ریاضی', topic: 'احتمال', startMin: 480, endMin: 540 },
     480, 600
@@ -338,12 +355,51 @@ test('FEAT: volume planning shows activities with clear ranges and no tick marks
     'volume cells must include recorded activities');
   assert.ok(plan.includes("classes.push('activity-pill', 'tl-activity')"),
     'activity pills need their own clickable style');
-  assert.ok(plan.includes('<span class="sp-dur">${timeLabel || segmentLabel}</span>'),
-    'volume pills must display their time range');
+  assert.ok(plan.includes('<span class="sp-dur">${segmentLabel}</span>'),
+    'volume pills must display their own phase slice');
   const css = read('css/07-plan.css');
   assert.ok(/\.phase-pill\.activity-pill\s*\{/.test(css));
   assert.ok(/\.phase-pill\s*\{[^}]*flex-wrap:\s*wrap/.test(css),
     'time ranges need their own line in narrow volume cells');
+});
+
+test('FEAT: timeline adds a month mode beside week', () => {
+  const calendar = {
+    j2d: (jy, jm, jd) => jy * 360 + (jm - 1) * 30 + jd,
+    d2j: (n) => {
+      const jy = Math.floor((n - 1) / 360);
+      const rem = (n - 1) % 360;
+      return { jy, jm: Math.floor(rem / 30) + 1, jd: rem % 30 + 1 };
+    },
+    jKey: (j) => `${j.jy}/${j.jm}/${j.jd}`
+  };
+  const ctx = loadFunctions('js/03-plan.js', ['shiftPersianMonth', 'monthKeysOf'], calendar);
+  const moved = ctx.shiftPersianMonth(1403, 12, 1);
+  assert.strictEqual(`${moved.jy}/${moved.jm}`, '1404/1');
+  const back = ctx.shiftPersianMonth(1404, 1, -1);
+  assert.strictEqual(`${back.jy}/${back.jm}`, '1403/12');
+  const ahead = ctx.shiftPersianMonth(1404, 7, 2);
+  assert.strictEqual(`${ahead.jy}/${ahead.jm}`, '1404/9');
+
+  const keys = ctx.monthKeysOf(1404, 1);
+  assert.strictEqual(keys.length, 30, 'a month must use the real calendar month length');
+  assert.strictEqual(keys[0], '1404/1/1');
+  assert.strictEqual(keys[keys.length - 1], '1404/1/30');
+
+  const plan = read('js/03-plan.js');
+  assert.ok(plan.includes('<button data-tlmode="month"'), 'month must sit beside the week button');
+  assert.ok(plan.includes("if (tlMode === 'month') return `${MONTHS[calMonth - 1]} ${fa(calYear)}`;"),
+    'month mode needs a month-and-year title');
+  assert.ok(plan.includes('body.innerHTML = renderTimelineMulti(monthKeysOf(calYear, calMonth));'),
+    'month mode must render the whole month timeline');
+  assert.ok(plan.includes("if (tlMode === 'month') return calYear === TODAY_J.jy && calMonth === TODAY_J.jm;"),
+    'the today shortcut must recognize the current month');
+  assert.ok(plan.includes('shiftTimelineAnchor(+btn.dataset.nav)'),
+    'month navigation must advance one month, not a fixed number of days');
+  assert.ok(plan.includes("if (tlMode === 'month' && e.target.closest('.wv-scroll')) return;"),
+    'month swipes must scroll the wide grid instead of changing months');
+  assert.ok(read('css/07-plan.css').includes('.week-view.month-view .wv-scroll > *'),
+    'month timeline needs its own scrollable styling');
 });
 
 test('REWORK: dashboard report dialog uses the plan export design', () => {
@@ -710,7 +766,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r35'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r36'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

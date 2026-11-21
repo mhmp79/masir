@@ -60,7 +60,7 @@
 }
 
 /* The exams tab keeps its original left calendar sidebar. The analysis tab
-   uses the same column for the per-question tag selector. */
+   uses the same column for the comprehensive filter panel. */
 .exam-side,
 .exam-analysis-side {
   order: 1;
@@ -567,6 +567,16 @@
   border-right: 3px solid rgba(124,92,255,.5);
   border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.ac-options{display:flex;flex-direction:column;gap:3px;margin-top:6px}
+.ac-option-line{
+  font-size:10.5px;color:#cbd3e8;padding:3px 7px;border-radius:5px;
+  background:rgba(255,255,255,.03);border:1px solid transparent;
+}
+.ac-option-line.correct{
+  color:#6ee7b7;border-color:rgba(16,185,129,.35);
+  background:rgba(16,185,129,.10);font-weight:800;
+}
+.ac-answer-note{font-size:10.5px;color:#fcd34d;margin-top:5px;line-height:1.7}
 .ac-edit-btn {
   width: 26px; height: 26px; border-radius: 7px;
   border: 1px solid rgba(34,211,238,.4);
@@ -809,6 +819,27 @@
 .nc-note-fold.nc-static-note > .nc-fold-title{
   padding:7px 9px 2px;color:#aeb8d0;font-size:10px;font-weight:800;
 }
+.nc-qpaper{
+  margin:8px 0;padding:8px 9px;border-radius:9px;
+  background:rgba(34,211,238,.045);border:1px solid rgba(34,211,238,.18);
+  display:flex;flex-direction:column;gap:6px;
+}
+.nc-qpaper-title{font-size:9.5px;font-weight:800;color:#8b94ad}
+.nc-option-edit-list{display:flex;flex-direction:column;gap:5px}
+.nc-option-edit-row{display:flex;align-items:center;gap:6px}
+.nc-option-correct{
+  flex:0 0 26px;height:26px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.04);color:#8b94ad;
+  font-family:inherit;font-size:10px;font-weight:800;
+  cursor:pointer;padding:0;line-height:1;
+}
+.nc-option-correct.on{
+  border-color:#10b981;color:#052e20;
+  background:linear-gradient(155deg,#34d399,#10b981);
+}
+.nc-option-input{min-height:30px;font-size:10.5px;padding:5px 8px}
+.nc-qpaper .nc-answer-input{font-size:10px;min-height:36px}
 .nc-qa-input {
   width: 100%; min-height: 42px; padding: 7px 10px;
   border-radius: 8px; border: 1px solid rgba(255,255,255,.10);
@@ -1081,35 +1112,25 @@ input.ex-subj{
 
 /* ============ EXAM SIDE FAB / DRAWERS ============
    Exams: the original calendar sidebar. Analysis: the same column becomes
-   the per-question tag selector. Neither sits inside the main content. */
-.exam-sidebar-fab,.exam-sidebar-backdrop,.note-tag-fab,.note-tag-backdrop{display:none}
-.note-tag-sidebar{min-width:0}
-.note-tag-sidebar .card{margin:0}
-.note-tag-sidebar-title{font-size:11px;font-weight:800;color:#fcd34d;margin-bottom:8px}
-.note-tag-sidebar-hint{font-size:9px;color:#8b94ad;line-height:1.7;margin:-2px 0 10px}
-.analysis-exam-picker-card .card-title{font-size:13px}
-.analysis-exam-picker-card select{max-width:230px}
-.exam-global-analysis-fold > summary{
-  cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#c7bfff;
-  padding:4px 0;
-}
-.exam-global-analysis-fold > summary::-webkit-details-marker{display:none}
-.exam-global-analysis-fold[open] > summary{margin-bottom:4px}
+   the comprehensive tag/analysis filter panel. Neither sits inside main. */
+.exam-sidebar-fab,.exam-sidebar-backdrop,.ga-filter-fab,.ga-filter-backdrop{display:none}
+.ga-filter-sidebar{min-width:0}
+.ga-filter-sidebar .flt-card{margin:0}
+.ga-filter-title{font-size:12px;font-weight:800;color:#fcd34d;margin-bottom:5px}
+.ga-filter-hint{font-size:9px;color:#8b94ad;line-height:1.7;margin:0 0 11px}
 @media (min-width:1024px){
-  .exam-analysis-side .note-tag-sidebar{
+  .exam-analysis-side .ga-filter-sidebar{
     position:sticky;top:16px;
     max-height:90vh;overflow-y:auto;min-height:0;
   }
-  .exam-analysis-main{min-width:0}
 }
 @media (min-width:768px) and (max-width:1023px){
   .exam-calendar-summary{display:flex}
   .exam-calendar-details:not([open]) > .card{display:none}
-  .exam-analysis-side .note-tag-sidebar{
+  .exam-analysis-side .ga-filter-sidebar{
     position:sticky;top:16px;max-height:88vh;
     overflow-y:auto;min-height:0;
   }
-  .exam-analysis-main{min-width:0}
 }
 @media (max-width:767px){
   .exam-sidebar-fab{
@@ -1135,7 +1156,7 @@ input.ex-subj{
     transform:translateY(105%);transition:transform .24s ease;
   }
   #view-exam.sidebar-open .exam-side{transform:none}
-  .note-tag-fab{
+  .ga-filter-fab{
     position:fixed;right:16px;
     bottom:calc(18px + env(safe-area-inset-bottom,0px));
     z-index:405;display:flex;align-items:center;justify-content:center;
@@ -1145,9 +1166,9 @@ input.ex-subj{
     color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
     font-family:inherit;cursor:pointer;
   }
-  .note-tag-fab[hidden]{display:none}
-  .note-tag-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
-  .note-tag-backdrop[hidden]{display:none}
+  .ga-filter-fab[hidden]{display:none}
+  .ga-filter-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
+  .ga-filter-backdrop[hidden]{display:none}
   #view-exam .exam-analysis-side{
     position:fixed;right:0;bottom:0;z-index:407;
     width:min(90vw,400px);max-height:86vh;overflow-y:auto;
@@ -1157,7 +1178,7 @@ input.ex-subj{
     box-shadow:0 -14px 40px rgba(0,0,0,.5);
     transform:translateY(105%);transition:transform .24s ease;
   }
-  #view-exam.tags-open .exam-analysis-side{transform:none}
+  #view-exam.filters-open .exam-analysis-side{transform:none}
 }
 
 /* Question-type search / creation inside the tag sidebar. */

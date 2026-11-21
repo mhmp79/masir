@@ -733,6 +733,9 @@ function normalizeQuestion(q){
     questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
     options,
     correctOptions,
+    legacyCorrectOptions: Array.isArray(q.legacyCorrectOptions)
+      ? q.legacyCorrectOptions.map(i => +i || 0)
+      : [],
     starred: !!q.starred,
     questionText: String(q.questionText || ''),
     answerText: String(q.answerText || ''),

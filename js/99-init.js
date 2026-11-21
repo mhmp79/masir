@@ -42,9 +42,9 @@ function setupBackExitGuard(){
       try{ setExamSidebarOpen(false); }catch(_){}
       rearm(); return;
     }
-    const tagDrawer=document.getElementById('noteTagBackdrop');
-    if(tagDrawer && !tagDrawer.hidden){
-      try{ setNoteTagSidebarOpen(false); }catch(_){}
+    const filterDrawer=document.getElementById('gaFilterBackdrop');
+    if(filterDrawer && !filterDrawer.hidden){
+      try{ setAnalysisFilterOpen(false); }catch(_){}
       rearm(); return;
     }
     const exam=document.getElementById('examOverlay');

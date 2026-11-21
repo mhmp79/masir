@@ -192,13 +192,38 @@ test('REWORK: question types are scoped to the question topic', () => {
   assert.strictEqual(typeSandbox.questionTypeLabel('qt1', 'ریاضی'), 'مثلثات');
 });
 
-/* ---------- REWORK: global analysis includes tag-only questions ---------- */
+/* ---------- CLARIFIED: global analysis is a note/type review list ---------- */
 const contentCore = loadFunctions('js/05-exam.js', ['qHasAnalysisContent']);
-test('REWORK: question types, error tags and options make a question analysable', () => {
+test('CLARIFIED: the analysis list only includes notes or question types', () => {
   assert.strictEqual(contentCore.qHasAnalysisContent({ status: 'pending' }), false);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ questionText: 'legacy question' }), false);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ answerText: 'legacy answer' }), false);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ errorTypes: ['e1'] }), false);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ options: ['a', 'b'], correctOptions: [0] }), false);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ note: 'n' }), true);
   assert.strictEqual(contentCore.qHasAnalysisContent({ questionTypes: ['qt1'] }), true);
-  assert.strictEqual(contentCore.qHasAnalysisContent({ errorTypes: ['e1'] }), true);
-  assert.strictEqual(contentCore.qHasAnalysisContent({ options: ['a', 'b'], correctOptions: [0] }), true);
+});
+
+/* ---------- CLARIFIED: legacy question/answer text survives normalization ---------- */
+const normalizeCore = loadFunctions('js/01-core.js', ['normalizeQuestion'], {
+  uid: () => 'fixed-id',
+  GRADES: ['دهم', 'یازدهم', 'دوازدهم'],
+  TODAY_KEY: '1400/01/01'
+});
+test('CLARIFIED: normalizing keeps legacy text and structured options', () => {
+  const q = normalizeCore.normalizeQuestion({
+    id: 'q1',
+    questionText: 'متن قدیمی سوال',
+    answerText: 'پاسخ قدیمی',
+    options: ['الف', 'ب', 'ج', 'د', 'هـ'],
+    correctOptions: [2],
+    legacyCorrectOptions: [0, 1]
+  });
+  assert.strictEqual(q.questionText, 'متن قدیمی سوال');
+  assert.strictEqual(q.answerText, 'پاسخ قدیمی');
+  assert.deepStrictEqual(Array.from(q.options), ['الف', 'ب', 'ج', 'د', 'هـ']);
+  assert.deepStrictEqual(Array.from(q.correctOptions), [2]);
+  assert.deepStrictEqual(Array.from(q.legacyCorrectOptions), [0, 1]);
 });
 
 /* ---------- FEAT-2: draft storage removed ---------- */
@@ -326,7 +351,7 @@ test('REWORK: dashboard widget text is general-only and free of raw escapes', ()
   assert.ok(!exam.includes('<div class="ei-title">'), 'widget title is duplicated');
 });
 
-test('REWORK: exams keep the calendar sidebar; analysis uses the tag sidebar', () => {
+test('CLARIFIED: exams keep the calendar; analysis uses a comprehensive filter sidebar', () => {
   const css = read('css/09-exam.css');
   const html = read('index.html');
   const desktop = read('css/14-desktop.css');
@@ -334,46 +359,66 @@ test('REWORK: exams keep the calendar sidebar; analysis uses the tag sidebar', (
   const examSection = html.slice(html.indexOf('<section class="view" id="view-exam">'), html.indexOf('<!-- ===== OVERVIEW ===== -->'));
   assert.ok(examSection.indexOf('id="examSide"') < examSection.indexOf('id="examListPane"'),
     'calendar sidebar must come before the exam list');
-  assert.ok(examSection.includes('id="examAnalysisSide"'), 'analysis tag sidebar missing');
-  assert.ok(examSection.includes('id="examNotesBody"'), 'main notes panel missing');
+  assert.ok(examSection.includes('id="examAnalysisSide"'), 'analysis filter sidebar missing');
+  assert.ok(examSection.includes('id="analysisFilterBox"'), 'filter box missing');
+  assert.ok(examSection.includes('id="gaBody"'), 'results panel missing');
   assert.ok(examSection.includes('id="examSidebarToggle"'), 'calendar drawer button missing');
-  assert.ok(examSection.includes('id="noteTagToggle"'), 'tag drawer button missing');
+  assert.ok(examSection.includes('id="gaFilterToggle"'), 'filter drawer button missing');
+  assert.ok(!examSection.includes('id="examNotesBody"'), 'notes must not be a separate analysis page');
+  assert.ok(!examSection.includes('id="analysisExamSelect"'), 'exam picker no longer belongs in analysis');
+  assert.ok(!examSection.includes('exam-global-analysis-fold'), 'global analysis must not be folded away');
   assert.ok(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(css));
   assert.ok(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(desktop));
-  assert.ok(/#view-exam\.tags-open \.exam-analysis-side/.test(css));
+  assert.ok(/#view-exam\.filters-open \.exam-analysis-side/.test(css));
   assert.ok(/#view-exam\.sidebar-open \.exam-side/.test(css));
-  assert.ok(/function setNoteTagSidebarOpen\(/.test(exam));
+  assert.ok(/function setAnalysisFilterOpen\(/.test(exam));
   assert.ok(/function setExamSidebarOpen\(/.test(exam));
-  assert.ok(examSection.includes('فقط سلکشن تگ تحلیل سوال (پیشنهادی)'), 'tag sidebar is not scoped correctly');
-  assert.ok(!/function renderExamAnalysisTab\(exam,box\)\{[\s\S]*renderExamNotesTab/.test(exam.slice(
-    exam.indexOf('function renderExamAnalysisTab'), exam.indexOf('/* ============ EXAM SETTINGS MODAL'))),
-    'notes must not be rendered inside the exam overlay');
+  assert.ok(/فیلترهای تحلیل/.test(exam), 'filter sidebar needs a clear title');
+  const overlay = exam.slice(exam.indexOf('function renderExamAnalysisTab'), exam.indexOf('/* ============ EXAM SETTINGS MODAL'));
+  assert.ok(/renderExamNotesTab\(exam,analysisBody\)/.test(overlay),
+    'per-exam analysis must stay inside the exam overlay');
+  assert.ok(!/رفتن به تب تحلیل آزمون/.test(exam), 'obsolete link out of the overlay is gone');
 });
 
-test('REWORK: tag chips are rendered once in the analysis sidebar, not per note card', () => {
+test('CLARIFIED: tag chips stay inline in overlay cards', () => {
   const exam = read('js/05-exam.js');
   const card = exam.slice(exam.indexOf('function noteQuestionCardHTML'), exam.indexOf('function bindQuestionTagHandlers'));
-  assert.ok(!card.includes('note-tag-sidebar'), 'note cards still carry their own tag sidebar');
-  assert.ok(/function renderAnalysisTagSidebar\(/.test(exam));
+  assert.ok(!card.includes('note-tag-sidebar'), 'note cards must not carry a separate sidebar');
+  assert.ok(!/function renderAnalysisTagSidebar\(/.test(exam), 'obsolete sidebar renderer still present');
   assert.ok(/function bindQuestionTagHandlers\(/.test(exam));
 });
 
-test('REWORK: note section is not collapsible and add-question is one unified form', () => {
+test('CLARIFIED: note section is static and the question paper has four fixed options', () => {
   const exam = read('js/05-exam.js');
   const css = read('css/09-exam.css');
   assert.ok(/nc-static-note/.test(exam));
   assert.ok(/nc-static-note/.test(css));
   assert.ok(!/<details class="nc-fold nc-note-fold"/.test(exam), 'note is still collapsible');
-  assert.ok(/data-aq-mode="single"/.test(exam));
-  assert.ok(/چند جواب صحیح/.test(exam));
-  assert.ok(/options:clean,correctOptions/.test(exam));
+  assert.ok(/چهار گزینه ثابت \+ جواب درست/.test(exam), 'four-option form label missing');
+  assert.ok(!/data-aq-mode/.test(exam), 'multiple-choice mode switch still present');
+  assert.ok(!/aqAddOption/.test(exam), 'variable option count still possible');
   assert.ok(!/aqAnswerText/.test(exam), 'separate answer field still present');
+  assert.ok(/options:clean,correctOptions:\[correct\]/.test(exam), 'new questions must save one correct option');
+  assert.ok(/questionPaperHTML\(s,q\.id\)/.test(exam), 'full editor lacks the question paper');
+  assert.ok(/questionPaperHTML\(q\)/.test(exam), 'note card lacks the question paper');
+  assert.ok(/bindQuestionPaper\(/.test(exam));
+  assert.ok(/legacyCorrectOptions/.test(exam), 'legacy correct answers must survive');
 });
 
-test('REWORK: comprehensive analysis has subject-bound topic/type filters', () => {
+test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   const exam = read('js/05-exam.js');
+  assert.ok(/const filterBox=document\.getElementById\('analysisFilterBox'\)/.test(exam));
+  assert.ok(/filterBox\.innerHTML=filterHtml\.join\(''\)/.test(exam));
+  ['exam', 'subject', 'grade', 'error', 'questionType'].forEach(key => {
+    assert.ok(new RegExp('data-f="' + key + '"').test(exam), 'missing filter: ' + key);
+  });
+  assert.ok(/data-st="wrong"/.test(exam));
+  assert.ok(/data-quick="starred"/.test(exam));
+  assert.ok(/data-quick="hasNote"/.test(exam));
+  assert.ok(/data-sub-error/.test(exam));
+  assert.ok(/data-special/.test(exam));
+  assert.ok(/data-reset-filters/.test(exam));
   assert.ok(/if\(f\.subject&&availableTopics\.length\)/.test(exam));
-  assert.ok(/data-f="questionType"/.test(exam));
   assert.ok(/class="ac-type"/.test(exam));
   assert.ok(/f\.questionType=''/.test(exam));
   assert.ok(/const availableTypes=f\.subject\?subjectQuestionTypes\(f\.subject\):\[\]/.test(exam),
@@ -382,7 +427,7 @@ test('REWORK: comprehensive analysis has subject-bound topic/type filters', () =
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r23'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r24'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

@@ -56,11 +56,10 @@ function analysisProgressColor(pct){
 
 /* ⭐ تب اصلی سکشن آزمون (آزمون‌ها / تحلیل آزمون) */
 let examViewMode='exams';
-let analysisExamId='';
 
-/* The exams tab keeps the original calendar sidebar. In analysis mode the
-   same column shows the selected question's tag picker, while notes stay in
-   the main content. On touch screens each one opens as its own drawer. */
+/* The exams tab keeps its original calendar sidebar. In analysis mode the
+   same column holds the comprehensive filter panel; the main column lists
+   the analysed questions. On touch screens each becomes its own drawer. */
 function setExamSidebarOpen(open){
   const view=document.getElementById('view-exam');
   const toggle=document.getElementById('examSidebarToggle');
@@ -74,12 +73,12 @@ function setExamSidebarOpen(open){
   if(backdrop)backdrop.hidden=!open;
 }
 
-function setNoteTagSidebarOpen(open){
+function setAnalysisFilterOpen(open){
   const view=document.getElementById('view-exam');
-  const toggle=document.getElementById('noteTagToggle');
-  const backdrop=document.getElementById('noteTagBackdrop');
+  const toggle=document.getElementById('gaFilterToggle');
+  const backdrop=document.getElementById('gaFilterBackdrop');
   if(!view)return;
-  view.classList.toggle('tags-open',!!open);
+  view.classList.toggle('filters-open',!!open);
   if(toggle){
     toggle.setAttribute('aria-expanded',String(!!open));
     if(!open)toggle.hidden=true;
@@ -92,7 +91,7 @@ function applyExamViewMode(){
   const listPane=document.getElementById('examListPane');
   const analysisPane=document.getElementById('examAnalysisPane');
   const calendarSide=document.getElementById('examSide');
-  const tagSide=document.getElementById('examAnalysisSide');
+  const filterSide=document.getElementById('examAnalysisSide');
   if(!listPane||!analysisPane)return;
   const isAnalysis=examViewMode==='analysis';
 
@@ -100,22 +99,20 @@ function applyExamViewMode(){
   listPane.classList.toggle('hidden',isAnalysis);
   analysisPane.classList.toggle('hidden',!isAnalysis);
   if(calendarSide)calendarSide.hidden=isAnalysis;
-  if(tagSide)tagSide.hidden=!isAnalysis;
+  if(filterSide)filterSide.hidden=!isAnalysis;
 
   document.querySelectorAll('#examModeSeg .seg-btn').forEach(b=>{
     b.classList.toggle('active',b.dataset.emode===examViewMode);
   });
 
   setExamSidebarOpen(false);
-  setNoteTagSidebarOpen(false);
+  setAnalysisFilterOpen(false);
   const calendarToggle=document.getElementById('examSidebarToggle');
   if(calendarToggle)calendarToggle.hidden=isAnalysis;
+  const filterToggle=document.getElementById('gaFilterToggle');
+  if(filterToggle)filterToggle.hidden=!isAnalysis;
 
-  if(isAnalysis)renderAnalysisPane();
-  else{
-    const noteToggle=document.getElementById('noteTagToggle');
-    if(noteToggle)noteToggle.hidden=true;
-  }
+  if(isAnalysis)renderGlobalAnalysis();
 }
 
 /* ⭐ خلاصه‌ی تاریخ بالای تقویم آزمون */
@@ -299,62 +296,6 @@ function renderExamSection(){
   applyExamViewMode();
 }
 
-/* The analysis tab renders the selected exam's question list and notes in the
-   main column. The tag picker is rendered into the separate side column. */
-function renderAnalysisPane(){
-  const select=document.getElementById('analysisExamSelect');
-  const body=document.getElementById('examNotesBody');
-  if(!select||!body)return;
-  const exams=state.exams.slice().sort((a,b)=>jdnFromKey(b.date)-jdnFromKey(a.date));
-  if(!exams.some(e=>e.id===analysisExamId))analysisExamId=exams[0]?exams[0].id:'';
-  select.innerHTML=exams.length
-    ?exams.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')
-    :'<option value="">آزمونی وجود ندارد</option>';
-  select.value=analysisExamId;
-  select.onchange=()=>{
-    analysisExamId=select.value;
-    notesSubject='';notesQuestionId='';notesShowingCorrectQuestions=false;
-    setNoteTagSidebarOpen(false);
-    renderAnalysisPane();
-  };
-  const exam=exams.find(e=>e.id===analysisExamId);
-  if(!exam){
-    body.innerHTML='<div class="empty-state"><b>آزمونی برای تحلیل نیست</b>ابتدا از تب آزمونها یک آزمون بساز.</div>';
-    renderAnalysisTagSidebar(null,null);
-    renderGlobalAnalysis();
-    return;
-  }
-  renderExamNotesTab(exam,body);
-  renderGlobalAnalysis();
-}
-
-function currentAnalysisQuestion(exam){
-  if(!exam||!notesQuestionId)return null;
-  return getSortedQuestions(exam).find(q=>q.id===notesQuestionId)||null;
-}
-
-function renderAnalysisTagSidebar(exam,question){
-  const box=document.getElementById('analysisTagBox');
-  const toggle=document.getElementById('noteTagToggle');
-  if(!box)return;
-  if(!exam||!question){
-    box.innerHTML='<div class="muted fs-11">برای نمایش تگها، یک سوال غلط یا نزده را از لیست اصلی انتخاب کن.</div>';
-    if(toggle)toggle.hidden=true;
-    return;
-  }
-  box.innerHTML=noteChipSectionsHTML(exam,question,subjColor(question.subject),['topics','types','general']);
-  const refresh=()=>{
-    const notesBody=document.getElementById('examNotesBody');
-    saveQuestionEdit(exam,question,notesBody,{refresh:true,saved:true});
-    renderAnalysisTagSidebar(exam,question);
-    renderExamTagStats();
-    renderExamInsights();
-    renderGlobalAnalysis();
-  };
-  bindQuestionTagHandlers(exam,box,question,refresh);
-  if(toggle)toggle.hidden=false;
-}
-
 function renderExamCalendar(){
   const el=document.getElementById('examCalTitle');
   if(el)el.textContent=`${MONTHS[examCalMonth-1]} ${fa(examCalYear)}`;
@@ -404,13 +345,13 @@ if(_examSidebarToggle)_examSidebarToggle.onclick=()=>{
 };
 const _examSidebarBackdrop=document.getElementById('examSidebarBackdrop');
 if(_examSidebarBackdrop)_examSidebarBackdrop.onclick=()=>setExamSidebarOpen(false);
-const _noteTagToggle=document.getElementById('noteTagToggle');
-if(_noteTagToggle)_noteTagToggle.onclick=()=>{
+const _gaFilterToggle=document.getElementById('gaFilterToggle');
+if(_gaFilterToggle)_gaFilterToggle.onclick=()=>{
   const view=document.getElementById('view-exam');
-  setNoteTagSidebarOpen(!(view&&view.classList.contains('tags-open')));
+  setAnalysisFilterOpen(!(view&&view.classList.contains('filters-open')));
 };
-const _noteTagBackdrop=document.getElementById('noteTagBackdrop');
-if(_noteTagBackdrop)_noteTagBackdrop.onclick=()=>setNoteTagSidebarOpen(false);
+const _gaFilterBackdrop=document.getElementById('gaFilterBackdrop');
+if(_gaFilterBackdrop)_gaFilterBackdrop.onclick=()=>setAnalysisFilterOpen(false);
 
 /* ⭐ NEW: روی موبایل بعد از کلیک روی روز، تقویم بسته بشه */
 const _examCalGrid=document.getElementById('examCalGrid');
@@ -628,14 +569,14 @@ function openExamDetail(id){
   notesSubject='';
   notesQuestionId='';
   notesShowingCorrectQuestions=false;
-  setNoteTagSidebarOpen(false);
+  setAnalysisFilterOpen(false);
   document.getElementById('examOverlay').style.display='block';
   document.body.style.overflow='hidden';
   renderExamOverlay();
   document.getElementById('examOverlay').scrollTop=0;
 }
 function closeExamDetail(){
-  setNoteTagSidebarOpen(false);
+  setAnalysisFilterOpen(false);
   document.getElementById('examOverlay').style.display='none';
   document.body.style.overflow='';
   currentExamId=null;
@@ -707,23 +648,9 @@ function renderExamAnalysisTab(exam,box){
     renderExamInputTab(exam,analysisBody);
     return;
   }
-  /* Notes are no longer rendered inside the overlay: they live in the main
-     analysis panel with the tag selector in its own left column. */
-  analysisBody.innerHTML=`
-    <div class="empty-state lg">
-      <b>📝 تحلیل سوالات</b>
-      نکات و تگهای هر سوال در تب «تحلیل آزمون» نمایش داده می\u200cشوند.
-      <div class="mt-16"><button class="btn exam" id="goExamAnalysisTab">رفتن به تب تحلیل آزمون</button></div>
-    </div>
-  `;
-  document.getElementById('goExamAnalysisTab').onclick=()=>{
-    const examId=exam.id;
-    closeExamDetail();
-    analysisExamId=examId;
-    notesSubject='';notesQuestionId='';notesShowingCorrectQuestions=false;
-    examViewMode='analysis';
-    applyExamViewMode();
-  };
+  /* Per-exam analysis stays exactly where it always has been: inside the
+     exam overlay. The comprehensive analysis tab is a separate view. */
+  renderExamNotesTab(exam,analysisBody);
 }
 
 /* ============ EXAM SETTINGS MODAL ============ */
@@ -1135,6 +1062,66 @@ function noteErrorDetailsHTML(q){
   return displayChips.length?`<div class="nc-subtags-show">${displayChips.join('')}</div>`:'';
 }
 
+/* Every editor shows exactly four option slots. Older records may contain
+   more stored options, so we pad for display but never truncate stored data. */
+function ensureFourOptionDraft(q){
+  if(!Array.isArray(q.options))q.options=[];
+  while(q.options.length<4)q.options.push('');
+  if(!Array.isArray(q.correctOptions))q.correctOptions=[];
+  return q;
+}
+
+function questionPaperHTML(q,ownerId){
+  ensureFourOptionDraft(q);
+  const id=(ownerId==null?q.id:ownerId);
+  const correct=q.correctOptions[0];
+  const options=q.options.slice(0,4).map((text,i)=>`<div class="nc-option-edit-row">
+    <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" data-qid="${id}" title="جواب صحیح">${String.fromCharCode(65+i)}</button>
+    <input class="input nc-option-input" data-option-index="${i}" data-qid="${id}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
+  </div>`).join('');
+  return `<div class="nc-qpaper" data-qpaper="${id}">
+    <div class="nc-qpaper-title">📋 صورت سوال، گزینهها و جواب صحیح</div>
+    <textarea class="nc-qa-input nc-question-input" data-q-text="${id}" placeholder="متن سوال (اختیاری)...">${esc(q.questionText||'')}</textarea>
+    <div class="nc-option-edit-list">${options}</div>
+    <textarea class="nc-qa-input nc-answer-input" data-a-text="${id}" placeholder="توضیح جواب (اختیاری)...">${esc(q.answerText||'')}</textarea>
+  </div>`;
+}
+
+/* Shared by the note card and the full editor: option text, the question
+   statement, the answer explanation and the single correct choice. */
+function bindQuestionPaper(scope,q,handlers){
+  const h=handlers||{};
+  scope.querySelectorAll('[data-correct-option]').forEach(button=>{
+    button.onclick=(e)=>{
+      e.stopPropagation();
+      if(q.correctOptions.length>1)q.legacyCorrectOptions=q.correctOptions.slice();
+      q.correctOptions=[+button.dataset.correctOption];
+      if(h.onCorrect)h.onCorrect();
+      else if(h.onCommit)h.onCommit();
+    };
+  });
+  const track=(input,apply)=>{
+    let timer;
+    input.oninput=()=>{
+      apply(input);
+      if(h.onInput)h.onInput();
+      clearTimeout(timer);
+      timer=setTimeout(()=>{q.ts=Date.now();if(h.onCommit)h.onCommit();},350);
+    };
+  };
+  const questionText=scope.querySelector('[data-q-text]');
+  if(questionText)track(questionText,input=>{q.questionText=input.value;});
+  const answerText=scope.querySelector('[data-a-text]');
+  if(answerText)track(answerText,input=>{q.answerText=input.value;});
+  scope.querySelectorAll('[data-option-index]').forEach(input=>{
+    track(input,el=>{
+      const index=+el.dataset.optionIndex;
+      ensureFourOptionDraft(q);
+      q.options[index]=el.value;
+    });
+  });
+}
+
 function noteEmphasis(subject){
   const s=state.subjects.find(item=>item.name===subject);
   if(s&&['note','question-type','both'].includes(s.emphasis))return s.emphasis;
@@ -1144,9 +1131,9 @@ function noteEmphasis(subject){
 
 function noteSectionOrder(subject){
   const emphasis=noteEmphasis(subject);
-  if(emphasis==='question-type')return['topics','types','solvable','general','note','question','answer'];
-  if(emphasis==='both')return['topics','note','types','solvable','general','question','answer'];
-  return['topics','solvable','note','types','general','question','answer'];
+  if(emphasis==='question-type')return['topics','types','solvable','general','note','question'];
+  if(emphasis==='both')return['topics','note','types','solvable','general','question'];
+  return['topics','solvable','note','types','general','question'];
 }
 
 /* FEAT-2/3: one card is one independently refreshable unit. Auto-save never
@@ -1170,28 +1157,15 @@ function noteQuestionCardHTML(exam,q){
     <div class="nc-fold-title">💡 نکته${noteFilled?' • ثبت شده':''}</div>
     <textarea class="note-ta${noteFilled?' filled':''}" data-note-q="${q.id}" placeholder="درس\u200cآموخته\u200cات...">${esc(q.note||'')}</textarea>
   </div>`;
-  const questionHtml=`<details class="nc-fold">
-    <summary>📋 صورت سوال${q.questionText?' • ثبت شده':''}</summary>
-    <textarea class="nc-qa-input nc-question-input" data-q-text="${q.id}" placeholder="متن سوال (اختیاری)...">${esc(q.questionText||'')}</textarea>
-  </details>`;
-  const answerHtml=`<details class="nc-fold">
-    <summary>✅ پاسخ صحیح${q.answerText?' • ثبت شده':''}</summary>
-    <textarea class="nc-qa-input nc-answer-input" data-a-text="${q.id}" placeholder="پاسخ صحیح (اختیاری)...">${esc(q.answerText||'')}</textarea>
-  </details>`;
-
   const sections={
     topics:noteChipSectionsHTML(exam,q,color,['topics']),
     types:noteChipSectionsHTML(exam,q,color,['types']),
     general:noteChipSectionsHTML(exam,q,color,['general']),
     solvable:solvableHtml,
     note:noteHtml,
-    question:questionHtml,
-    answer:answerHtml
+    question:questionPaperHTML(q)
   };
-  const tagKeys=new Set(['topics','types','general']);
-  const orderedMain=noteSectionOrder(q.subject)
-    .filter(key=>!tagKeys.has(key))
-    .map(key=>sections[key]||'').join('');
+  const orderedMain=noteSectionOrder(q.subject).map(key=>sections[key]||'').join('');
   const starClass=q.starred?'on':'';
   const errorDetails=noteErrorDetailsHTML(q);
 
@@ -1212,8 +1186,8 @@ function noteQuestionCardHTML(exam,q){
   </div>`;
 }
 
-/* Shared by the note card and the analysis sidebar: the same tag chips can
-   live in either place without duplicating their handlers. */
+/* Tag chips stay inline on the question card inside the exam overlay, so the
+   same card can refresh its own tags without losing textarea focus. */
 function bindQuestionTagHandlers(exam,scope,q,refresh){
   scope.querySelectorAll('[data-edit-topic]').forEach(btn=>{btn.onclick=(e)=>{
     e.stopPropagation();
@@ -1300,38 +1274,38 @@ function bindNoteItemHandlers(exam,box,item){
     refresh(true);
   };});
 
-  const bindText=(selector,field)=>{
-    const ta=item.querySelector(selector);
-    if(!ta)return;
+  const noteTa=item.querySelector('.note-ta');
+  if(noteTa){
     let timer;
-    ta.oninput=()=>{
-      q[field]=ta.value;
+    noteTa.oninput=()=>{
+      q.note=noteTa.value;
       q.ts=Date.now();
-      ta.classList.toggle('filled',!!ta.value.trim());
-      const fold=ta.closest('.nc-fold');
-      const summary=fold&&fold.querySelector('summary');
-      if(summary&&ta.value.trim())summary.textContent=summary.textContent.replace(' • ثبت شده','')+' • ثبت شده';
+      noteTa.classList.toggle('filled',!!noteTa.value.trim());
       showQuestionSaving(exam,box,q);
       clearTimeout(timer);
       timer=setTimeout(()=>{
-        if(field==='note')autoStarCorrectQuestion(q);
+        autoStarCorrectQuestion(q);
         q.ts=Date.now();
         save();
         showQuestionSaved(exam,box,q);
       },350);
     };
-  };
-  bindText('.note-ta','note');
-  bindText('[data-q-text]','questionText');
-  bindText('[data-a-text]','answerText');
+  }
+  bindQuestionPaper(item,q,{
+    onInput:()=>showQuestionSaving(exam,box,q),
+    onCommit:()=>{
+      q.ts=Date.now();
+      save();
+      showQuestionSaved(exam,box,q);
+    },
+    onCorrect:()=>saveQuestionEdit(exam,q,box,{refresh:true,saved:true})
+  });
 }
 
 function renderExamNotesTab(exam,box){
-  setNoteTagSidebarOpen(false);
   const allQs=getSortedQuestions(exam);
   if(!allQs.length){
     box.innerHTML='<div class="empty-state">سوالی برای تحلیل نیست</div>';
-    renderAnalysisTagSidebar(exam,null);
     return;
   }
 
@@ -1390,7 +1364,6 @@ function renderExamNotesTab(exam,box){
     });
   }
   box.innerHTML=html;
-  renderAnalysisTagSidebar(exam,currentAnalysisQuestion(exam));
 
   /* ===== Handlers ===== */
   box.querySelectorAll('[data-notes-subject]').forEach(button=>button.onclick=()=>{
@@ -1421,7 +1394,7 @@ function openQuestionNoteEditor(examId,qId){
     ?allowedGrades[0]
     :(allowedGrades.includes(q.grade)?q.grade:'');
   const initialTopics=q.topics.filter(topic=>getTopics(q.subject,initialGrade).includes(topic));
-  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
+  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,options:Array.isArray(q.options)?q.options.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
   const color=subjColor(q.subject);
   const specialTagsForSubject = getSpecialTagsForSubject(q.subject);
 
@@ -1502,10 +1475,7 @@ function openQuestionNoteEditor(examId,qId){
 
       ${topicChips}
       ${typeChips}
-      <label class="lbl">📋 متن سوال</label>
-      <textarea class="input q-field" id="qQuestionText" placeholder="متن کامل سوال...">${esc(s.questionText||'')}</textarea>
-      <label class="lbl">✅ پاسخ سوال</label>
-      <textarea class="input q-field answer" id="qAnswerText" placeholder="پاسخ صحیح...">${esc(s.answerText||'')}</textarea>
+      ${questionPaperHTML(s,q.id)}
 
       ${showErrSection?`<label class="lbl mt-14">🏷️ تگ‌های عمومی</label><div class="err-grid" id="qErrorsGeneral">${generalTags.map(generalChipHTML).join('')}</div>`:`<div class="note-correct-hint boxed">${st==='correct'?'✓ سوال درست':'وضعیت را مشخص کن'}</div>`}
 
@@ -1544,14 +1514,12 @@ function openQuestionNoteEditor(examId,qId){
     document.querySelectorAll('#modalContent [data-tag-sub]').forEach(b=>b.onclick=()=>{const tagId=b.dataset.tagSub;const subId=b.dataset.subId;if(!s.errorDetails[tagId])s.errorDetails[tagId]=[];if(s.errorDetails[tagId].includes(subId))s.errorDetails[tagId]=s.errorDetails[tagId].filter(x=>x!==subId);else s.errorDetails[tagId].push(subId);render();});
     document.querySelectorAll('#modalContent [data-special-tag]').forEach(b=>b.onclick=()=>{const id=b.dataset.specialTag;if(s.specialTags.includes(id))s.specialTags=s.specialTags.filter(x=>x!==id);else s.specialTags.push(id);render();});
     const noteEl=document.getElementById('qNote');if(noteEl)noteEl.oninput=()=>{s.note=noteEl.value;};
-    const qTextEl=document.getElementById('qQuestionText');if(qTextEl)qTextEl.oninput=()=>{s.questionText=qTextEl.value;};
-    const aTextEl=document.getElementById('qAnswerText');if(aTextEl)aTextEl.oninput=()=>{s.answerText=aTextEl.value;};
+    bindQuestionPaper(document.getElementById('modalContent'),s,{onCorrect:()=>render()});
     document.getElementById('qSave').onclick=()=>{
       const noteEl2=document.getElementById('qNote');if(noteEl2)s.note=noteEl2.value;
-      const qEl=document.getElementById('qQuestionText');if(qEl)s.questionText=qEl.value;
-      const aEl=document.getElementById('qAnswerText');if(aEl)s.answerText=aEl.value;
+      ensureFourOptionDraft(s);
       if(s.status==='correct'){s.errorTypes=[];s.errorDetails={};s.reviewSolvable=null;}
-      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
+      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.options=s.options.slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
       syncExamResultsFromAnswers(exam);
       autoStarCorrectQuestion(q);
       save();closeModal();
@@ -1626,95 +1594,53 @@ function openExamResultsModal(id){
   };
 }
 
-/* One form creates the question, its options and the correct answer together.
-   There are no separate question/answer text fields: the correct choice(s)
-   are the answer. Older questions without options keep working unchanged. */
+/* One unified form creates the question statement, exactly four options and
+   one correct choice. Legacy text fields stay intact on existing questions. */
 function openAddQuestionsModal(id){
   const exam=state.exams.find(e=>e.id===id);if(!exam)return;
   const examSubjects=state.subjects.filter(s=>s.type==='specialized');
   if(!examSubjects.length){toast('هیچ درس تخصصی تعریف نشده');return;}
-  let mode='single';
-  let options=['','','',''];
-  const correct=new Set();
+  const options=['','','',''];
+  let correct=0;
 
   openModal(`<div class="modal-head"><div class="card-title">➕ افزودن سوال</div><button class="icon-btn" data-close>✕</button></div>
     <label class="lbl mt-0">درس</label>
     <select class="input" id="aqSubject">${examSubjects.map(s=>`<option value="${esc(s.name)}" style="color:${s.color}">${esc(s.name)}</option>`).join('')}</select>
-    <label class="lbl">نوع سوال</label>
-    <div class="aq-mode-picker">
-      <button type="button" data-aq-mode="single" class="active">سوال معمولی (یک جواب)</button>
-      <button type="button" data-aq-mode="multi">چند جواب صحیح</button>
-    </div>
     <label class="lbl">صورت سوال</label>
     <textarea class="input q-field" id="aqQuestionText" placeholder="متن سوال را بنویس..."></textarea>
-    <label class="lbl">گزینهها <span class="muted fs-10">(روی دایرهٔ گزینهٔ صحیح بزن)</span></label>
+    <label class="lbl">چهار گزینه ثابت + جواب درست (پیشنهادی)</label>
     <div id="aqOptions" class="wr-scroll" style="max-height:42vh"></div>
     <div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="aqSave">افزودن سوال</button></div>`);
 
   const optionsBox=document.getElementById('aqOptions');
-  const syncModeButtons=()=>{
-    document.querySelectorAll('[data-aq-mode]').forEach(button=>{
-      button.classList.toggle('active',button.dataset.aqMode===mode);
-    });
-  };
   const renderOptions=()=>{
     optionsBox.innerHTML=options.map((text,i)=>`<div class="aq-option-row">
-      <button type="button" class="aq-option-mark ${correct.has(i)?'on':''}" data-aq-correct="${i}" title="جواب صحیح">${String.fromCharCode(65+i)}</button>
+      <button type="button" class="aq-option-mark ${correct===i?'on':''}" data-aq-correct="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
       <input class="input aq-option-text" data-aq-option="${i}" value="${esc(text)}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
-      ${options.length>2?`<button type="button" class="aq-option-remove" data-aq-remove="${i}" title="حذف گزینه">×</button>`:''}
-    </div>`).join('')+
-      (options.length<10?'<button type="button" class="mini-btn mt-6" id="aqAddOption">＋ گزینه جدید</button>':'');
+    </div>`).join('');
     optionsBox.querySelectorAll('[data-aq-correct]').forEach(button=>button.onclick=()=>{
-      const index=+button.dataset.aqCorrect;
-      if(mode==='single'){
-        correct.clear();correct.add(index);
-      }else if(correct.has(index))correct.delete(index);
-      else correct.add(index);
-      renderOptions();
+      correct=+button.dataset.aqCorrect;renderOptions();
     });
     optionsBox.querySelectorAll('[data-aq-option]').forEach(input=>{
       input.oninput=()=>{options[+input.dataset.aqOption]=input.value;};
     });
-    optionsBox.querySelectorAll('[data-aq-remove]').forEach(button=>button.onclick=()=>{
-      const index=+button.dataset.aqRemove;
-      options.splice(index,1);
-      const next=new Set();
-      correct.forEach(i=>{if(i!==index)next.add(i<index?i:i-1);});
-      correct.clear();next.forEach(i=>correct.add(i));
-      renderOptions();
-    });
-    const addOption=document.getElementById('aqAddOption');
-    if(addOption)addOption.onclick=()=>{options.push('');renderOptions();};
   };
-  document.querySelectorAll('[data-aq-mode]').forEach(button=>button.onclick=()=>{
-    mode=button.dataset.aqMode;
-    if(mode==='single'&&correct.size>1){
-      const first=Math.min(...correct);correct.clear();correct.add(first);
-    }
-    syncModeButtons();renderOptions();
-  });
   renderOptions();
 
   document.getElementById('aqSave').onclick=()=>{
     const subject=document.getElementById('aqSubject').value;
     const questionText=document.getElementById('aqQuestionText').value.trim();
     if(!questionText){toast('صورت سوال را بنویس');return;}
-    const map={};const clean=[];
-    options.forEach((text,i)=>{
-      const value=text.trim();
-      if(value){map[i]=clean.length;clean.push(value);}
-    });
-    if(clean.length<2){toast('حداقل دو گزینه لازم است');return;}
-    const correctOptions=[...correct].filter(i=>map[i]!=null).map(i=>map[i]).sort((a,b)=>a-b);
-    if(!correctOptions.length){toast('جواب صحیح را مشخص کن');return;}
+    if(options.some(text=>!text.trim())){toast('چهار گزینه را پر کن');return;}
+    const clean=options.map(text=>text.trim());
     const examTopics=(exam.topics&&exam.topics[subject])||[];
     const grade=examTopics.length===1?topicGrade(subject,examTopics[0]):'';
     exam.questions.push({
       id:uid(),subject,number:Math.max(0,...exam.questions.map(q=>q.number))+1,
       grade,topics:examTopics.slice(),status:'pending',
       errorTypes:[],errorDetails:{},specialTags:[],questionTypes:[],
-      options:clean,correctOptions,
-      starred:false,questionText,answerText:correctOptions.map(i=>clean[i]).join('، '),
+      options:clean,correctOptions:[correct],legacyCorrectOptions:[],
+      starred:false,questionText,answerText:clean[correct],
       reviewSolvable:null,figureRef:'',note:'',noteHidden:false,ts:Date.now()
     });
     exam.includedSubjects=Array.isArray(exam.includedSubjects)?exam.includedSubjects:[];
@@ -1741,19 +1667,19 @@ document.querySelectorAll('#examModeSeg .seg-btn').forEach(btn=>{
    ============================================================ */
 
 /* ============ GLOBAL ANALYSIS ============ */
-/* ⭐ NEW: فقط سوالاتی که نکته، صورت سوال، یا پاسخ دارن نمایش داده می‌شن */
+/* The main analysis panel is a note-review list: a question appears only when
+   it has a written note or a question type. Tag-only mistakes stay in the
+   per-exam overlay, where their completion is tracked. */
 function qHasAnalysisContent(q){
   if(!q)return false;
   if(q.note&&q.note.trim())return true;
-  if(q.questionText&&q.questionText.trim())return true;
-  if(q.answerText&&q.answerText.trim())return true;
-  if(Array.isArray(q.options)&&q.options.length)return true;
-  return ['errorTypes','specialTags','questionTypes'].some(key=>
-    Array.isArray(q[key])&&q[key].length>0);
+  return Array.isArray(q.questionTypes)&&q.questionTypes.length>0;
 }
 
 function renderGlobalAnalysis(){
-  const body=document.getElementById('gaBody');if(!body)return;
+  const body=document.getElementById('gaBody');
+  const filterBox=document.getElementById('analysisFilterBox');
+  if(!body||!filterBox)return;
   const spec=specializedSubjectNames();
   const allQs=[];
   state.exams.forEach(exam=>{
@@ -1766,8 +1692,13 @@ function renderGlobalAnalysis(){
     });
   });
   document.getElementById('gaSub').textContent=`${fa(state.exams.length)} آزمون • ${fa(allQs.length)} سوال تحلیل‌شده`;
-  if(!allQs.length){body.innerHTML='<div class="empty-state ga-empty-state"><b>هنوز سوالی تحلیل نشده</b><span>برای هر سوال نکته، تگ، صورت سوال یا پاسخ ثبت کن تا در این بخش نمایش یابد.</span></div>';return;}
-  const f=window._gaFilter||(window._gaFilter={exam:'', subject:'', grade:'', topic:'', questionType:'', statuses:new Set(), error:'', specialTag:'', showStarred:false, showHasNote:false, showHasQuestion:false});
+  const f=window._gaFilter||(window._gaFilter={exam:'',subject:'',grade:'',topic:'',questionType:'',statuses:new Set(),error:'',subErrors:new Set(),specialTag:'',showStarred:false,showHasNote:false,showHasQuestion:false});
+  if(!f.subErrors)f.subErrors=new Set();
+  if(!allQs.length){
+    filterBox.innerHTML='<div class="ga-filter-title">🏷️ فیلترهای تحلیل</div><div class="ga-filter-hint">پس از ثبت نکته یا تیپ سوال، فیلترها در اینجا نمایش داده میشوند.</div>';
+    body.innerHTML='<div class="empty-state ga-empty-state"><b>هنوز سوالی تحلیل نشده</b><span>برای هر سوال نکته متنی بنویس یا تیپ سوال انتخاب کن تا نمایش یابد.</span></div>';
+    return;
+  }
   if(f.subject&&!allQs.some(q=>q.subject===f.subject)){f.subject='';}
   const subjectQs=f.subject?allQs.filter(q=>q.subject===f.subject):allQs;
   const availableTopics=[...new Set(subjectQs.flatMap(q=>Array.isArray(q.topics)?q.topics:[]))].filter(Boolean);
@@ -1782,38 +1713,53 @@ function renderGlobalAnalysis(){
   if(f.statuses.size)qs=qs.filter(q=>f.statuses.has(qStatus(q)));
   if(f.showStarred) qs=qs.filter(q=>q.starred);
   if(f.showHasNote) qs=qs.filter(q=>q.note && q.note.trim());
-  if(f.showHasQuestion) qs=qs.filter(q=>q.questionText && q.questionText.trim());
+  if(f.showHasQuestion) qs=qs.filter(q=>(q.questionText&&q.questionText.trim())||(Array.isArray(q.options)&&q.options.some(text=>String(text).trim())));
   if(f.error==='none'){qs=qs.filter(q=>(!q.errorTypes||!q.errorTypes.length)&&(!q.specialTags||!q.specialTags.length));}
   else if(f.error){qs=qs.filter(q=>q.errorTypes&&q.errorTypes.includes(f.error));}
+  if(f.subErrors.size){
+    const selected=[...f.subErrors];
+    qs=qs.filter(q=>Object.values(q.errorDetails||{}).some(subs=>
+      Array.isArray(subs)&&selected.some(value=>subs.includes(value.split('::')[1]))));
+  }
   if(f.specialTag) qs=qs.filter(q=>q.specialTags && q.specialTags.includes(f.specialTag));
   if(f.questionType) qs=qs.filter(q=>(q.questionTypes||[]).includes(f.questionType));
 
-  let html='<div class="flt-card">';
-  html+=`<div class="flt-section"><div class="flt-label">آزمون</div><div class="flt-chips wrap"><div class="flt-chip ${!f.exam?'active':''}" data-f="exam" data-v="">همه</div>${state.exams.map(e=>`<div class="flt-chip ${f.exam===e.id?'active':''}" data-f="exam" data-v="${e.id}">${esc(e.name)}</div>`).join('')}</div></div>`;
+  const filterHtml=[];
+  filterHtml.push('<div class="ga-filter-title">🏷️ فیلترهای تحلیل</div><div class="ga-filter-hint">همه آزمونها، دروس، مبحثها، تگها و ویژگیها قابل فیلترند.</div>');
+  filterHtml.push(`<div class="flt-section"><div class="flt-label">آزمون</div><div class="flt-chips wrap"><div class="flt-chip ${!f.exam?'active':''}" data-f="exam" data-v="">همه</div>${state.exams.map(e=>`<div class="flt-chip ${f.exam===e.id?'active':''}" data-f="exam" data-v="${e.id}">${esc(e.name)}</div>`).join('')}</div></div>`);
   const allSubs=[...new Set(allQs.map(q=>q.subject))];
-  html+=`<div class="flt-section"><div class="flt-label">درس</div><div class="flt-chips wrap"><div class="flt-chip ${!f.subject?'active':''}" data-f="subject" data-v="">همه</div>${allSubs.map(s=>`<div class="flt-chip ${f.subject===s?'active':''}" data-f="subject" data-v="${esc(s)}"><span class="dot" style="background:${subjColor(s)}"></span>${esc(s)}</div>`).join('')}</div></div>`;
+  filterHtml.push(`<div class="flt-section"><div class="flt-label">درس</div><div class="flt-chips wrap"><div class="flt-chip ${!f.subject?'active':''}" data-f="subject" data-v="">همه</div>${allSubs.map(s=>`<div class="flt-chip ${f.subject===s?'active':''}" data-f="subject" data-v="${esc(s)}"><span class="dot" style="background:${subjColor(s)}"></span>${esc(s)}</div>`).join('')}</div></div>`);
   const gradeQs=f.subject?subjectQs:allQs;
   const grades=[...new Set(gradeQs.map(q=>q.grade).filter(Boolean))];
-  if(grades.length)html+=`<div class="flt-section"><div class="flt-label">پایه</div><div class="flt-chips"><div class="flt-chip ${!f.grade?'active':''}" data-f="grade" data-v="">همه</div>${grades.map(g=>`<div class="flt-chip ${f.grade===g?'active':''}" data-f="grade" data-v="${g}">${g}</div>`).join('')}</div></div>`;
+  if(grades.length)filterHtml.push(`<div class="flt-section"><div class="flt-label">پایه</div><div class="flt-chips"><div class="flt-chip ${!f.grade?'active':''}" data-f="grade" data-v="">همه</div>${grades.map(g=>`<div class="flt-chip ${f.grade===g?'active':''}" data-f="grade" data-v="${g}">${g}</div>`).join('')}</div></div>`);
   /* Topic and type chips follow the selected subject. With "همه" we do not
      dump every topic of every subject into the filter. */
   if(f.subject&&availableTopics.length){
-    html+=`<div class="flt-section"><div class="flt-label">مبحث</div><div class="flt-chips wrap"><div class="flt-chip ${!f.topic?'active':''}" data-f="topic" data-v="">همه</div>${availableTopics.map(t=>`<div class="flt-chip ${f.topic===t?'active':''}" data-f="topic" data-v="${esc(t)}">${esc(t.length>22?t.slice(0,22)+'…':t)}</div>`).join('')}</div></div>`;
+    filterHtml.push(`<div class="flt-section"><div class="flt-label">مبحث</div><div class="flt-chips wrap"><div class="flt-chip ${!f.topic?'active':''}" data-f="topic" data-v="">همه</div>${availableTopics.map(t=>`<div class="flt-chip ${f.topic===t?'active':''}" data-f="topic" data-v="${esc(t)}">${esc(t.length>22?t.slice(0,22)+'…':t)}</div>`).join('')}</div></div>`);
   }
   if(f.subject&&availableTypes.length){
-    html+=`<div class="flt-section"><div class="flt-label">تیپ بندی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.questionType?'active':''}" data-f="questionType" data-v="">همه</div>${availableTypes.map(t=>`<div class="flt-chip ${f.questionType===t.id?'active':''}" data-f="questionType" data-v="${esc(t.id)}">🎯 ${esc(t.label)}</div>`).join('')}</div></div>`;
+    filterHtml.push(`<div class="flt-section"><div class="flt-label">تیپ بندی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.questionType?'active':''}" data-f="questionType" data-v="">همه</div>${availableTypes.map(t=>`<div class="flt-chip ${f.questionType===t.id?'active':''}" data-f="questionType" data-v="${esc(t.id)}">🎯 ${esc(t.label)}</div>`).join('')}</div></div>`);
   }
-  html+=`<div class="flt-section"><div class="flt-label">وضعیت</div><div class="flt-chips">${['wrong','blank','correct'].map(s=>`<div class="flt-chip ${f.statuses.has(s)?'active':''}" data-st="${s}">${STATUS_LABEL[s]}</div>`).join('')}</div></div>`;
-  html+=`<div class="flt-section"><div class="flt-label">ویژگی سوال</div><div class="flt-chips wrap"><div class="flt-chip ${f.showStarred?'active':''}" data-quick="starred">⭐ ستاره‌دار</div><div class="flt-chip ${f.showHasNote?'active':''}" data-quick="hasNote">💡 نکته‌دار</div><div class="flt-chip ${f.showHasQuestion?'active':''}" data-quick="hasQuestion">📋 سوال‌دار</div></div></div>`;
+  filterHtml.push(`<div class="flt-section"><div class="flt-label">وضعیت</div><div class="flt-chips">${['wrong','blank','correct','pending'].map(s=>`<div class="flt-chip ${f.statuses.has(s)?'active':''}" data-st="${s}">${STATUS_LABEL[s]}</div>`).join('')}</div></div>`);
+  filterHtml.push(`<div class="flt-section"><div class="flt-label">ویژگی سوال</div><div class="flt-chips wrap"><div class="flt-chip ${f.showStarred?'active':''}" data-quick="starred">⭐ ستاره\u200cدار</div><div class="flt-chip ${f.showHasNote?'active':''}" data-quick="hasNote">💡 نکته\u200cدار</div><div class="flt-chip ${f.showHasQuestion?'active':''}" data-quick="hasQuestion">📋 سوال\u200cدار</div></div></div>`);
   const common=state.commonErrors;
   const chip=(e)=>{const c=errColor(e.id);const on=f.error===e.id;return`<div class="flt-chip ${on?'active':''}" data-f="error" data-v="${e.id}" style="${on?'':'border-color:'+c+'44;background:'+c+'0e;color:'+c}"><span class="dot" style="background:${c}"></span>${esc(e.label)}</div>`;};
-  html+=`<div class="flt-section"><div class="flt-label">تگ‌های عمومی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.error?'active':''}" data-f="error" data-v="">همه</div><div class="flt-chip ${f.error==='none'?'active':''}" data-f="error" data-v="none">بدون تگ</div>${common.map(chip).join('')}</div></div>`;
+  filterHtml.push(`<div class="flt-section"><div class="flt-label">تگ‌های عمومی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.error?'active':''}" data-f="error" data-v="">همه</div><div class="flt-chip ${f.error==='none'?'active':''}" data-f="error" data-v="none">بدون تگ</div>${common.map(chip).join('')}</div></div>`);
+  const selectedError=f.error&&f.error!=='none'?common.find(e=>e.id===f.error):null;
+  if(selectedError&&Array.isArray(selectedError.subOptions)&&selectedError.subOptions.length){
+    filterHtml.push(`<div class="flt-section"><div class="flt-label">زیرتگ ${esc(selectedError.label)}</div><div class="flt-chips wrap">${selectedError.subOptions.map(opt=>{
+      const value=selectedError.id+'::'+opt.id;
+      return`<div class="flt-chip ${f.subErrors.has(value)?'active':''}" data-sub-error="${esc(value)}">${esc(opt.label)}</div>`;
+    }).join('')}</div></div>`);
+  }
   const specialTagsForFilter=[];
   state.subjects.forEach(s=>{if(Array.isArray(s.specialTags)&&(!f.subject||f.subject===s.name)){s.specialTags.forEach(t=>specialTagsForFilter.push({...t,subjectName:s.name}));}});
   if(specialTagsForFilter.length){
-    html+=`<div class="flt-section"><div class="flt-label">تگ‌های تخصصی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.specialTag?'active':''}" data-special="">همه</div>${specialTagsForFilter.map(t=>`<div class="flt-chip ${f.specialTag===t.id?'active':'violet'}" data-special="${t.id}">🏷️ ${esc(t.label)}</div>`).join('')}</div></div>`;
+    filterHtml.push(`<div class="flt-section"><div class="flt-label">تگ‌های تخصصی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.specialTag?'active':''}" data-special="">همه</div>${specialTagsForFilter.map(t=>`<div class="flt-chip ${f.specialTag===t.id?'active':'violet'}" data-special="${t.id}">🏷️ ${esc(t.label)}</div>`).join('')}</div></div>`);
   }
-  html+='</div>';
+  filterHtml.push('<div class="flt-section"><button type="button" class="mini-btn" data-reset-filters>↺ بازنشانی فیلترها</button></div>');
+  filterBox.innerHTML=filterHtml.join('');
+  let html='';
   html+=`<div class="ga-result-summary">${fa(qs.length)} مورد • ${fa(qs.filter(q=>qStatus(q)==='wrong').length)} غلط • ${fa(qs.filter(q=>qStatus(q)==='blank').length)} نزده</div>`;
   if(!qs.length)html+='<div class="empty-state"><b>سوالی نیست</b></div>';
   else{
@@ -1848,8 +1794,15 @@ function renderGlobalAnalysis(){
       const starBadge = q.starred ? '<span class="ac-err star">⭐</span>' : '';
       const hasQ = q.questionText && q.questionText.trim();
       const hasA = q.answerText && q.answerText.trim();
+      const options=Array.isArray(q.options)?q.options.slice(0,4):[];
+      const correct=Array.isArray(q.correctOptions)?q.correctOptions:[];
       let qaBlock = '';
       if(hasQ){qaBlock += `<div class="ac-question-block"><div class="ac-q-label">📋 سوال</div><div class="ac-q-text">${esc(q.questionText)}</div></div>`;}
+      if(options.length){
+        qaBlock+=`<div class="ac-options">${options.map((text,i)=>
+          `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${String.fromCharCode(65+i)}. ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`
+        ).join('')}</div>`;
+      }
       if(hasA){qaBlock += `<button type="button" class="ac-show-answer" data-show-answer="${q.id}">👁️ نمایش پاسخ</button><div class="ac-answer-content hidden" data-answer-for="${q.id}">${esc(q.answerText)}</div>`;}
       return`<div class="analysis-card" data-qid="${q.id}" data-exam-id="${q._examId}">
         <div class="ac-head">
@@ -1871,10 +1824,24 @@ function renderGlobalAnalysis(){
     html+='</div>';
   }
   body.innerHTML=html;
-  body.querySelectorAll('[data-f]').forEach(chipEl=>{chipEl.onclick=()=>{const key=chipEl.dataset.f;const val=chipEl.dataset.v;f[key]=val;if(key==='subject'){f.error='';f.topic='';f.grade='';f.specialTag='';f.questionType='';}renderGlobalAnalysis();};});
-  body.querySelectorAll('[data-st]').forEach(chipEl=>{chipEl.onclick=()=>{const s=chipEl.dataset.st;if(f.statuses.has(s))f.statuses.delete(s);else f.statuses.add(s);renderGlobalAnalysis();};});
-  body.querySelectorAll('[data-quick]').forEach(chipEl=>{chipEl.onclick=()=>{const k=chipEl.dataset.quick;if(k==='starred')f.showStarred=!f.showStarred;else if(k==='hasNote')f.showHasNote=!f.showHasNote;else if(k==='hasQuestion')f.showHasQuestion=!f.showHasQuestion;renderGlobalAnalysis();};});
-  body.querySelectorAll('[data-special]').forEach(chipEl=>{chipEl.onclick=()=>{f.specialTag=chipEl.dataset.special;renderGlobalAnalysis();};});
+  filterBox.querySelectorAll('[data-f]').forEach(chipEl=>{chipEl.onclick=()=>{
+    const key=chipEl.dataset.f;const val=chipEl.dataset.v;
+    f[key]=val;
+    if(key==='subject'){f.error='';f.subErrors.clear();f.topic='';f.grade='';f.specialTag='';f.questionType='';}
+    if(key==='error')f.subErrors.clear();
+    renderGlobalAnalysis();
+  };});
+  filterBox.querySelectorAll('[data-st]').forEach(chipEl=>{chipEl.onclick=()=>{const s=chipEl.dataset.st;if(f.statuses.has(s))f.statuses.delete(s);else f.statuses.add(s);renderGlobalAnalysis();};});
+  filterBox.querySelectorAll('[data-quick]').forEach(chipEl=>{chipEl.onclick=()=>{const k=chipEl.dataset.quick;if(k==='starred')f.showStarred=!f.showStarred;else if(k==='hasNote')f.showHasNote=!f.showHasNote;else if(k==='hasQuestion')f.showHasQuestion=!f.showHasQuestion;renderGlobalAnalysis();};});
+  filterBox.querySelectorAll('[data-sub-error]').forEach(chipEl=>{chipEl.onclick=()=>{const value=chipEl.dataset.subError;if(f.subErrors.has(value))f.subErrors.delete(value);else f.subErrors.add(value);renderGlobalAnalysis();};});
+  filterBox.querySelectorAll('[data-special]').forEach(chipEl=>{chipEl.onclick=()=>{f.specialTag=chipEl.dataset.special;renderGlobalAnalysis();};});
+  const resetFilters=filterBox.querySelector('[data-reset-filters]');
+  if(resetFilters)resetFilters.onclick=()=>{
+    f.exam='';f.subject='';f.grade='';f.topic='';f.questionType='';
+    f.statuses.clear();f.error='';f.subErrors.clear();f.specialTag='';
+    f.showStarred=false;f.showHasNote=false;f.showHasQuestion=false;
+    renderGlobalAnalysis();
+  };
   body.querySelectorAll('[data-show-answer]').forEach(btn=>{btn.onclick=(e)=>{e.stopPropagation();const ansEl=body.querySelector(`[data-answer-for="${btn.dataset.showAnswer}"]`);if(ansEl)ansEl.classList.toggle('hidden');};});
   body.querySelectorAll('[data-edit-qid]').forEach(btn=>{btn.onclick=(e)=>{e.stopPropagation();openQuestionNoteEditor(btn.dataset.editExam,btn.dataset.editQid);};});
   body.querySelectorAll('.analysis-card').forEach(card=>{card.onclick=(e)=>{if(e.target.closest('button,[data-show-answer]'))return;openQuestionNoteEditor(card.dataset.examId,card.dataset.qid);};});

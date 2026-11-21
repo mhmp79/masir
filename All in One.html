@@ -2581,22 +2581,32 @@ body.creating-block .pool-drop-wrap {
 }
 
 .phase-pill {
-  padding: 3px 5px;
+  padding: 2px 4px;
   font-size: 8px;
   display: flex;
   align-items: center;
-  gap: 3px;
+  flex-wrap: wrap;
+  gap: 0 3px;
   min-height: 20px;
   border-radius: 5px;
   position: relative;
 }
 .phase-pill .sp-label {
   font-weight: 800;
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
+  line-height: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.phase-pill .sp-dur {
+  flex: 1 1 100%;
+  text-align: center;
+  font-size: 7px;
+  line-height: 8px;
+  letter-spacing: -.2px;
+  opacity: .9;
 }
 .phase-pill.activity-pill {
   border-color: rgba(52,211,153,.72);
@@ -10596,14 +10606,16 @@ function drawSleepPhoneStrip(x,W,pad,boxY,d){
 /* ============================================================
    TIMELINE — روز
    ============================================================ */
-/* Canvas timeline must use the same minute axis as the hour grid. The DOM
-   layout helper widens short blocks for readability, which shifts later blocks
-   away from their real times in an image; overlapping items use lanes instead. */
-function reportTimelineExactLayout(items,tlW,startMin,endMin,minWidth){
+/* Image blocks keep their start on the minute axis, but they are deliberately
+   wider than the raw duration: short items stay readable and longer items keep
+   a proportional advantage. Overlaps move to a lane so widening never shifts a
+   later item under the wrong hour label. */
+function reportTimelineImageLayout(items,tlW,startMin,endMin,minWidth,widthScale){
   const domainStart=+startMin||0,domainEnd=+endMin||domainStart+1440;
   const span=Math.max(1,domainEnd-domainStart);
   const pxPerMin=tlW/span;
   const minVisualWidth=Math.max(0,+minWidth||0);
+  const scale=Math.max(1,+widthScale||1);
   const list=(items||[]).filter(Boolean).map((item,index)=>{
     const start=+(item.startMin!=null?item.startMin:item.start)||0;
     const end=item.endMin!=null?+item.endMin:start+(+item.durMin||0);
@@ -10616,10 +10628,7 @@ function reportTimelineExactLayout(items,tlW,startMin,endMin,minWidth){
     const left=(start-domainStart)*pxPerMin;
     const right=(end-domainStart)*pxPerMin;
     const exactWidth=Math.max(1,right-left);
-    /* Short blocks get just enough visual width for a name. Their start stays
-       on the real minute axis and overlaps move to a lane instead of shifting
-       later blocks into the wrong hour. */
-    const visualWidth=Math.max(minVisualWidth,exactWidth);
+    const visualWidth=Math.min(Math.max(1,tlW-left),Math.max(minVisualWidth,exactWidth*scale));
     let lane=laneEnds.findIndex(laneEnd=>laneEnd<=left+.5);
     if(lane<0){lane=laneEnds.length;laneEnds.push(0);}
     laneEnds[lane]=left+visualWidth;
@@ -10688,9 +10697,9 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.font='500 22px Vazirmatn, Tahoma, sans-serif';
     x.fillText('مطالعه‌ای ثبت نشده',tlLeft+tlW/2,tlTop+tlH/2);
   }else{
-    /* Blocks stay on the real minute axis; overlaps use vertical lanes so a
-       later activity is never pushed under the wrong hour label. */
-    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN,28);
+    /* Starts stay on the real minute axis; wider visual blocks and vertical
+       lanes keep the image readable without moving items under a wrong hour. */
+    const layout=reportTimelineImageLayout(allTimelineItems,tlW,START_MIN,END_MIN,48,1.6);
     const by=blockY+2;
     const laneH=Math.max(12,Math.min(30,Math.floor((blockH-4)/layout.lanes)));
     const bh=Math.max(8,laneH-4);
@@ -12947,6 +12956,13 @@ function renderPhases(box) {
   if (todayBtn) todayBtn.onclick = () => gotoToday();
 }
 
+function phasePillTimeLabel(sStart, sEnd) {
+  const start = +sStart;
+  const end = +sEnd;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
+  return `${minToStr(start)}–${minToStr(end)}`;
+}
+
 function renderPhasePill(s, phaseStart, phaseEnd) {
   const isActivity = s._kind === 'activity';
   const color = subjColor(s.subject);
@@ -12962,12 +12978,14 @@ function renderPhasePill(s, phaseStart, phaseEnd) {
   if (isContStart && isContEnd) classes.push('cont-both');
   const segStart = Math.max(sStart, phaseStart);
   const segEnd = Math.min(sEnd, phaseEnd);
+  const timeLabel = phasePillTimeLabel(sStart, sEnd);
+  const segmentLabel = phasePillTimeLabel(segStart, segEnd);
   const attrs = isActivity ? `data-act-id="${s.id}"` : `data-sid="${s.id}"`;
   const name = isActivity ? (s.topic || s.subject || 'فعالیت') : s.subject;
-  const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${minToStr(segStart)} — ${minToStr(segEnd)})`;
-  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}">
-    <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${isActivity ? '✓ ' : ''}${esc(name)}</span>
-    <span class="sp-dur">${fa(Math.max(0, sEnd - sStart))}د</span>
+  const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${timeLabel || segmentLabel} · ${fa(Math.max(0, sEnd - sStart))}د)`;
+  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}" aria-label="${title}">
+    <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${esc(name)}</span>
+    <span class="sp-dur">${timeLabel || segmentLabel}</span>
   </div>`;
 }
 

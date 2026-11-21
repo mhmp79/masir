@@ -139,28 +139,32 @@ test('FEAT-1: every analysis field counts independently', () => {
   assert.strictEqual(isQuestionAnalyzed({ ...base, status: 'correct' }), false, 'status alone is not analysis');
 });
 
-/* ---------- REWORK: tag-only completion semantics ---------- */
-const tagProgress = loadFunctions('js/05-exam.js', ['isQuestionTagAnalyzed', 'subjectAnalysisStats']);
-test('REWORK: only tagged wrong/blank questions count toward completion', () => {
+/* ---------- REWORK: general-tag-only analysis percentage ---------- */
+const tagProgress = loadFunctions('js/05-exam.js', ['isQuestionTagAnalyzed', 'subjectAnalysisStats'], {
+  state: { commonErrors: [{ id: 'e1' }, { id: 'e2' }] }
+});
+test('REWORK: only wrong/blank questions with a general tag count as analysed', () => {
   const questions = [
     { id: 'w1', status: 'wrong', errorTypes: ['e1'] },
     { id: 'b1', status: 'blank', topics: ['t1'] },
-    { id: 'w2', status: 'wrong' },
+    { id: 'w2', status: 'wrong', specialTags: ['s1'] },
+    { id: 'w3', status: 'wrong', errorTypes: ['unknown-tag'] },
     { id: 'c1', status: 'correct', note: 'note', errorTypes: ['e1'] },
-    { id: 'p1', status: 'pending', questionTypes: ['qt1'] }
+    { id: 'p1', status: 'pending', errorTypes: ['e1'] }
   ];
   assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[0]), true);
-  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[1]), true);
-  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[2]), false);
-  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[3]), false, 'correct is excluded');
-  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[4]), false, 'pending is excluded');
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[1]), false, 'topic is not a general tag');
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[2]), false, 'special tag is not a general tag');
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[3]), false, 'deleted tag must not complete it');
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[4]), false, 'correct is excluded');
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[5]), false, 'pending is excluded');
   const stats = tagProgress.subjectAnalysisStats(questions);
-  assert.strictEqual(stats.total, 3);
-  assert.strictEqual(stats.analyzed, 2);
-  assert.strictEqual(stats.remaining, 1);
-  assert.strictEqual(stats.pct, 67);
+  assert.strictEqual(stats.total, 4);
+  assert.strictEqual(stats.analyzed, 1);
+  assert.strictEqual(stats.remaining, 3);
+  assert.strictEqual(stats.pct, 25);
   assert.strictEqual(stats.done, false);
-  const done = tagProgress.subjectAnalysisStats([{ status: 'blank', questionTypes: ['qt2'] }]);
+  const done = tagProgress.subjectAnalysisStats([{ status: 'blank', errorTypes: ['e2'] }]);
   assert.strictEqual(done.done, true);
   const exam = read('js/05-exam.js');
   assert.ok(/class=\"nsp-pct nsp-done\">تحلیل شد/.test(exam), 'finished subject needs the done badge');
@@ -178,17 +182,17 @@ const typeSandbox = loadFunctions(
         name: 'ریاضی',
         questionTypes: [
           { id: 'qt1', label: 'مثلثات', topics: ['احتمال'] },
-          { id: 'qt2', label: 'عمومی', topics: [] }
+          { id: 'qt2', label: 'عمومی', topics: [] },
+          { id: 'qt3', label: 'جبری', topics: ['جبر'] }
         ]
       }]
     }
   }
 );
-test('REWORK: question types are scoped to the question topic', () => {
-  const oneTopic = { subject: 'ریاضی', topics: ['احتمال'] };
-  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion(oneTopic).map(t => t.id)), ['qt1', 'qt2']);
-  const otherTopic = { subject: 'ریاضی', topics: ['جبر'] };
-  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion(otherTopic).map(t => t.id)), ['qt2']);
+test('REWORK: question types are children of a topic, never subject-wide', () => {
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: 'ریاضی', topics: ['احتمال'] }).map(t => t.id)), ['qt1']);
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: 'ریاضی', topics: ['جبر'] }).map(t => t.id)), ['qt3']);
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: 'ریاضی', topics: [] }).map(t => t.id)), []);
   assert.strictEqual(typeSandbox.questionTypeLabel('qt1', 'ریاضی'), 'مثلثات');
 });
 
@@ -360,6 +364,7 @@ test('CLARIFIED: exams keep the calendar; analysis uses a comprehensive filter s
   assert.ok(examSection.indexOf('id="examSide"') < examSection.indexOf('id="examListPane"'),
     'calendar sidebar must come before the exam list');
   assert.ok(examSection.includes('id="examAnalysisSide"'), 'analysis filter sidebar missing');
+  assert.ok(examSection.includes('id="gaFilterDetails"'), 'collapsible mobile filter panel missing');
   assert.ok(examSection.includes('id="analysisFilterBox"'), 'filter box missing');
   assert.ok(examSection.includes('id="gaBody"'), 'results panel missing');
   assert.ok(examSection.includes('id="examSidebarToggle"'), 'calendar drawer button missing');
@@ -371,6 +376,10 @@ test('CLARIFIED: exams keep the calendar; analysis uses a comprehensive filter s
   assert.ok(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(desktop));
   assert.ok(/#view-exam\.filters-open \.exam-analysis-side/.test(css));
   assert.ok(/#view-exam\.sidebar-open \.exam-side/.test(css));
+  assert.ok(/\.ga-filter-summary\{display:none\}/.test(css), 'desktop filter summary must stay hidden');
+  assert.ok(/\.ga-filter-summary\{[^}]*display:flex/.test(css), 'mobile filter summary must be visible');
+  assert.ok(/#view-exam \.exam-analysis-side\{[\s\S]*?position:static/.test(css),
+    'mobile filters must sit inline above the analysis list');
   assert.ok(/function setAnalysisFilterOpen\(/.test(exam));
   assert.ok(/function setExamSidebarOpen\(/.test(exam));
   assert.ok(/فیلترهای تحلیل/.test(exam), 'filter sidebar needs a clear title');
@@ -388,20 +397,25 @@ test('CLARIFIED: tag chips stay inline in overlay cards', () => {
   assert.ok(/function bindQuestionTagHandlers\(/.test(exam));
 });
 
-test('CLARIFIED: note section is static and the question paper has four fixed options', () => {
+test('CLARIFIED: note cards start collapsed with an add button and a kind picker', () => {
   const exam = read('js/05-exam.js');
+  const core = read('js/01-core.js');
   const css = read('css/09-exam.css');
   assert.ok(/nc-static-note/.test(exam));
   assert.ok(/nc-static-note/.test(css));
   assert.ok(!/<details class="nc-fold nc-note-fold"/.test(exam), 'note is still collapsible');
-  assert.ok(/چهار گزینه ثابت \+ جواب درست/.test(exam), 'four-option form label missing');
-  assert.ok(!/data-aq-mode/.test(exam), 'multiple-choice mode switch still present');
-  assert.ok(!/aqAddOption/.test(exam), 'variable option count still possible');
-  assert.ok(!/aqAnswerText/.test(exam), 'separate answer field still present');
-  assert.ok(/options:clean,correctOptions:\[correct\]/.test(exam), 'new questions must save one correct option');
+  assert.ok(/questionPaperLauncherHTML\(q\)/.test(exam), 'note card lacks the collapsed add launcher');
+  assert.ok(/＋ افزودن سوال و پاسخ/.test(exam), 'add question button missing');
+  assert.ok(/data-q-kind="mcq"/.test(exam), 'four-option kind missing');
+  assert.ok(/data-q-kind="case"/.test(exam), 'case-based kind missing');
+  assert.ok(/موردی \(پیش فرض ۴\)/.test(exam), 'case default of four is missing');
+  assert.ok(/data-case-step/.test(exam), 'case count cannot be adjusted');
+  assert.ok(/q\.correctOptions=q\.correctOptions\[0\]===index\?\[\]:\[index\]/.test(exam),
+    'correct answer must toggle off when pressed again');
+  assert.ok(/data-q-delete/.test(exam), 'delete question/answer button missing');
   assert.ok(/questionPaperHTML\(s,q\.id\)/.test(exam), 'full editor lacks the question paper');
-  assert.ok(/questionPaperHTML\(q\)/.test(exam), 'note card lacks the question paper');
-  assert.ok(/bindQuestionPaper\(/.test(exam));
+  assert.ok(/ensureQuestionPaperDraft\(s\)/.test(exam), 'draft is not prepared before saving');
+  assert.ok(/questionKind/.test(core), 'question kind must survive normalization');
   assert.ok(/legacyCorrectOptions/.test(exam), 'legacy correct answers must survive');
 });
 
@@ -421,13 +435,16 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/if\(f\.subject&&availableTopics\.length\)/.test(exam));
   assert.ok(/class="ac-type"/.test(exam));
   assert.ok(/f\.questionType=''/.test(exam));
-  assert.ok(/const availableTypes=f\.subject\?subjectQuestionTypes\(f\.subject\):\[\]/.test(exam),
-    'type filter must list the selected subject types');
+  assert.ok(/examsWithContent\.set\(exam\.id/.test(exam), 'exam filter must track exams with analysis content');
+  assert.ok(/\[\.\.\.examsWithContent\.values\(\)\]/.test(exam), 'exam filter must list only those exams');
+  assert.ok(/const availableTypes=f\.subject&&f\.topic/.test(exam),
+    'type filter must depend on the selected topic, not only the subject');
+  assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r24'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r25'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

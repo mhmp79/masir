@@ -733,6 +733,7 @@ function normalizeQuestion(q){
     questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
     options,
     correctOptions,
+    questionKind: q.questionKind === 'case' ? 'case' : (q.questionKind === 'mcq' ? 'mcq' : ''),
     legacyCorrectOptions: Array.isArray(q.legacyCorrectOptions)
       ? q.legacyCorrectOptions.map(i => +i || 0)
       : [],

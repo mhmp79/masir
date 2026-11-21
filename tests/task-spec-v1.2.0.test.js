@@ -445,7 +445,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r28'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r29'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -507,36 +507,39 @@ test('REWORK: classes are merged into the renamed overview as a third segment', 
   assert.ok(!/#view-class/.test(desktop), 'old class-view selectors must be gone');
 });
 
-test('REWORK: bottom navigation is a liquid-glass bar with a raised centre tab', () => {
+test('REWORK: bottom navigation mirrors the rounded topbar card without a centre bubble', () => {
   const nav = read('css/05-overlays.css');
-  const block = nav.slice(nav.indexOf('/* NAV — liquid glass bottom bar */'), nav.indexOf('/* MODAL */'));
-  assert.ok(/position:fixed;bottom:0;left:50%;transform:translateX\(-50%\)/.test(block),
-    'bar must stay pinned to the bottom edge');
-  assert.ok(/backdrop-filter:blur\(24px\) saturate\(180%\)/.test(block), 'glass blur missing');
-  assert.ok(/border-radius:22px 22px 0 0/.test(block), 'glass bar needs rounded top corners');
-  assert.ok(/inset 0 1px 0 rgba\(255,255,255,\.18\)/.test(block), 'glossy top highlight missing');
-  assert.ok(/nav::before/.test(block), 'glass reflection layer missing');
-  assert.ok(/nav-btn\.active[\s\S]*?rgba\(139,92,246,\.32\)/.test(block),
-    'active tab needs the frosted purple glass fill');
-  assert.ok(/nav-btn:nth-child\(3\)::before/.test(block), 'centre tab needs the raised glass bubble');
-  assert.ok(!/flat, minimal bottom bar/.test(nav));
+  const block = nav.slice(nav.indexOf('/* NAV — rounded glass bar, matching the topbar */'), nav.indexOf('/* MODAL */'));
+  assert.ok(/position:fixed;bottom:10px;left:50%;transform:translateX\(-50%\)/.test(block),
+    'bar must be inset from the bottom edge');
+  assert.ok(/width:calc\(100% - 28px\);max-width:452px/.test(block), 'bar must be a spaced card');
+  assert.ok(/backdrop-filter:blur\(18px\) saturate\(150%\)/.test(block), 'glass must match the topbar');
+  assert.ok(/border:1px solid rgba\(255,255,255,\.10\)/.test(block));
+  assert.ok(/border-radius:18px/.test(block));
+  assert.ok(!/nav::before/.test(block), 'extra gloss layer is gone');
+  assert.ok(!/nth-child\(3\)/.test(block), 'raised centre bubble is gone');
+  assert.ok(!/border-radius:22px 22px 0 0/.test(block), 'old floating radius is gone');
   const desktop = read('css/14-desktop.css');
   const navBtnAt = desktop.indexOf('.nav-btn {');
   const desktopNav = desktop.slice(desktop.lastIndexOf('.nav {', navBtnAt), navBtnAt);
   assert.ok(/backdrop-filter:\s*none/.test(desktopNav), 'desktop sidebar must stay flat');
-  assert.ok(/\.nav::before\s*\{\s*display:\s*none/.test(desktop), 'desktop reflection must be disabled');
+  assert.ok(!/\.nav::before/.test(desktop));
+  assert.ok(!/\.nav-btn:nth-child\(3\)/.test(desktop));
   assert.ok(read('css/02-typography.css').includes('[hidden]{display:none!important}'));
 });
 
-test('REWORK: topbar is a rounded spaced card and settings uses a minimal line icon', () => {
+test('REWORK: topbar is a rounded spaced card with a rounded-square app icon', () => {
   const overlays = read('css/05-overlays.css');
-  const topbar = overlays.slice(overlays.indexOf('/* TOPBAR */'), overlays.indexOf('/* NAV — liquid glass bottom bar */'));
+  const topbar = overlays.slice(overlays.indexOf('/* TOPBAR */'), overlays.indexOf('/* NAV — rounded glass bar, matching the topbar */'));
   assert.ok(/margin:0 0 12px/.test(topbar), 'topbar must sit inside the app padding');
   assert.ok(!/margin:-14px/.test(topbar), 'negative full-bleed margin is gone');
   assert.ok(/top:10px/.test(topbar), 'sticky topbar needs breathing room');
   assert.ok(/border-radius:18px/.test(topbar));
   assert.ok(/backdrop-filter:blur\(18px\) saturate\(150%\)/.test(topbar));
   assert.ok(/border:1px solid rgba\(255,255,255,\.10\)/.test(topbar));
+  const appLogo = topbar.slice(topbar.indexOf('.logo.app-logo{'), topbar.indexOf('.brand-title{'));
+  assert.ok(/border-radius:15px/.test(appLogo), 'app icon must be a rounded square');
+  assert.ok(!/border-radius:50%/.test(appLogo), 'circular app icon is gone');
 
   const html = read('index.html');
   const settingsBtn = html.slice(html.indexOf('id="settingsBtn"'), html.indexOf('</button>', html.indexOf('id="settingsBtn"')));
@@ -546,6 +549,49 @@ test('REWORK: topbar is a rounded spaced card and settings uses a minimal line i
   const settingsCss = buttons.slice(buttons.indexOf('.icon-btn.settings-btn{'), buttons.indexOf('.day-arrow-sm{'));
   assert.ok(/border:0;background:transparent/.test(settingsCss));
   assert.ok(/stroke:currentColor;fill:none/.test(settingsCss));
+});
+
+test('REWORK: topbar action buttons use minimal icons and output labels', () => {
+  const core = read('js/01-core.js');
+  const html = read('index.html');
+  const buttons = read('css/03-buttons.css');
+  assert.ok(/const CTX_ICONS=/.test(core), 'context icons must be reusable stroke SVGs');
+  assert.ok(core.includes("label:'خروجی گزارش'"));
+  assert.ok(core.includes("label:'خروجی برنامه'"));
+  assert.ok(core.includes("label:'خروجی مقایسه'"));
+  assert.ok(core.includes("btn.querySelector('.ctx-icon').innerHTML=cfg.icon"));
+  assert.ok(!/label:'گزارش'/.test(core));
+  assert.ok(!/label:'برنامه هفتگی'/.test(core));
+  assert.ok(!/label:'مقایسه آزمون‌ها'/.test(core));
+  const ctxBtn = html.slice(html.indexOf('id="contextActionBtn"'), html.indexOf('</button>', html.indexOf('id="contextActionBtn"')));
+  assert.ok(/<svg viewBox="0 0 24 24"/.test(ctxBtn));
+  assert.ok(!/📊|🖼️/.test(ctxBtn), 'emoji action icons are gone');
+  const ctxCss = buttons.slice(buttons.indexOf('.icon-btn.context-btn{'), buttons.indexOf('/* Settings version footer */'));
+  assert.ok(/border:0;background:transparent/.test(ctxCss));
+  assert.ok(/stroke:currentColor;fill:none/.test(ctxCss));
+});
+
+test('REWORK: settings stays inside the app shell with visible disabled tabs', () => {
+  const html = read('index.html');
+  const overlays = read('css/05-overlays.css');
+  const settings = read('js/08-settings.js');
+  const desktop = read('css/14-desktop.css');
+  const topbar = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>'));
+  assert.ok(topbar.includes('id="settingsBackBtn"'), 'back button replaces the app logo');
+  assert.ok(topbar.includes('id="appLogo"'));
+  assert.ok(topbar.includes('id="brandTitle"') && topbar.includes('>مسیر کنکور<'));
+  assert.ok(topbar.includes('id="settingsTitle"') && topbar.includes('>تنظیمات<'));
+  const settingsCss = overlays.slice(overlays.indexOf('/* SETTINGS — lives inside the app shell'), overlays.indexOf('#settingsBody>.acc-card,'));
+  assert.ok(/#settingsOverlay\{\s*position:fixed;inset:0;z-index:0/.test(settingsCss));
+  assert.ok(/#settingsOverlay \.wr-top\{display:none\}/.test(settingsCss), 'no separate app-within-app header');
+  assert.ok(/\.app\.settings-open > main\{display:none\}/.test(settingsCss));
+  assert.ok(/\.app\.settings-open \.nav-btn\{pointer-events:none/.test(settingsCss), 'tabs must stay visible but disabled');
+  assert.ok(/\.icon-btn\.settings-back-btn svg/.test(settingsCss));
+  assert.ok(settings.includes('setSettingsChrome(true)') && settings.includes('setSettingsChrome(false)'));
+  assert.ok(settings.includes("app.classList.toggle('settings-open',open)"));
+  assert.ok(settings.includes("document.getElementById('settingsBackBtn').onclick=closeSettingsOverlay"));
+  assert.ok(/#settingsOverlay \{/.test(desktop), 'desktop settings must use the app grid');
+  assert.ok(/#settingsOverlay \.wr-shell \{ max-width: 1120px/.test(desktop));
 });
 
 test('REWORK: installed PWA uses a black status bar, not purple', () => {

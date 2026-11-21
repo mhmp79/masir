@@ -772,9 +772,26 @@ const _examNameEl = document.getElementById('setExamName');
 if(_examNameEl) _examNameEl.onchange=(ev)=>{state.settings.examName=ev.target.value.trim()||'آزمایشی';save();};
 
 /* ============ OPEN OVERLAY ============ */
+function setSettingsChrome(open){
+  const app=document.querySelector('.app');
+  const logo=document.getElementById('appLogo');
+  const brandTitle=document.getElementById('brandTitle');
+  const settingsTitle=document.getElementById('settingsTitle');
+  const backBtn=document.getElementById('settingsBackBtn');
+  if(app) app.classList.toggle('settings-open',open);
+  if(logo) logo.classList.toggle('hidden',open);
+  if(brandTitle) brandTitle.classList.toggle('hidden',open);
+  if(settingsTitle) settingsTitle.classList.toggle('hidden',!open);
+  if(backBtn) backBtn.classList.toggle('hidden',!open);
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    if(open) btn.setAttribute('aria-disabled','true');
+    else btn.removeAttribute('aria-disabled');
+  });
+}
 function openSettingsOverlay(){
   const overlay=document.getElementById('settingsOverlay');if(!overlay)return;
   overlay.classList.add('show');document.body.style.overflow='hidden';
+  setSettingsChrome(true);
   try{renderProfileSection();}catch(e){console.error(e);}
   try{renderSubjectManager();}catch(e){console.error(e);}
   try{renderSettingsPanel();}catch(e){console.error(e);}
@@ -791,7 +808,9 @@ function closeSettingsOverlay(){
   overlay.querySelectorAll('.acc-card.open').forEach(card=>card.classList.remove('open'));
   renderProfileSection();
   overlay.classList.remove('show');
+  setSettingsChrome(false);
   document.body.style.overflow='';
 }
 document.getElementById('settingsBtn').onclick=openSettingsOverlay;
+document.getElementById('settingsBackBtn').onclick=closeSettingsOverlay;
 document.getElementById('settingsClose').onclick=closeSettingsOverlay;

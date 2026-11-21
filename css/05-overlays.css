@@ -21,7 +21,7 @@
   box-shadow:0 10px 26px -10px #7c5cff;
 }
 .logo.app-logo{
-  border-radius:50%;
+  border-radius:15px;
   background-image:url('../icons/icon-192.png');
   background-size:cover;background-position:center;
   border:1px solid rgba(255,255,255,.18);
@@ -30,32 +30,26 @@
 .brand-title{font-weight:800;font-size:15px;letter-spacing:.2px}
 .topbar-actions{display:flex;gap:8px;align-items:center}
 
-/* NAV — liquid glass bottom bar */
+/* NAV — rounded glass bar, matching the topbar */
 .nav{
-  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
-  width:100%;max-width:480px;
-  display:flex;align-items:flex-end;justify-content:space-around;gap:3px;
-  padding:9px 8px calc(9px + env(safe-area-inset-bottom));
-  background:linear-gradient(180deg,rgba(43,50,82,.58),rgba(9,13,26,.84));
-  backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
-  border-top:1px solid rgba(255,255,255,.16);
-  border-radius:22px 22px 0 0;
-  box-shadow:0 -10px 34px -18px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.18);
+  position:fixed;bottom:10px;left:50%;transform:translateX(-50%);
+  width:calc(100% - 28px);max-width:452px;
+  display:flex;align-items:center;justify-content:space-around;gap:3px;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(11,16,34,.76);
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:18px;
+  box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
   z-index:100;
 }
-.nav::before{
-  content:'';position:absolute;inset:1px 1px auto;height:42%;
-  border-radius:21px 21px 60% 60%/21px 21px 40% 40%;
-  background:linear-gradient(180deg,rgba(255,255,255,.15),transparent);
-  pointer-events:none;
-}
 .nav-btn{
-  position:relative;z-index:1;
+  position:relative;
   flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;
   padding:7px 2px 5px;color:#9099b2;
-  background:transparent;border:1px solid transparent;border-radius:16px;
+  background:transparent;border:1px solid transparent;border-radius:12px;
   font-family:inherit;font-size:9px;line-height:1.2;
-  transition:color .22s,background .22s,border-color .22s,box-shadow .22s,transform .22s;
+  transition:color .22s,background .22s,border-color .22s,box-shadow .22s;
   cursor:pointer;
 }
 .nav-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -66,22 +60,11 @@
 }
 .nav-btn.active{
   color:#fff;
-  background:linear-gradient(160deg,rgba(255,255,255,.20),rgba(139,92,246,.32));
-  border-color:rgba(255,255,255,.20);
-  box-shadow:0 8px 20px -12px rgba(139,92,246,.95),inset 0 1px 0 rgba(255,255,255,.22);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  transform:translateY(-1px);
+  background:rgba(255,255,255,.09);
+  border-color:rgba(255,255,255,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
 }
-.nav-btn.active svg{filter:drop-shadow(0 0 7px rgba(255,255,255,.55));}
-.nav-btn:nth-child(3){margin-top:-9px}
-.nav-btn:nth-child(3)::before{
-  content:'';position:absolute;top:-6px;left:50%;width:40px;height:40px;
-  transform:translateX(-50%);border-radius:50%;z-index:-1;
-  background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(139,92,246,.28));
-  border:1px solid rgba(255,255,255,.20);
-  box-shadow:0 10px 22px -12px rgba(139,92,246,.9),inset 0 1px 0 rgba(255,255,255,.24);
-}
-.nav-btn:nth-child(3) svg{width:23px;height:23px}
 
 /* MODAL */
 .modal-backdrop{
@@ -215,6 +198,36 @@
 #settingsOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(245,158,11,.6)}
 #gaOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(34,211,238,.5)}
 #examCompareOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(234,179,8,.5)}
+
+/* SETTINGS — lives inside the app shell: topbar and bottom tabs stay visible */
+#settingsOverlay{
+  position:fixed;inset:0;z-index:0;
+  overflow-y:auto;background:transparent;
+  -webkit-overflow-scrolling:touch;
+}
+#settingsOverlay .wr-top{display:none}
+#settingsOverlay .wr-shell{
+  max-width:480px;margin:0 auto;
+  padding:96px 14px calc(104px + env(safe-area-inset-bottom));
+}
+.app.settings-open{pointer-events:none}
+.app.settings-open .topbar,
+.app.settings-open .nav{pointer-events:auto}
+.app.settings-open > main{display:none}
+.app.settings-open .context-btn{display:none}
+.app.settings-open .nav-btn{pointer-events:none;opacity:.42;filter:saturate(.6)}
+.app.settings-open .nav-btn.active{background:rgba(255,255,255,.06);box-shadow:none}
+.icon-btn.settings-back-btn{
+  width:38px;height:38px;
+  border:0;background:transparent;color:#98a2bb;
+}
+.icon-btn.settings-back-btn svg{
+  width:20px;height:20px;
+  stroke:currentColor;fill:none;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
+}
+.icon-btn.settings-back-btn:hover{color:#fff;background:rgba(255,255,255,.06)}
+
 #settingsBody>.acc-card,
 #gaBody>.flt-card,
 #examCompareBody>.card{
@@ -258,8 +271,6 @@
 }
 
 @media(max-width:767px){
-  #settingsOverlay .wr-shell{padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-  #settingsOverlay .wr-top{margin-bottom:8px}
   #settingsBody{gap:10px}
   .acc-head{padding:14px}
   .acc-body{padding:0 12px 14px}

@@ -3271,12 +3271,31 @@ body.creating-block .pool-drop-wrap {
   gap: 14px;
 }
 
-.exam-main {
+/* The exams tab keeps its original left calendar sidebar. The analysis tab
+   uses the same column for the per-question tag selector. */
+.exam-side,
+.exam-analysis-side {
+  order: 1;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.exam-analysis-side[hidden],
+.exam-side[hidden] { display: none !important; }
+
+.exam-main {
+  order: 2;
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+.exam-side .cal-head { padding: 10px 12px; }
+.exam-side .cal-cell { font-size: 12px; border-radius: 10px; }
+.exam-side .cal-dow { font-size: 10px; margin-bottom: 6px; }
+.exam-side .cal-grid { gap: 4px; }
 
 /* ============ SEG (now on top of .exam-layout) ============ */
 #examModeSeg {
@@ -4071,26 +4090,58 @@ body.creating-block .pool-drop-wrap {
   .nc-edit-label { font-size: 9px; }
 }
 
-/* ============ TABLET (768–1023px) — calendar inline ============ */
+/* ============ TABLET (768–1023px) ============ */
 @media (min-width: 768px) and (max-width: 1023px) {
+  .exam-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 32%);
+    gap: 14px;
+    align-items: start;
+  }
+  .exam-main {
+    grid-column: 1;
+    grid-row: 1;
+    order: initial;
+    width: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .exam-side,
+  .exam-analysis-side {
+    grid-column: 2;
+    grid-row: 1;
+    order: initial;
+    width: auto;
+    position: sticky;
+    top: 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+    min-height: 0;
+  }
   #examListPane { display: flex; flex-direction: column; gap: 14px; }
   #examListPane > .card { margin: 0; }
   #examAnalysisPane { display: flex; flex-direction: column; gap: 14px; }
   #examAnalysisPane > .card { margin: 0; }
 }
 
-/* ============ DESKTOP (≥1024px) — one exam column ============ */
+/* ============ DESKTOP (≥1024px) ============ */
 @media (min-width: 1024px) {
   #view-exam.active {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0 var(--gap);
     overflow: hidden;
   }
   #view-exam > #examModeSeg {
+    grid-column: 1;
+    grid-row: 1;
     display: inline-flex;
     width: auto;
-    align-self: center;
+    justify-self: center;
+    align-self: start;
     margin: 0 0 8px;
     padding: 5px;
     gap: 4px;
@@ -4105,8 +4156,29 @@ body.creating-block .pool-drop-wrap {
     border-radius: 8px;
     white-space: nowrap;
   }
-  .exam-layout { display: block; width: 100%; }
+  .exam-layout { display: contents; }
+  .exam-side,
+  .exam-analysis-side {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    order: initial;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+    padding-bottom: 4px;
+    position: relative;
+    top: auto;
+  }
+  .exam-side > .card,
+  .exam-analysis-side > .card { margin-bottom: 0; }
   .exam-main {
+    grid-column: 1;
+    grid-row: 2;
+    order: initial;
     display: flex;
     flex-direction: column;
     gap: var(--gap);
@@ -4219,39 +4291,62 @@ input.ex-subj{
 .chart-legend-line{width:12px;height:3px;border-radius:2px}
 
 
-/* ============ EXAM ANALYSIS — TAG SELECTION SIDEBAR ============
-   The calendar lives inside the exam list again. Only the tag-selection
-   block of per-question analysis gets a sidebar on wide screens and a
-   bottom drawer on touch screens. */
-.exam-layout{display:block;width:100%}
-.note-tag-fab,.note-tag-backdrop{display:none}
+/* ============ EXAM SIDE FAB / DRAWERS ============
+   Exams: the original calendar sidebar. Analysis: the same column becomes
+   the per-question tag selector. Neither sits inside the main content. */
+.exam-sidebar-fab,.exam-sidebar-backdrop,.note-tag-fab,.note-tag-backdrop{display:none}
 .note-tag-sidebar{min-width:0}
 .note-tag-sidebar .card{margin:0}
 .note-tag-sidebar-title{font-size:11px;font-weight:800;color:#fcd34d;margin-bottom:8px}
 .note-tag-sidebar-hint{font-size:9px;color:#8b94ad;line-height:1.7;margin:-2px 0 10px}
+.analysis-exam-picker-card .card-title{font-size:13px}
+.analysis-exam-picker-card select{max-width:230px}
+.exam-global-analysis-fold > summary{
+  cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#c7bfff;
+  padding:4px 0;
+}
+.exam-global-analysis-fold > summary::-webkit-details-marker{display:none}
+.exam-global-analysis-fold[open] > summary{margin-bottom:4px}
 @media (min-width:1024px){
-  .note-analysis-layout{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) 280px;
-    gap:14px;align-items:start;
-  }
-  .note-tag-sidebar{
+  .exam-analysis-side .note-tag-sidebar{
     position:sticky;top:16px;
     max-height:90vh;overflow-y:auto;min-height:0;
   }
-  .note-analysis-main{min-width:0}
+  .exam-analysis-main{min-width:0}
 }
 @media (min-width:768px) and (max-width:1023px){
   .exam-calendar-summary{display:flex}
   .exam-calendar-details:not([open]) > .card{display:none}
-  .note-analysis-layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;align-items:start}
-  .note-tag-sidebar{
+  .exam-analysis-side .note-tag-sidebar{
     position:sticky;top:16px;max-height:88vh;
     overflow-y:auto;min-height:0;
   }
-  .note-analysis-main{min-width:0}
+  .exam-analysis-main{min-width:0}
 }
 @media (max-width:767px){
+  .exam-sidebar-fab{
+    position:fixed;right:16px;
+    bottom:calc(84px + env(safe-area-inset-bottom,0px));
+    z-index:405;display:flex;align-items:center;justify-content:center;
+    width:50px;height:50px;border-radius:50%;
+    border:1px solid rgba(234,179,8,.55);
+    background:linear-gradient(155deg,rgba(234,179,8,.95),rgba(245,158,11,.85));
+    color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
+    font-family:inherit;cursor:pointer;
+  }
+  .exam-sidebar-fab[hidden]{display:none}
+  .exam-sidebar-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
+  .exam-sidebar-backdrop[hidden]{display:none}
+  #view-exam .exam-side{
+    position:fixed;right:0;bottom:0;z-index:407;
+    width:min(88vw,380px);max-height:86vh;overflow-y:auto;
+    padding:12px 12px calc(18px + env(safe-area-inset-bottom,0px));
+    border-radius:18px 18px 0 0;
+    background:#111522;border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 -14px 40px rgba(0,0,0,.5);
+    transform:translateY(105%);transition:transform .24s ease;
+  }
+  #view-exam.sidebar-open .exam-side{transform:none}
   .note-tag-fab{
     position:fixed;right:16px;
     bottom:calc(18px + env(safe-area-inset-bottom,0px));
@@ -4265,7 +4360,7 @@ input.ex-subj{
   .note-tag-fab[hidden]{display:none}
   .note-tag-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
   .note-tag-backdrop[hidden]{display:none}
-  #examOverlay .note-tag-sidebar{
+  #view-exam .exam-analysis-side{
     position:fixed;right:0;bottom:0;z-index:407;
     width:min(90vw,400px);max-height:86vh;overflow-y:auto;
     padding:14px 12px calc(20px + env(safe-area-inset-bottom,0px));
@@ -4274,7 +4369,7 @@ input.ex-subj{
     box-shadow:0 -14px 40px rgba(0,0,0,.5);
     transform:translateY(105%);transition:transform .24s ease;
   }
-  #examOverlay.tags-open .note-tag-sidebar{transform:none}
+  #view-exam.tags-open .exam-analysis-side{transform:none}
 }
 
 /* Question-type search / creation inside the tag sidebar. */
@@ -6278,7 +6373,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   #view-dashboard #monthlyHeatmap { min-height: 0; }
   #view-dashboard .hm-grid { grid-template-rows: repeat(6, minmax(0, 1fr)); }
   #view-plan.active { grid-template-columns: minmax(0, 1fr) 340px; }
-  #view-exam.active { grid-template-columns: minmax(0, 1fr); }
+  #view-exam.active { grid-template-columns: minmax(0, 1fr) 340px; }
 }
 
 @media (max-width: 767px) {
@@ -6716,28 +6811,37 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
         <button class="seg-btn" data-emode="analysis">🔍 تحلیل آزمون</button>
       </div>
       <div class="exam-layout" id="examLayout">
+        <aside class="exam-side" id="examSide">
+          <details class="exam-calendar-details" id="examCalendarDetails" open>
+            <summary class="exam-calendar-summary">
+              <span class="pcs-icon">📅</span>
+              <span class="pcs-title">تقویم</span>
+              <span class="pcs-date" id="examCalendarSummaryDate">—</span>
+              <span class="pcs-chevron">▼</span>
+            </summary>
+            <div class="card cal-head">
+              <div class="cal-head-nav">
+                <button id="examCalPrev">‹</button>
+                <div id="examCalTitle">—</div>
+                <button id="examCalNext">›</button>
+              </div>
+              <button class="cal-today-icon" id="examCalToday">◉</button>
+            </div>
+            <div class="card">
+              <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
+              <div class="cal-grid" id="examCalGrid"></div>
+            </div>
+          </details>
+        </aside>
+        <aside class="exam-analysis-side" id="examAnalysisSide" hidden>
+          <div class="card note-tag-sidebar" data-note-tag-sidebar>
+            <div class="note-tag-sidebar-title">🏷️ فقط سلکشن تگ تحلیل سوال (پیشنهادی)</div>
+            <div class="note-tag-sidebar-hint">مبحث، تیپ سوال و تگهای اشتباه فقط همان سوالی را که در بخش اصلی انتخاب کرده&#8204;اید تغییر می&#8204;دهند.</div>
+            <div id="analysisTagBox"></div>
+          </div>
+        </aside>
         <div class="exam-main">
           <div id="examListPane">
-            <details class="exam-calendar-details" id="examCalendarDetails" open>
-              <summary class="exam-calendar-summary">
-                <span class="pcs-icon">📅</span>
-                <span class="pcs-title">تقویم</span>
-                <span class="pcs-date" id="examCalendarSummaryDate">—</span>
-                <span class="pcs-chevron">▼</span>
-              </summary>
-              <div class="card cal-head">
-                <div class="cal-head-nav">
-                  <button id="examCalPrev">‹</button>
-                  <div id="examCalTitle">—</div>
-                  <button id="examCalNext">›</button>
-                </div>
-                <button class="cal-today-icon" id="examCalToday">◉</button>
-              </div>
-              <div class="card">
-                <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
-                <div class="cal-grid" id="examCalGrid"></div>
-              </div>
-            </details>
             <div class="card">
               <div class="d-flex items-center justify-between mb-14 gap-6 flex-wrap">
                 <div class="card-title mb-0">📝 آزمون‌ها</div>
@@ -6746,19 +6850,34 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
               <div id="examsList"></div>
             </div>
             <div class="card">
-              <div class="card-title">🏷️ پراکندگی اشتباهات</div>
+              <div class="card-title">🏷️ پراکندگی تگهای عمومی اشتباهات</div>
               <div id="examTagStats"></div>
             </div>
           </div>
           <div id="examAnalysisPane" class="hidden">
-            <div class="card exam-analysis-header-card">
-              <div class="card-title">🔍 تحلیل جامع آزمون‌ها</div>
-              <div class="muted" id="gaSub">—</div>
+            <div class="card analysis-exam-picker-card">
+              <div class="d-flex items-center justify-between gap-8 flex-wrap">
+                <div class="card-title mb-0">🔍 تحلیل سوالات آزمون</div>
+                <select class="input" id="analysisExamSelect" aria-label="انتخاب آزمون"></select>
+              </div>
+              <div class="muted mt-8" id="analysisExamHint">سوال غلط یا نزده را از لیست اصلی انتخاب کن؛ تگهای آن در ساید چپ نمایش داده می\u200cشوند.</div>
             </div>
-            <div id="gaBody"></div>
+            <div id="examNotesBody"></div>
+            <details class="card exam-global-analysis-fold">
+              <summary>🔍 تحلیل جامع آزمونها</summary>
+              <div class="exam-analysis-header-card mt-12">
+                <div class="card-title">تجزیه و تحلیل تمام آزمونها</div>
+                <div class="muted" id="gaSub">—</div>
+              </div>
+              <div id="gaBody"></div>
+            </details>
           </div>
         </div>
       </div>
+      <button type="button" id="examSidebarToggle" class="exam-sidebar-fab" aria-label="نمایش تقویم آزمون" aria-expanded="false">📅</button>
+      <div class="exam-sidebar-backdrop" id="examSidebarBackdrop" hidden></div>
+      <button type="button" id="noteTagToggle" class="note-tag-fab" aria-label="نمایش تگهای سوال" aria-expanded="false" hidden>🏷️</button>
+      <div id="noteTagBackdrop" class="note-tag-backdrop" hidden></div>
     </section>
 
     <!-- ===== OVERVIEW ===== -->
@@ -6815,8 +6934,6 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     </header>
     <main id="examOverlayBody"></main>
   </div>
-  <button type="button" id="noteTagToggle" class="note-tag-fab" aria-label="نمایش تگ‌های سوال" aria-expanded="false" hidden>🏷️</button>
-  <div id="noteTagBackdrop" class="note-tag-backdrop" hidden></div>
 </div>
 
 <!-- ===== EXAM COMPARE OVERLAY ===== -->
@@ -13705,15 +13822,30 @@ function analysisProgressColor(pct){
 
 /* ⭐ تب اصلی سکشن آزمون (آزمون‌ها / تحلیل آزمون) */
 let examViewMode='exams';
+let analysisExamId='';
 
-/* Only the tag-selection block of per-question analysis turns into a drawer
-   on touch screens. The exam calendar stays inside the exam list again. */
+/* The exams tab keeps the original calendar sidebar. In analysis mode the
+   same column shows the selected question's tag picker, while notes stay in
+   the main content. On touch screens each one opens as its own drawer. */
+function setExamSidebarOpen(open){
+  const view=document.getElementById('view-exam');
+  const toggle=document.getElementById('examSidebarToggle');
+  const backdrop=document.getElementById('examSidebarBackdrop');
+  if(!view)return;
+  view.classList.toggle('sidebar-open',!!open);
+  if(toggle){
+    toggle.setAttribute('aria-expanded',String(!!open));
+    if(!open)toggle.hidden=true;
+  }
+  if(backdrop)backdrop.hidden=!open;
+}
+
 function setNoteTagSidebarOpen(open){
-  const overlay=document.getElementById('examOverlay');
+  const view=document.getElementById('view-exam');
   const toggle=document.getElementById('noteTagToggle');
   const backdrop=document.getElementById('noteTagBackdrop');
-  if(!overlay)return;
-  overlay.classList.toggle('tags-open',!!open);
+  if(!view)return;
+  view.classList.toggle('tags-open',!!open);
   if(toggle){
     toggle.setAttribute('aria-expanded',String(!!open));
     if(!open)toggle.hidden=true;
@@ -13722,20 +13854,33 @@ function setNoteTagSidebarOpen(open){
 }
 
 function applyExamViewMode(){
+  const view=document.getElementById('view-exam');
   const listPane=document.getElementById('examListPane');
   const analysisPane=document.getElementById('examAnalysisPane');
+  const calendarSide=document.getElementById('examSide');
+  const tagSide=document.getElementById('examAnalysisSide');
   if(!listPane||!analysisPane)return;
   const isAnalysis=examViewMode==='analysis';
-  
+
+  if(view)view.classList.toggle('analysis-mode',isAnalysis);
   listPane.classList.toggle('hidden',isAnalysis);
   analysisPane.classList.toggle('hidden',!isAnalysis);
-  
+  if(calendarSide)calendarSide.hidden=isAnalysis;
+  if(tagSide)tagSide.hidden=!isAnalysis;
+
   document.querySelectorAll('#examModeSeg .seg-btn').forEach(b=>{
     b.classList.toggle('active',b.dataset.emode===examViewMode);
   });
-  
-  if(isAnalysis&&typeof renderGlobalAnalysis==='function'){
-    try{ renderGlobalAnalysis(); }catch(e){ console.warn('[exam] renderGlobalAnalysis failed:',e); }
+
+  setExamSidebarOpen(false);
+  setNoteTagSidebarOpen(false);
+  const calendarToggle=document.getElementById('examSidebarToggle');
+  if(calendarToggle)calendarToggle.hidden=isAnalysis;
+
+  if(isAnalysis)renderAnalysisPane();
+  else{
+    const noteToggle=document.getElementById('noteTagToggle');
+    if(noteToggle)noteToggle.hidden=true;
   }
 }
 
@@ -13920,6 +14065,62 @@ function renderExamSection(){
   applyExamViewMode();
 }
 
+/* The analysis tab renders the selected exam's question list and notes in the
+   main column. The tag picker is rendered into the separate side column. */
+function renderAnalysisPane(){
+  const select=document.getElementById('analysisExamSelect');
+  const body=document.getElementById('examNotesBody');
+  if(!select||!body)return;
+  const exams=state.exams.slice().sort((a,b)=>jdnFromKey(b.date)-jdnFromKey(a.date));
+  if(!exams.some(e=>e.id===analysisExamId))analysisExamId=exams[0]?exams[0].id:'';
+  select.innerHTML=exams.length
+    ?exams.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')
+    :'<option value="">آزمونی وجود ندارد</option>';
+  select.value=analysisExamId;
+  select.onchange=()=>{
+    analysisExamId=select.value;
+    notesSubject='';notesQuestionId='';notesShowingCorrectQuestions=false;
+    setNoteTagSidebarOpen(false);
+    renderAnalysisPane();
+  };
+  const exam=exams.find(e=>e.id===analysisExamId);
+  if(!exam){
+    body.innerHTML='<div class="empty-state"><b>آزمونی برای تحلیل نیست</b>ابتدا از تب آزمونها یک آزمون بساز.</div>';
+    renderAnalysisTagSidebar(null,null);
+    renderGlobalAnalysis();
+    return;
+  }
+  renderExamNotesTab(exam,body);
+  renderGlobalAnalysis();
+}
+
+function currentAnalysisQuestion(exam){
+  if(!exam||!notesQuestionId)return null;
+  return getSortedQuestions(exam).find(q=>q.id===notesQuestionId)||null;
+}
+
+function renderAnalysisTagSidebar(exam,question){
+  const box=document.getElementById('analysisTagBox');
+  const toggle=document.getElementById('noteTagToggle');
+  if(!box)return;
+  if(!exam||!question){
+    box.innerHTML='<div class="muted fs-11">برای نمایش تگها، یک سوال غلط یا نزده را از لیست اصلی انتخاب کن.</div>';
+    if(toggle)toggle.hidden=true;
+    return;
+  }
+  box.innerHTML=noteChipSectionsHTML(exam,question,subjColor(question.subject),['topics','types','general']);
+  const refresh=()=>{
+    const notesBody=document.getElementById('examNotesBody');
+    saveQuestionEdit(exam,question,notesBody,{refresh:true,saved:true});
+    renderAnalysisTagSidebar(exam,question);
+    renderExamTagStats();
+    renderExamInsights();
+    renderGlobalAnalysis();
+  };
+  bindQuestionTagHandlers(exam,box,question,refresh);
+  if(toggle)toggle.hidden=false;
+}
+
 function renderExamCalendar(){
   const el=document.getElementById('examCalTitle');
   if(el)el.textContent=`${MONTHS[examCalMonth-1]} ${fa(examCalYear)}`;
@@ -13962,10 +14163,17 @@ function renderExamCalendar(){
 document.getElementById('examCalPrev').onclick=()=>{examCalMonth--;if(examCalMonth<1){examCalMonth=12;examCalYear--;}renderExamCalendar();};
 document.getElementById('examCalNext').onclick=()=>{examCalMonth++;if(examCalMonth>12){examCalMonth=1;examCalYear++;}renderExamCalendar();};
 document.getElementById('examCalToday').onclick=()=>{examCalYear=TODAY_J.jy;examCalMonth=TODAY_J.jm;renderExamCalendar();};
+const _examSidebarToggle=document.getElementById('examSidebarToggle');
+if(_examSidebarToggle)_examSidebarToggle.onclick=()=>{
+  const view=document.getElementById('view-exam');
+  setExamSidebarOpen(!(view&&view.classList.contains('sidebar-open')));
+};
+const _examSidebarBackdrop=document.getElementById('examSidebarBackdrop');
+if(_examSidebarBackdrop)_examSidebarBackdrop.onclick=()=>setExamSidebarOpen(false);
 const _noteTagToggle=document.getElementById('noteTagToggle');
 if(_noteTagToggle)_noteTagToggle.onclick=()=>{
-  const overlay=document.getElementById('examOverlay');
-  setNoteTagSidebarOpen(!(overlay&&overlay.classList.contains('tags-open')));
+  const view=document.getElementById('view-exam');
+  setNoteTagSidebarOpen(!(view&&view.classList.contains('tags-open')));
 };
 const _noteTagBackdrop=document.getElementById('noteTagBackdrop');
 if(_noteTagBackdrop)_noteTagBackdrop.onclick=()=>setNoteTagSidebarOpen(false);
@@ -13977,6 +14185,7 @@ if(_examCalGrid){
     if(window.innerWidth<1024){
       const details=document.getElementById('examCalendarDetails');
       if(details)details.open=false;
+      setExamSidebarOpen(false);
     }
   });
 }
@@ -14022,30 +14231,32 @@ function renderExamTagStats(){
   const box=document.getElementById('examTagStats');if(!box)return;
   const tagCount={};let totalWB=0;let totalTagged=0;
   const spec=specializedSubjectNames();
+  const generalIds=new Set((state.commonErrors||[]).map(tag=>tag.id));
   state.exams.forEach(exam=>{
     if(!exam||!Array.isArray(exam.questions))return;
     exam.questions.forEach(q=>{
       if(!spec.includes(q.subject))return;
       const st=qStatus(q);if(st==='pending')return;
       const isWB=(st==='wrong'||st==='blank');if(isWB)totalWB++;
-      if(!isQuestionTagAnalyzed(q))return;
-      if(isWB)totalTagged++;
-      (q.errorTypes||[]).forEach(tagId=>{const tag=getErr(tagId);if(!tag)return;if(!tagCount[tagId])tagCount[tagId]={label:tag.label,count:0,color:errColor(tagId)};tagCount[tagId].count++;});
-      (q.specialTags||[]).forEach(tagId=>{const tag=getErr(tagId);if(!tag)return;if(!tagCount[tagId])tagCount[tagId]={label:tag.label,count:0,color:errColor(tagId)};tagCount[tagId].count++;});
-      if(q.reviewSolvable!==null){
-        const id = q.reviewSolvable ? 'solvable' : 'not_solvable';
-        if(!tagCount[id]) tagCount[id] = {label: q.reviewSolvable?'قابل حل':'غیرقابل حل', count:0, color: q.reviewSolvable?'#6ee7b7':'#fda4af'};
-        tagCount[id].count++;
-      }
+      let hasGeneral=false;
+      /* The distribution widget is only about general mistake tags. */
+      (q.errorTypes||[]).forEach(tagId=>{
+        if(!generalIds.has(tagId))return;
+        const tag=getErr(tagId);if(!tag)return;
+        hasGeneral=true;
+        if(!tagCount[tagId])tagCount[tagId]={label:tag.label,count:0,color:errColor(tagId)};
+        tagCount[tagId].count++;
+      });
+      if(isWB&&hasGeneral)totalTagged++;
     });
   });
   let html='';
   if(totalWB>0){
     const pct=Math.round(totalTagged/totalWB*100);
-    html+=`<div class="tag-stat-row"><div class="tag-stat"><div class="tag-stat-value text-rose">${fa(totalWB)}</div><div class="tag-stat-label">غلط + نزده</div></div><div class="tag-stat"><div class="tag-stat-value text-amber">${fa(totalTagged)}</div><div class="tag-stat-label">تگ‌گذاری شده</div></div><div class="tag-stat"><div class="tag-stat-value text-cyan">${fa(pct)}٪</div><div class="tag-stat-label">پوشش تگ</div></div></div>`;
+    html+=`<div class="tag-stat-row"><div class="tag-stat"><div class="tag-stat-value text-rose">${fa(totalWB)}</div><div class="tag-stat-label">غلط + نزده</div></div><div class="tag-stat"><div class="tag-stat-value text-amber">${fa(totalTagged)}</div><div class="tag-stat-label">دارای تگ عمومی</div></div><div class="tag-stat"><div class="tag-stat-value text-cyan">${fa(pct)}٪</div><div class="tag-stat-label">پوشش تگ</div></div></div>`;
   }
   const entries=Object.entries(tagCount).sort((a,b)=>b[1].count-a[1].count);
-  if(!entries.length){html+='<div class="muted exam-empty-note">هنوز تگی ثبت نشده</div>';box.innerHTML=html;return;}
+  if(!entries.length){html+='<div class="muted exam-empty-note">هنوز تگ عمومی ثبت نشده</div>';box.innerHTML=html;return;}
   const maxCount=entries[0][1].count;
   entries.forEach(([tagId,data])=>{
     const pct=Math.round(data.count/maxCount*100);
@@ -14058,25 +14269,21 @@ function renderExamTagStats(){
 function examInsights(){
   const counts={};
   const result={total:0,answered:0,analyzed:0,tags:[],byTag:{}};
+  const generalIds=new Set((state.commonErrors||[]).map(tag=>tag.id));
   state.exams.forEach(exam=>{
     getSortedQuestions(exam).forEach(q=>{
       const status=qStatus(q);
       if(status!=='wrong'&&status!=='blank')return;
       result.total++;result.answered++;
       let hasTag=false;
-      const push=(id,label,color,kind)=>{
-        if(!id)return;
-        hasTag=true;
-        if(!counts[id])counts[id]={id,label,color,kind,count:0};
-        counts[id].count++;
-      };
+      /* فقط تگهای عمومی در پراکندگی اشتباهات داشبورد اهمیت دارند. */
       (q.errorTypes||[]).forEach(id=>{
+        if(!generalIds.has(id))return;
         const tag=getErr(id);
-        push(id,tag&&tag.label||id,errColor(id),'error');
-      });
-      (q.specialTags||[]).forEach(id=>{
-        const tag=getErr(id);
-        push(id,tag&&tag.label||id,tag&&tag.color||'#a78bfa','special');
+        if(!tag)return;
+        hasTag=true;
+        if(!counts[id])counts[id]={id,label:tag.label||id,color:errColor(id),kind:'general',count:0};
+        counts[id].count++;
       });
       if(hasTag)result.analyzed++;
     });
@@ -14101,8 +14308,8 @@ function renderExamInsights(){
       `<b>${fa(t.count)}</b></div>`;
   }).join('');
   box.innerHTML=rows
-    ?`<div class="ei-section mt-0"><div class="ei-title">پراکندگی تگهای اشتباهات</div>${rows}</div>`
-    :'<div class="muted fs-11">هنوز تگی روی سوالات غلط و نزده ثبت نشده</div>';
+    ?`<div class="ei-section mt-0"><div class="ei-title">پراکندگی تگهای عمومی اشتباهات</div>${rows}</div>`
+    :'<div class="muted fs-11">هنوز تگ عمومی روی سوالات غلط و نزده ثبت نشده</div>';
 }
 
 document.getElementById('newExamBtn').onclick=()=>openNewExamModal();
@@ -14262,8 +14469,27 @@ function renderExamAnalysisTab(exam,box){
     renderExamOverlay();
   };
   const analysisBody=document.getElementById('examAnalysisBody');
-  if(examAnswerMode)renderExamInputTab(exam,analysisBody);
-  else renderExamNotesTab(exam,analysisBody);
+  if(examAnswerMode){
+    renderExamInputTab(exam,analysisBody);
+    return;
+  }
+  /* Notes are no longer rendered inside the overlay: they live in the main
+     analysis panel with the tag selector in its own left column. */
+  analysisBody.innerHTML=`
+    <div class="empty-state lg">
+      <b>📝 تحلیل سوالات</b>
+      نکات و تگهای هر سوال در تب «تحلیل آزمون» نمایش داده می\u200cشوند.
+      <div class="mt-16"><button class="btn exam" id="goExamAnalysisTab">رفتن به تب تحلیل آزمون</button></div>
+    </div>
+  `;
+  document.getElementById('goExamAnalysisTab').onclick=()=>{
+    const examId=exam.id;
+    closeExamDetail();
+    analysisExamId=examId;
+    notesSubject='';notesQuestionId='';notesShowingCorrectQuestions=false;
+    examViewMode='analysis';
+    applyExamViewMode();
+  };
 }
 
 /* ============ EXAM SETTINGS MODAL ============ */
@@ -14732,8 +14958,6 @@ function noteQuestionCardHTML(exam,q){
   const orderedMain=noteSectionOrder(q.subject)
     .filter(key=>!tagKeys.has(key))
     .map(key=>sections[key]||'').join('');
-  const orderedTags=['topics','types','general']
-    .map(key=>sections[key]||'').join('');
   const starClass=q.starred?'on':'';
   const errorDetails=noteErrorDetailsHTML(q);
 
@@ -14747,20 +14971,72 @@ function noteQuestionCardHTML(exam,q){
       <button type="button" class="note-expand-btn" data-expand-qid="${q.id}" title="ویرایش کامل">✎</button>
       <button type="button" class="note-del" data-note-del="${q.id}" title="پنهان">×</button>
     </div>
-    <div class="note-analysis-layout">
-      <div class="note-analysis-main">
-        ${orderedMain}
-        ${errorDetails}
-      </div>
-      <aside class="note-tag-sidebar" data-note-tag-sidebar>
-        <div class="card">
-          <div class="note-tag-sidebar-title">🏷️ فقط سلکشن تگ تحلیل سوال (پیشنهادی)</div>
-          <div class="note-tag-sidebar-hint">مبحث، تیپ سوال و تگهای اشتباه فقط همین سوال را تغییر می\u200cدهند.</div>
-          ${orderedTags}
-        </div>
-      </aside>
+    <div class="note-analysis-main">
+      ${orderedMain}
+      ${errorDetails}
     </div>
   </div>`;
+}
+
+/* Shared by the note card and the analysis sidebar: the same tag chips can
+   live in either place without duplicating their handlers. */
+function bindQuestionTagHandlers(exam,scope,q,refresh){
+  scope.querySelectorAll('[data-edit-topic]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const topic=btn.dataset.editTopic;
+    q.topics=q.topics||[];
+    if(q.topics.includes(topic))q.topics=q.topics.filter(t=>t!==topic);
+    else{
+      q.topics.push(topic);
+      const grade=topicGrade(q.subject,topic);
+      if(grade)q.grade=grade;
+    }
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-err]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const tagId=btn.dataset.editErr;
+    q.errorTypes=q.errorTypes||[];
+    if(q.errorTypes.includes(tagId)){
+      q.errorTypes=q.errorTypes.filter(t=>t!==tagId);
+      if(q.errorDetails)delete q.errorDetails[tagId];
+    }else q.errorTypes.push(tagId);
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-subtag]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const tagId=btn.dataset.editSubtag;
+    const subId=btn.dataset.subId;
+    q.errorDetails=q.errorDetails||{};
+    if(!Array.isArray(q.errorDetails[tagId]))q.errorDetails[tagId]=[];
+    const values=q.errorDetails[tagId];
+    q.errorDetails[tagId]=values.includes(subId)?values.filter(x=>x!==subId):[...values,subId];
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-special]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const tagId=btn.dataset.editSpecial;
+    q.specialTags=q.specialTags||[];
+    q.specialTags=q.specialTags.includes(tagId)
+      ?q.specialTags.filter(t=>t!==tagId)
+      :[...q.specialTags,tagId];
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-question-type]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const typeId=btn.dataset.editQuestionType;
+    q.questionTypes=Array.isArray(q.questionTypes)?q.questionTypes:[];
+    q.questionTypes=q.questionTypes.includes(typeId)
+      ?q.questionTypes.filter(id=>id!==typeId)
+      :[...q.questionTypes,typeId];
+    refresh(true);
+  };});
+
+  bindQuestionTypeAdd(scope,q,()=>refresh(true));
 }
 
 function bindNoteItemHandlers(exam,box,item){
@@ -14781,62 +15057,7 @@ function bindNoteItemHandlers(exam,box,item){
   const del=item.querySelector('[data-note-del]');
   if(del)del.onclick=(e)=>{e.stopPropagation();q.noteHidden=true;q.ts=Date.now();save();renderExamNotesTab(exam,box);toast('پنهان شد');};
 
-  item.querySelectorAll('[data-edit-topic]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const topic=btn.dataset.editTopic;
-    q.topics=q.topics||[];
-    if(q.topics.includes(topic))q.topics=q.topics.filter(t=>t!==topic);
-    else{
-      q.topics.push(topic);
-      const grade=topicGrade(q.subject,topic);
-      if(grade)q.grade=grade;
-    }
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-err]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const tagId=btn.dataset.editErr;
-    q.errorTypes=q.errorTypes||[];
-    if(q.errorTypes.includes(tagId)){
-      q.errorTypes=q.errorTypes.filter(t=>t!==tagId);
-      if(q.errorDetails)delete q.errorDetails[tagId];
-    }else q.errorTypes.push(tagId);
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-subtag]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const tagId=btn.dataset.editSubtag;
-    const subId=btn.dataset.subId;
-    q.errorDetails=q.errorDetails||{};
-    if(!Array.isArray(q.errorDetails[tagId]))q.errorDetails[tagId]=[];
-    const values=q.errorDetails[tagId];
-    q.errorDetails[tagId]=values.includes(subId)?values.filter(x=>x!==subId):[...values,subId];
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-special]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const tagId=btn.dataset.editSpecial;
-    q.specialTags=q.specialTags||[];
-    q.specialTags=q.specialTags.includes(tagId)
-      ?q.specialTags.filter(t=>t!==tagId)
-      :[...q.specialTags,tagId];
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-question-type]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const typeId=btn.dataset.editQuestionType;
-    q.questionTypes=Array.isArray(q.questionTypes)?q.questionTypes:[];
-    q.questionTypes=q.questionTypes.includes(typeId)
-      ?q.questionTypes.filter(id=>id!==typeId)
-      :[...q.questionTypes,typeId];
-    refresh(true);
-  };});
-
-  bindQuestionTypeAdd(item,q,()=>refresh(true));
+  bindQuestionTagHandlers(exam,item,q,refresh);
 
   item.querySelectorAll('[data-solvable]').forEach(btn=>{btn.onclick=(e)=>{
     e.stopPropagation();
@@ -14874,7 +15095,11 @@ function bindNoteItemHandlers(exam,box,item){
 function renderExamNotesTab(exam,box){
   setNoteTagSidebarOpen(false);
   const allQs=getSortedQuestions(exam);
-  if(!allQs.length){box.innerHTML='<div class="empty-state">سوالی برای تحلیل نیست</div>';return;}
+  if(!allQs.length){
+    box.innerHTML='<div class="empty-state">سوالی برای تحلیل نیست</div>';
+    renderAnalysisTagSidebar(exam,null);
+    return;
+  }
 
   const sectionBySubject={};
   allQs.forEach(question=>{
@@ -14931,8 +15156,7 @@ function renderExamNotesTab(exam,box){
     });
   }
   box.innerHTML=html;
-  const noteTagToggle=document.getElementById('noteTagToggle');
-  if(noteTagToggle)noteTagToggle.hidden=!box.querySelector('.note-tag-sidebar');
+  renderAnalysisTagSidebar(exam,currentAnalysisQuestion(exam));
 
   /* ===== Handlers ===== */
   box.querySelectorAll('[data-notes-subject]').forEach(button=>button.onclick=()=>{
@@ -22104,6 +22328,11 @@ function setupBackExitGuard(){
     if(compare && compare.classList.contains('show')){
       compare.classList.remove('show');
       document.body.style.overflow='';
+      rearm(); return;
+    }
+    const calendarDrawer=document.getElementById('examSidebarBackdrop');
+    if(calendarDrawer && !calendarDrawer.hidden){
+      try{ setExamSidebarOpen(false); }catch(_){}
       rearm(); return;
     }
     const tagDrawer=document.getElementById('noteTagBackdrop');

@@ -37,6 +37,11 @@ function setupBackExitGuard(){
       document.body.style.overflow='';
       rearm(); return;
     }
+    const calendarDrawer=document.getElementById('examSidebarBackdrop');
+    if(calendarDrawer && !calendarDrawer.hidden){
+      try{ setExamSidebarOpen(false); }catch(_){}
+      rearm(); return;
+    }
     const tagDrawer=document.getElementById('noteTagBackdrop');
     if(tagDrawer && !tagDrawer.hidden){
       try{ setNoteTagSidebarOpen(false); }catch(_){}

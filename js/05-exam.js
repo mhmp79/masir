@@ -56,15 +56,30 @@ function analysisProgressColor(pct){
 
 /* ⭐ تب اصلی سکشن آزمون (آزمون‌ها / تحلیل آزمون) */
 let examViewMode='exams';
+let analysisExamId='';
 
-/* Only the tag-selection block of per-question analysis turns into a drawer
-   on touch screens. The exam calendar stays inside the exam list again. */
+/* The exams tab keeps the original calendar sidebar. In analysis mode the
+   same column shows the selected question's tag picker, while notes stay in
+   the main content. On touch screens each one opens as its own drawer. */
+function setExamSidebarOpen(open){
+  const view=document.getElementById('view-exam');
+  const toggle=document.getElementById('examSidebarToggle');
+  const backdrop=document.getElementById('examSidebarBackdrop');
+  if(!view)return;
+  view.classList.toggle('sidebar-open',!!open);
+  if(toggle){
+    toggle.setAttribute('aria-expanded',String(!!open));
+    if(!open)toggle.hidden=true;
+  }
+  if(backdrop)backdrop.hidden=!open;
+}
+
 function setNoteTagSidebarOpen(open){
-  const overlay=document.getElementById('examOverlay');
+  const view=document.getElementById('view-exam');
   const toggle=document.getElementById('noteTagToggle');
   const backdrop=document.getElementById('noteTagBackdrop');
-  if(!overlay)return;
-  overlay.classList.toggle('tags-open',!!open);
+  if(!view)return;
+  view.classList.toggle('tags-open',!!open);
   if(toggle){
     toggle.setAttribute('aria-expanded',String(!!open));
     if(!open)toggle.hidden=true;
@@ -73,20 +88,33 @@ function setNoteTagSidebarOpen(open){
 }
 
 function applyExamViewMode(){
+  const view=document.getElementById('view-exam');
   const listPane=document.getElementById('examListPane');
   const analysisPane=document.getElementById('examAnalysisPane');
+  const calendarSide=document.getElementById('examSide');
+  const tagSide=document.getElementById('examAnalysisSide');
   if(!listPane||!analysisPane)return;
   const isAnalysis=examViewMode==='analysis';
-  
+
+  if(view)view.classList.toggle('analysis-mode',isAnalysis);
   listPane.classList.toggle('hidden',isAnalysis);
   analysisPane.classList.toggle('hidden',!isAnalysis);
-  
+  if(calendarSide)calendarSide.hidden=isAnalysis;
+  if(tagSide)tagSide.hidden=!isAnalysis;
+
   document.querySelectorAll('#examModeSeg .seg-btn').forEach(b=>{
     b.classList.toggle('active',b.dataset.emode===examViewMode);
   });
-  
-  if(isAnalysis&&typeof renderGlobalAnalysis==='function'){
-    try{ renderGlobalAnalysis(); }catch(e){ console.warn('[exam] renderGlobalAnalysis failed:',e); }
+
+  setExamSidebarOpen(false);
+  setNoteTagSidebarOpen(false);
+  const calendarToggle=document.getElementById('examSidebarToggle');
+  if(calendarToggle)calendarToggle.hidden=isAnalysis;
+
+  if(isAnalysis)renderAnalysisPane();
+  else{
+    const noteToggle=document.getElementById('noteTagToggle');
+    if(noteToggle)noteToggle.hidden=true;
   }
 }
 
@@ -271,6 +299,62 @@ function renderExamSection(){
   applyExamViewMode();
 }
 
+/* The analysis tab renders the selected exam's question list and notes in the
+   main column. The tag picker is rendered into the separate side column. */
+function renderAnalysisPane(){
+  const select=document.getElementById('analysisExamSelect');
+  const body=document.getElementById('examNotesBody');
+  if(!select||!body)return;
+  const exams=state.exams.slice().sort((a,b)=>jdnFromKey(b.date)-jdnFromKey(a.date));
+  if(!exams.some(e=>e.id===analysisExamId))analysisExamId=exams[0]?exams[0].id:'';
+  select.innerHTML=exams.length
+    ?exams.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('')
+    :'<option value="">آزمونی وجود ندارد</option>';
+  select.value=analysisExamId;
+  select.onchange=()=>{
+    analysisExamId=select.value;
+    notesSubject='';notesQuestionId='';notesShowingCorrectQuestions=false;
+    setNoteTagSidebarOpen(false);
+    renderAnalysisPane();
+  };
+  const exam=exams.find(e=>e.id===analysisExamId);
+  if(!exam){
+    body.innerHTML='<div class="empty-state"><b>آزمونی برای تحلیل نیست</b>ابتدا از تب آزمونها یک آزمون بساز.</div>';
+    renderAnalysisTagSidebar(null,null);
+    renderGlobalAnalysis();
+    return;
+  }
+  renderExamNotesTab(exam,body);
+  renderGlobalAnalysis();
+}
+
+function currentAnalysisQuestion(exam){
+  if(!exam||!notesQuestionId)return null;
+  return getSortedQuestions(exam).find(q=>q.id===notesQuestionId)||null;
+}
+
+function renderAnalysisTagSidebar(exam,question){
+  const box=document.getElementById('analysisTagBox');
+  const toggle=document.getElementById('noteTagToggle');
+  if(!box)return;
+  if(!exam||!question){
+    box.innerHTML='<div class="muted fs-11">برای نمایش تگها، یک سوال غلط یا نزده را از لیست اصلی انتخاب کن.</div>';
+    if(toggle)toggle.hidden=true;
+    return;
+  }
+  box.innerHTML=noteChipSectionsHTML(exam,question,subjColor(question.subject),['topics','types','general']);
+  const refresh=()=>{
+    const notesBody=document.getElementById('examNotesBody');
+    saveQuestionEdit(exam,question,notesBody,{refresh:true,saved:true});
+    renderAnalysisTagSidebar(exam,question);
+    renderExamTagStats();
+    renderExamInsights();
+    renderGlobalAnalysis();
+  };
+  bindQuestionTagHandlers(exam,box,question,refresh);
+  if(toggle)toggle.hidden=false;
+}
+
 function renderExamCalendar(){
   const el=document.getElementById('examCalTitle');
   if(el)el.textContent=`${MONTHS[examCalMonth-1]} ${fa(examCalYear)}`;
@@ -313,10 +397,17 @@ function renderExamCalendar(){
 document.getElementById('examCalPrev').onclick=()=>{examCalMonth--;if(examCalMonth<1){examCalMonth=12;examCalYear--;}renderExamCalendar();};
 document.getElementById('examCalNext').onclick=()=>{examCalMonth++;if(examCalMonth>12){examCalMonth=1;examCalYear++;}renderExamCalendar();};
 document.getElementById('examCalToday').onclick=()=>{examCalYear=TODAY_J.jy;examCalMonth=TODAY_J.jm;renderExamCalendar();};
+const _examSidebarToggle=document.getElementById('examSidebarToggle');
+if(_examSidebarToggle)_examSidebarToggle.onclick=()=>{
+  const view=document.getElementById('view-exam');
+  setExamSidebarOpen(!(view&&view.classList.contains('sidebar-open')));
+};
+const _examSidebarBackdrop=document.getElementById('examSidebarBackdrop');
+if(_examSidebarBackdrop)_examSidebarBackdrop.onclick=()=>setExamSidebarOpen(false);
 const _noteTagToggle=document.getElementById('noteTagToggle');
 if(_noteTagToggle)_noteTagToggle.onclick=()=>{
-  const overlay=document.getElementById('examOverlay');
-  setNoteTagSidebarOpen(!(overlay&&overlay.classList.contains('tags-open')));
+  const view=document.getElementById('view-exam');
+  setNoteTagSidebarOpen(!(view&&view.classList.contains('tags-open')));
 };
 const _noteTagBackdrop=document.getElementById('noteTagBackdrop');
 if(_noteTagBackdrop)_noteTagBackdrop.onclick=()=>setNoteTagSidebarOpen(false);
@@ -328,6 +419,7 @@ if(_examCalGrid){
     if(window.innerWidth<1024){
       const details=document.getElementById('examCalendarDetails');
       if(details)details.open=false;
+      setExamSidebarOpen(false);
     }
   });
 }
@@ -373,30 +465,32 @@ function renderExamTagStats(){
   const box=document.getElementById('examTagStats');if(!box)return;
   const tagCount={};let totalWB=0;let totalTagged=0;
   const spec=specializedSubjectNames();
+  const generalIds=new Set((state.commonErrors||[]).map(tag=>tag.id));
   state.exams.forEach(exam=>{
     if(!exam||!Array.isArray(exam.questions))return;
     exam.questions.forEach(q=>{
       if(!spec.includes(q.subject))return;
       const st=qStatus(q);if(st==='pending')return;
       const isWB=(st==='wrong'||st==='blank');if(isWB)totalWB++;
-      if(!isQuestionTagAnalyzed(q))return;
-      if(isWB)totalTagged++;
-      (q.errorTypes||[]).forEach(tagId=>{const tag=getErr(tagId);if(!tag)return;if(!tagCount[tagId])tagCount[tagId]={label:tag.label,count:0,color:errColor(tagId)};tagCount[tagId].count++;});
-      (q.specialTags||[]).forEach(tagId=>{const tag=getErr(tagId);if(!tag)return;if(!tagCount[tagId])tagCount[tagId]={label:tag.label,count:0,color:errColor(tagId)};tagCount[tagId].count++;});
-      if(q.reviewSolvable!==null){
-        const id = q.reviewSolvable ? 'solvable' : 'not_solvable';
-        if(!tagCount[id]) tagCount[id] = {label: q.reviewSolvable?'قابل حل':'غیرقابل حل', count:0, color: q.reviewSolvable?'#6ee7b7':'#fda4af'};
-        tagCount[id].count++;
-      }
+      let hasGeneral=false;
+      /* The distribution widget is only about general mistake tags. */
+      (q.errorTypes||[]).forEach(tagId=>{
+        if(!generalIds.has(tagId))return;
+        const tag=getErr(tagId);if(!tag)return;
+        hasGeneral=true;
+        if(!tagCount[tagId])tagCount[tagId]={label:tag.label,count:0,color:errColor(tagId)};
+        tagCount[tagId].count++;
+      });
+      if(isWB&&hasGeneral)totalTagged++;
     });
   });
   let html='';
   if(totalWB>0){
     const pct=Math.round(totalTagged/totalWB*100);
-    html+=`<div class="tag-stat-row"><div class="tag-stat"><div class="tag-stat-value text-rose">${fa(totalWB)}</div><div class="tag-stat-label">غلط + نزده</div></div><div class="tag-stat"><div class="tag-stat-value text-amber">${fa(totalTagged)}</div><div class="tag-stat-label">تگ‌گذاری شده</div></div><div class="tag-stat"><div class="tag-stat-value text-cyan">${fa(pct)}٪</div><div class="tag-stat-label">پوشش تگ</div></div></div>`;
+    html+=`<div class="tag-stat-row"><div class="tag-stat"><div class="tag-stat-value text-rose">${fa(totalWB)}</div><div class="tag-stat-label">غلط + نزده</div></div><div class="tag-stat"><div class="tag-stat-value text-amber">${fa(totalTagged)}</div><div class="tag-stat-label">دارای تگ عمومی</div></div><div class="tag-stat"><div class="tag-stat-value text-cyan">${fa(pct)}٪</div><div class="tag-stat-label">پوشش تگ</div></div></div>`;
   }
   const entries=Object.entries(tagCount).sort((a,b)=>b[1].count-a[1].count);
-  if(!entries.length){html+='<div class="muted exam-empty-note">هنوز تگی ثبت نشده</div>';box.innerHTML=html;return;}
+  if(!entries.length){html+='<div class="muted exam-empty-note">هنوز تگ عمومی ثبت نشده</div>';box.innerHTML=html;return;}
   const maxCount=entries[0][1].count;
   entries.forEach(([tagId,data])=>{
     const pct=Math.round(data.count/maxCount*100);
@@ -409,25 +503,21 @@ function renderExamTagStats(){
 function examInsights(){
   const counts={};
   const result={total:0,answered:0,analyzed:0,tags:[],byTag:{}};
+  const generalIds=new Set((state.commonErrors||[]).map(tag=>tag.id));
   state.exams.forEach(exam=>{
     getSortedQuestions(exam).forEach(q=>{
       const status=qStatus(q);
       if(status!=='wrong'&&status!=='blank')return;
       result.total++;result.answered++;
       let hasTag=false;
-      const push=(id,label,color,kind)=>{
-        if(!id)return;
-        hasTag=true;
-        if(!counts[id])counts[id]={id,label,color,kind,count:0};
-        counts[id].count++;
-      };
+      /* فقط تگهای عمومی در پراکندگی اشتباهات داشبورد اهمیت دارند. */
       (q.errorTypes||[]).forEach(id=>{
+        if(!generalIds.has(id))return;
         const tag=getErr(id);
-        push(id,tag&&tag.label||id,errColor(id),'error');
-      });
-      (q.specialTags||[]).forEach(id=>{
-        const tag=getErr(id);
-        push(id,tag&&tag.label||id,tag&&tag.color||'#a78bfa','special');
+        if(!tag)return;
+        hasTag=true;
+        if(!counts[id])counts[id]={id,label:tag.label||id,color:errColor(id),kind:'general',count:0};
+        counts[id].count++;
       });
       if(hasTag)result.analyzed++;
     });
@@ -452,8 +542,8 @@ function renderExamInsights(){
       `<b>${fa(t.count)}</b></div>`;
   }).join('');
   box.innerHTML=rows
-    ?`<div class="ei-section mt-0"><div class="ei-title">پراکندگی تگهای اشتباهات</div>${rows}</div>`
-    :'<div class="muted fs-11">هنوز تگی روی سوالات غلط و نزده ثبت نشده</div>';
+    ?`<div class="ei-section mt-0"><div class="ei-title">پراکندگی تگهای عمومی اشتباهات</div>${rows}</div>`
+    :'<div class="muted fs-11">هنوز تگ عمومی روی سوالات غلط و نزده ثبت نشده</div>';
 }
 
 document.getElementById('newExamBtn').onclick=()=>openNewExamModal();
@@ -613,8 +703,27 @@ function renderExamAnalysisTab(exam,box){
     renderExamOverlay();
   };
   const analysisBody=document.getElementById('examAnalysisBody');
-  if(examAnswerMode)renderExamInputTab(exam,analysisBody);
-  else renderExamNotesTab(exam,analysisBody);
+  if(examAnswerMode){
+    renderExamInputTab(exam,analysisBody);
+    return;
+  }
+  /* Notes are no longer rendered inside the overlay: they live in the main
+     analysis panel with the tag selector in its own left column. */
+  analysisBody.innerHTML=`
+    <div class="empty-state lg">
+      <b>📝 تحلیل سوالات</b>
+      نکات و تگهای هر سوال در تب «تحلیل آزمون» نمایش داده می\u200cشوند.
+      <div class="mt-16"><button class="btn exam" id="goExamAnalysisTab">رفتن به تب تحلیل آزمون</button></div>
+    </div>
+  `;
+  document.getElementById('goExamAnalysisTab').onclick=()=>{
+    const examId=exam.id;
+    closeExamDetail();
+    analysisExamId=examId;
+    notesSubject='';notesQuestionId='';notesShowingCorrectQuestions=false;
+    examViewMode='analysis';
+    applyExamViewMode();
+  };
 }
 
 /* ============ EXAM SETTINGS MODAL ============ */
@@ -1083,8 +1192,6 @@ function noteQuestionCardHTML(exam,q){
   const orderedMain=noteSectionOrder(q.subject)
     .filter(key=>!tagKeys.has(key))
     .map(key=>sections[key]||'').join('');
-  const orderedTags=['topics','types','general']
-    .map(key=>sections[key]||'').join('');
   const starClass=q.starred?'on':'';
   const errorDetails=noteErrorDetailsHTML(q);
 
@@ -1098,20 +1205,72 @@ function noteQuestionCardHTML(exam,q){
       <button type="button" class="note-expand-btn" data-expand-qid="${q.id}" title="ویرایش کامل">✎</button>
       <button type="button" class="note-del" data-note-del="${q.id}" title="پنهان">×</button>
     </div>
-    <div class="note-analysis-layout">
-      <div class="note-analysis-main">
-        ${orderedMain}
-        ${errorDetails}
-      </div>
-      <aside class="note-tag-sidebar" data-note-tag-sidebar>
-        <div class="card">
-          <div class="note-tag-sidebar-title">🏷️ فقط سلکشن تگ تحلیل سوال (پیشنهادی)</div>
-          <div class="note-tag-sidebar-hint">مبحث، تیپ سوال و تگهای اشتباه فقط همین سوال را تغییر می\u200cدهند.</div>
-          ${orderedTags}
-        </div>
-      </aside>
+    <div class="note-analysis-main">
+      ${orderedMain}
+      ${errorDetails}
     </div>
   </div>`;
+}
+
+/* Shared by the note card and the analysis sidebar: the same tag chips can
+   live in either place without duplicating their handlers. */
+function bindQuestionTagHandlers(exam,scope,q,refresh){
+  scope.querySelectorAll('[data-edit-topic]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const topic=btn.dataset.editTopic;
+    q.topics=q.topics||[];
+    if(q.topics.includes(topic))q.topics=q.topics.filter(t=>t!==topic);
+    else{
+      q.topics.push(topic);
+      const grade=topicGrade(q.subject,topic);
+      if(grade)q.grade=grade;
+    }
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-err]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const tagId=btn.dataset.editErr;
+    q.errorTypes=q.errorTypes||[];
+    if(q.errorTypes.includes(tagId)){
+      q.errorTypes=q.errorTypes.filter(t=>t!==tagId);
+      if(q.errorDetails)delete q.errorDetails[tagId];
+    }else q.errorTypes.push(tagId);
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-subtag]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const tagId=btn.dataset.editSubtag;
+    const subId=btn.dataset.subId;
+    q.errorDetails=q.errorDetails||{};
+    if(!Array.isArray(q.errorDetails[tagId]))q.errorDetails[tagId]=[];
+    const values=q.errorDetails[tagId];
+    q.errorDetails[tagId]=values.includes(subId)?values.filter(x=>x!==subId):[...values,subId];
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-special]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const tagId=btn.dataset.editSpecial;
+    q.specialTags=q.specialTags||[];
+    q.specialTags=q.specialTags.includes(tagId)
+      ?q.specialTags.filter(t=>t!==tagId)
+      :[...q.specialTags,tagId];
+    refresh(true);
+  };});
+
+  scope.querySelectorAll('[data-edit-question-type]').forEach(btn=>{btn.onclick=(e)=>{
+    e.stopPropagation();
+    const typeId=btn.dataset.editQuestionType;
+    q.questionTypes=Array.isArray(q.questionTypes)?q.questionTypes:[];
+    q.questionTypes=q.questionTypes.includes(typeId)
+      ?q.questionTypes.filter(id=>id!==typeId)
+      :[...q.questionTypes,typeId];
+    refresh(true);
+  };});
+
+  bindQuestionTypeAdd(scope,q,()=>refresh(true));
 }
 
 function bindNoteItemHandlers(exam,box,item){
@@ -1132,62 +1291,7 @@ function bindNoteItemHandlers(exam,box,item){
   const del=item.querySelector('[data-note-del]');
   if(del)del.onclick=(e)=>{e.stopPropagation();q.noteHidden=true;q.ts=Date.now();save();renderExamNotesTab(exam,box);toast('پنهان شد');};
 
-  item.querySelectorAll('[data-edit-topic]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const topic=btn.dataset.editTopic;
-    q.topics=q.topics||[];
-    if(q.topics.includes(topic))q.topics=q.topics.filter(t=>t!==topic);
-    else{
-      q.topics.push(topic);
-      const grade=topicGrade(q.subject,topic);
-      if(grade)q.grade=grade;
-    }
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-err]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const tagId=btn.dataset.editErr;
-    q.errorTypes=q.errorTypes||[];
-    if(q.errorTypes.includes(tagId)){
-      q.errorTypes=q.errorTypes.filter(t=>t!==tagId);
-      if(q.errorDetails)delete q.errorDetails[tagId];
-    }else q.errorTypes.push(tagId);
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-subtag]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const tagId=btn.dataset.editSubtag;
-    const subId=btn.dataset.subId;
-    q.errorDetails=q.errorDetails||{};
-    if(!Array.isArray(q.errorDetails[tagId]))q.errorDetails[tagId]=[];
-    const values=q.errorDetails[tagId];
-    q.errorDetails[tagId]=values.includes(subId)?values.filter(x=>x!==subId):[...values,subId];
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-special]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const tagId=btn.dataset.editSpecial;
-    q.specialTags=q.specialTags||[];
-    q.specialTags=q.specialTags.includes(tagId)
-      ?q.specialTags.filter(t=>t!==tagId)
-      :[...q.specialTags,tagId];
-    refresh(true);
-  };});
-
-  item.querySelectorAll('[data-edit-question-type]').forEach(btn=>{btn.onclick=(e)=>{
-    e.stopPropagation();
-    const typeId=btn.dataset.editQuestionType;
-    q.questionTypes=Array.isArray(q.questionTypes)?q.questionTypes:[];
-    q.questionTypes=q.questionTypes.includes(typeId)
-      ?q.questionTypes.filter(id=>id!==typeId)
-      :[...q.questionTypes,typeId];
-    refresh(true);
-  };});
-
-  bindQuestionTypeAdd(item,q,()=>refresh(true));
+  bindQuestionTagHandlers(exam,item,q,refresh);
 
   item.querySelectorAll('[data-solvable]').forEach(btn=>{btn.onclick=(e)=>{
     e.stopPropagation();
@@ -1225,7 +1329,11 @@ function bindNoteItemHandlers(exam,box,item){
 function renderExamNotesTab(exam,box){
   setNoteTagSidebarOpen(false);
   const allQs=getSortedQuestions(exam);
-  if(!allQs.length){box.innerHTML='<div class="empty-state">سوالی برای تحلیل نیست</div>';return;}
+  if(!allQs.length){
+    box.innerHTML='<div class="empty-state">سوالی برای تحلیل نیست</div>';
+    renderAnalysisTagSidebar(exam,null);
+    return;
+  }
 
   const sectionBySubject={};
   allQs.forEach(question=>{
@@ -1282,8 +1390,7 @@ function renderExamNotesTab(exam,box){
     });
   }
   box.innerHTML=html;
-  const noteTagToggle=document.getElementById('noteTagToggle');
-  if(noteTagToggle)noteTagToggle.hidden=!box.querySelector('.note-tag-sidebar');
+  renderAnalysisTagSidebar(exam,currentAnalysisQuestion(exam));
 
   /* ===== Handlers ===== */
   box.querySelectorAll('[data-notes-subject]').forEach(button=>button.onclick=()=>{

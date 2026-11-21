@@ -294,6 +294,7 @@ test('REWORK: dashboard insights are a mistake-tag distribution, not progress', 
   const sandbox = loadFunctions('js/05-exam.js', ['isQuestionAnalyzed', 'examInsights'], {
     state: {
       subjects: [{ name: 'ریاضی', type: 'specialized' }],
+      commonErrors: [{ id: 'e1', label: 'tag-e1' }],
       exams: [{
         id: 'e1',
         questions: [
@@ -310,28 +311,43 @@ test('REWORK: dashboard insights are a mistake-tag distribution, not progress', 
   });
   const d = sandbox.examInsights();
   assert.strictEqual(d.total, 2, 'correct and pending questions are excluded');
-  assert.deepStrictEqual(Array.from(d.tags.map(t => t.id)), ['e1', 's1']);
+  assert.deepStrictEqual(Array.from(d.tags.map(t => t.id)), ['e1'],
+    'only general mistake tags belong in the dashboard distribution');
   assert.strictEqual(d.byTag['tag-e1'], 1);
-  assert.strictEqual(d.byTag['tag-s1'], 1);
+  assert.strictEqual(d.byTag['tag-s1'], undefined, 'special tags must be ignored');
 });
 
 /* ---------- Static integration checks ---------- */
-test('REWORK: calendar is inline; only the tag selector has a sidebar/drawer', () => {
+test('REWORK: exams keep the calendar sidebar; analysis uses the tag sidebar', () => {
   const css = read('css/09-exam.css');
   const html = read('index.html');
   const desktop = read('css/14-desktop.css');
   const exam = read('js/05-exam.js');
-  assert.ok(html.includes('examCalendarDetails'), 'inline exam calendar missing');
-  assert.ok(!html.includes('examSidebarToggle'), 'old calendar drawer button still present');
-  assert.ok(html.includes('noteTagToggle'), 'tag drawer button missing');
-  assert.ok(html.includes('noteTagBackdrop'), 'tag drawer backdrop missing');
-  assert.ok(/grid-template-columns:minmax\(0,1fr\) 280px/.test(css));
-  assert.ok(/#examOverlay\.tags-open \.note-tag-sidebar/.test(css));
-  assert.ok(!/#view-exam\.active\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(desktop),
-    'desktop cascade still reserves a calendar column');
+  const examSection = html.slice(html.indexOf('<section class="view" id="view-exam">'), html.indexOf('<!-- ===== OVERVIEW ===== -->'));
+  assert.ok(examSection.indexOf('id="examSide"') < examSection.indexOf('id="examListPane"'),
+    'calendar sidebar must come before the exam list');
+  assert.ok(examSection.includes('id="examAnalysisSide"'), 'analysis tag sidebar missing');
+  assert.ok(examSection.includes('id="examNotesBody"'), 'main notes panel missing');
+  assert.ok(examSection.includes('id="examSidebarToggle"'), 'calendar drawer button missing');
+  assert.ok(examSection.includes('id="noteTagToggle"'), 'tag drawer button missing');
+  assert.ok(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(css));
+  assert.ok(/grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(desktop));
+  assert.ok(/#view-exam\.tags-open \.exam-analysis-side/.test(css));
+  assert.ok(/#view-exam\.sidebar-open \.exam-side/.test(css));
   assert.ok(/function setNoteTagSidebarOpen\(/.test(exam));
-  assert.ok(exam.includes('فقط سلکشن تگ تحلیل سوال (پیشنهادی)'), 'tag sidebar is not scoped correctly');
-  assert.ok(!/exam-layout\.analysis-mode/.test(css), 'stale analysis-mode layout remains');
+  assert.ok(/function setExamSidebarOpen\(/.test(exam));
+  assert.ok(examSection.includes('فقط سلکشن تگ تحلیل سوال (پیشنهادی)'), 'tag sidebar is not scoped correctly');
+  assert.ok(!/function renderExamAnalysisTab\(exam,box\)\{[\s\S]*renderExamNotesTab/.test(exam.slice(
+    exam.indexOf('function renderExamAnalysisTab'), exam.indexOf('/* ============ EXAM SETTINGS MODAL'))),
+    'notes must not be rendered inside the exam overlay');
+});
+
+test('REWORK: tag chips are rendered once in the analysis sidebar, not per note card', () => {
+  const exam = read('js/05-exam.js');
+  const card = exam.slice(exam.indexOf('function noteQuestionCardHTML'), exam.indexOf('function bindQuestionTagHandlers'));
+  assert.ok(!card.includes('note-tag-sidebar'), 'note cards still carry their own tag sidebar');
+  assert.ok(/function renderAnalysisTagSidebar\(/.test(exam));
+  assert.ok(/function bindQuestionTagHandlers\(/.test(exam));
 });
 
 test('REWORK: note section is not collapsible and add-question is one unified form', () => {
@@ -358,7 +374,7 @@ test('REWORK: comprehensive analysis has subject-bound topic/type filters', () =
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r21'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r22'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

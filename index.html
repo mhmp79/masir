@@ -358,28 +358,37 @@
         <button class="seg-btn" data-emode="analysis">🔍 تحلیل آزمون</button>
       </div>
       <div class="exam-layout" id="examLayout">
+        <aside class="exam-side" id="examSide">
+          <details class="exam-calendar-details" id="examCalendarDetails" open>
+            <summary class="exam-calendar-summary">
+              <span class="pcs-icon">📅</span>
+              <span class="pcs-title">تقویم</span>
+              <span class="pcs-date" id="examCalendarSummaryDate">—</span>
+              <span class="pcs-chevron">▼</span>
+            </summary>
+            <div class="card cal-head">
+              <div class="cal-head-nav">
+                <button id="examCalPrev">‹</button>
+                <div id="examCalTitle">—</div>
+                <button id="examCalNext">›</button>
+              </div>
+              <button class="cal-today-icon" id="examCalToday">◉</button>
+            </div>
+            <div class="card">
+              <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
+              <div class="cal-grid" id="examCalGrid"></div>
+            </div>
+          </details>
+        </aside>
+        <aside class="exam-analysis-side" id="examAnalysisSide" hidden>
+          <div class="card note-tag-sidebar" data-note-tag-sidebar>
+            <div class="note-tag-sidebar-title">🏷️ فقط سلکشن تگ تحلیل سوال (پیشنهادی)</div>
+            <div class="note-tag-sidebar-hint">مبحث، تیپ سوال و تگهای اشتباه فقط همان سوالی را که در بخش اصلی انتخاب کرده&#8204;اید تغییر می&#8204;دهند.</div>
+            <div id="analysisTagBox"></div>
+          </div>
+        </aside>
         <div class="exam-main">
           <div id="examListPane">
-            <details class="exam-calendar-details" id="examCalendarDetails" open>
-              <summary class="exam-calendar-summary">
-                <span class="pcs-icon">📅</span>
-                <span class="pcs-title">تقویم</span>
-                <span class="pcs-date" id="examCalendarSummaryDate">—</span>
-                <span class="pcs-chevron">▼</span>
-              </summary>
-              <div class="card cal-head">
-                <div class="cal-head-nav">
-                  <button id="examCalPrev">‹</button>
-                  <div id="examCalTitle">—</div>
-                  <button id="examCalNext">›</button>
-                </div>
-                <button class="cal-today-icon" id="examCalToday">◉</button>
-              </div>
-              <div class="card">
-                <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
-                <div class="cal-grid" id="examCalGrid"></div>
-              </div>
-            </details>
             <div class="card">
               <div class="d-flex items-center justify-between mb-14 gap-6 flex-wrap">
                 <div class="card-title mb-0">📝 آزمون‌ها</div>
@@ -388,19 +397,34 @@
               <div id="examsList"></div>
             </div>
             <div class="card">
-              <div class="card-title">🏷️ پراکندگی اشتباهات</div>
+              <div class="card-title">🏷️ پراکندگی تگهای عمومی اشتباهات</div>
               <div id="examTagStats"></div>
             </div>
           </div>
           <div id="examAnalysisPane" class="hidden">
-            <div class="card exam-analysis-header-card">
-              <div class="card-title">🔍 تحلیل جامع آزمون‌ها</div>
-              <div class="muted" id="gaSub">—</div>
+            <div class="card analysis-exam-picker-card">
+              <div class="d-flex items-center justify-between gap-8 flex-wrap">
+                <div class="card-title mb-0">🔍 تحلیل سوالات آزمون</div>
+                <select class="input" id="analysisExamSelect" aria-label="انتخاب آزمون"></select>
+              </div>
+              <div class="muted mt-8" id="analysisExamHint">سوال غلط یا نزده را از لیست اصلی انتخاب کن؛ تگهای آن در ساید چپ نمایش داده می\u200cشوند.</div>
             </div>
-            <div id="gaBody"></div>
+            <div id="examNotesBody"></div>
+            <details class="card exam-global-analysis-fold">
+              <summary>🔍 تحلیل جامع آزمونها</summary>
+              <div class="exam-analysis-header-card mt-12">
+                <div class="card-title">تجزیه و تحلیل تمام آزمونها</div>
+                <div class="muted" id="gaSub">—</div>
+              </div>
+              <div id="gaBody"></div>
+            </details>
           </div>
         </div>
       </div>
+      <button type="button" id="examSidebarToggle" class="exam-sidebar-fab" aria-label="نمایش تقویم آزمون" aria-expanded="false">📅</button>
+      <div class="exam-sidebar-backdrop" id="examSidebarBackdrop" hidden></div>
+      <button type="button" id="noteTagToggle" class="note-tag-fab" aria-label="نمایش تگهای سوال" aria-expanded="false" hidden>🏷️</button>
+      <div id="noteTagBackdrop" class="note-tag-backdrop" hidden></div>
     </section>
 
     <!-- ===== OVERVIEW ===== -->
@@ -457,8 +481,6 @@
     </header>
     <main id="examOverlayBody"></main>
   </div>
-  <button type="button" id="noteTagToggle" class="note-tag-fab" aria-label="نمایش تگ‌های سوال" aria-expanded="false" hidden>🏷️</button>
-  <div id="noteTagBackdrop" class="note-tag-backdrop" hidden></div>
 </div>
 
 <!-- ===== EXAM COMPARE OVERLAY ===== -->

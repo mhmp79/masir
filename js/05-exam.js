@@ -1065,13 +1065,15 @@ function noteErrorDetailsHTML(q){
   return displayChips.length?`<div class="nc-subtags-show">${displayChips.join('')}</div>`:'';
 }
 
-/* A question can be a classic four-option item or a case-based item. Case
-   options are numbered automatically; the count is adjustable. Older records
-   are inferred from their stored options, and legacy text is never deleted. */
+/* A question is either a classic four-option item or a multi-item question
+   (چندموردی): one main stem, several numbered statements (`caseItems`) and
+   answer options whose values are numbers stating how many statements are
+   correct. Legacy text is never deleted; numeric MCQ options stay MCQ. */
 function questionPaperExists(q){
   if(!q)return false;
   const options=Array.isArray(q.options)?q.options.filter(text=>String(text||'').trim()):[];
   return q.questionKind==='mcq'||q.questionKind==='case'||
+    (Array.isArray(q.caseItems)&&q.caseItems.length>0)||
     options.length>0||(Array.isArray(q.correctOptions)&&q.correctOptions.length>0);
 }
 
@@ -1079,19 +1081,22 @@ function inferQuestionKind(q){
   if(q.questionKind)return q.questionKind;
   if(!questionPaperExists(q))return '';
   const options=Array.isArray(q.options)?q.options:[];
-  const numeric=options.length>0&&options.every(text=>/^[0-9۰-۹]+$/.test(String(text||'').trim()));
-  q.questionKind=(numeric||options.length>4)?'case':'mcq';
+  const hasCaseItems=Array.isArray(q.caseItems)&&q.caseItems.length>0;
+  q.questionKind=(hasCaseItems||options.length>4)?'case':'mcq';
   return q.questionKind;
 }
 
 function ensureQuestionPaperDraft(q){
   if(!Array.isArray(q.options))q.options=[];
   if(!Array.isArray(q.correctOptions))q.correctOptions=[];
+  if(!Array.isArray(q.caseItems))q.caseItems=[];
   inferQuestionKind(q);
   if(q.questionKind==='case'){
-    const count=Math.max(2,Math.min(10,q.options.length||4));
-    q.options=Array.from({length:count},(_,i)=>fa(i+1));
-    q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<count);
+    while(q.caseItems.length<4)q.caseItems.push('');
+    q.caseItems=q.caseItems.slice(0,10).map(item=>String(item||''));
+    while(q.options.length<4)q.options.push(fa(q.options.length+1));
+    q.options=q.options.slice(0,10).map(value=>String(value||''));
+    q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<q.options.length);
   }else if(q.questionKind==='mcq'){
     while(q.options.length<4)q.options.push('');
   }
@@ -1106,7 +1111,7 @@ function questionPaperHTML(q,ownerId){
       <div class="nc-qpaper-title">📋 سوال و پاسخ</div>
       <div class="aq-mode-picker" data-q-kind-picker>
         <button type="button" data-q-kind="mcq">چهار گزینه ای</button>
-        <button type="button" data-q-kind="case">موردی (پیش فرض ۴)</button>
+        <button type="button" data-q-kind="case">چندموردی</button>
       </div>
     </div>`;
   }
@@ -1115,24 +1120,31 @@ function questionPaperHTML(q,ownerId){
   const correct=q.correctOptions[0];
   const stepper=isCase?`<div class="nc-case-stepper">
     <button type="button" data-case-step="-1" title="کم کردن مورد">−</button>
-    <span>${fa(q.options.length)} مورد</span>
+    <span>${fa(q.caseItems.length)} مورد</span>
     <button type="button" data-case-step="1" title="اضافه کردن مورد">＋</button>
   </div>`:'';
-  const options=q.options.map((text,i)=>isCase
-    ?`<div class="nc-option-edit-row">
-        <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="مورد درست">${fa(i+1)}</button>
-        <span class="nc-option-number">گزینه ${fa(i+1)}</span>
-      </div>`
-    :`<div class="nc-option-edit-row">
-        <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
-        <input class="input nc-option-input" data-option-index="${i}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
-      </div>`).join('');
+  const caseItems=isCase?`<div class="nc-case-items">
+    <div class="nc-case-label">موارد سوال (هر مورد صورت جداگانه دارد)</div>
+    ${q.caseItems.map((item,i)=>`<div class="nc-case-item-row">
+      <span class="nc-case-item-num">${fa(i+1)}</span>
+      <input class="input nc-case-item-input" data-case-item="${i}" value="${esc(item||'')}" placeholder="مورد ${fa(i+1)}" maxlength="300">
+      <button type="button" class="nc-case-item-del" data-case-item-del="${i}" title="حذف مورد" aria-label="حذف مورد ${fa(i+1)}">×</button>
+    </div>`).join('')}
+  </div>`:'';
+  const options=q.options.map((text,i)=>`<div class="nc-option-edit-row">
+    <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
+    ${isCase
+      ?`<input class="input nc-option-input num-input" inputmode="numeric" dir="ltr" data-option-index="${i}" value="${esc(text||'')}" placeholder="تعداد درست" maxlength="10">`
+      :`<input class="input nc-option-input" data-option-index="${i}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">`}
+  </div>`).join('');
   return `<div class="nc-qpaper" data-qpaper="${id}">
     <div class="nc-qpaper-head">
-      <div class="nc-qpaper-title">📋 ${isCase?'سوال موردی':'سوال چهار گزینه ای'} + جواب درست</div>
+      <div class="nc-qpaper-title">📋 ${isCase?'سوال چندموردی':'سوال چهار گزینه ای'} + جواب درست</div>
       ${stepper}
     </div>
-    <textarea class="nc-qa-input nc-question-input" data-q-text="${id}" placeholder="متن سوال (اختیاری)...">${esc(q.questionText||'')}</textarea>
+    <textarea class="nc-qa-input nc-question-input" data-q-text="${id}" placeholder="${isCase?'متن سوال اصلی (مثلاً: چند مورد از موارد بالا صحیح است؟)...':'متن سوال (اختیاری)...'}">${esc(q.questionText||'')}</textarea>
+    ${caseItems}
+    ${isCase?'<div class="nc-case-label">گزینه ها (عدد تعداد موارد درست)</div>':''}
     <div class="nc-option-edit-list">${options}</div>
     <textarea class="nc-qa-input nc-answer-input" data-a-text="${id}" placeholder="توضیح جواب (اختیاری)...">${esc(q.answerText||'')}</textarea>
     <button type="button" class="nc-q-delete" data-q-delete="${id}">🗑 حذف سوال و جواب</button>
@@ -1145,7 +1157,7 @@ function questionPaperLauncherHTML(q){
     <button type="button" class="mini-btn nc-qpaper-add" data-qpaper-add>＋ افزودن سوال و پاسخ</button>
     <div class="aq-mode-picker" data-q-kind-picker hidden>
       <button type="button" data-q-kind="mcq">چهار گزینه ای</button>
-      <button type="button" data-q-kind="case">موردی (پیش فرض ۴)</button>
+      <button type="button" data-q-kind="case">چندموردی</button>
     </div>
   </div>`;
 }
@@ -1184,9 +1196,17 @@ function bindQuestionPaper(scope,q,handlers){
   scope.querySelectorAll('[data-case-step]').forEach(button=>{
     button.onclick=(e)=>{
       e.stopPropagation();
-      const next=Math.max(2,Math.min(10,q.options.length+(+button.dataset.caseStep)));
-      q.options=Array.from({length:next},(_,i)=>fa(i+1));
-      q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<next);
+      const next=Math.max(2,Math.min(10,q.caseItems.length+(+button.dataset.caseStep)));
+      while(q.caseItems.length<next)q.caseItems.push('');
+      q.caseItems=q.caseItems.slice(0,next);
+      rerender();
+    };
+  });
+  scope.querySelectorAll('[data-case-item-del]').forEach(button=>{
+    button.onclick=(e)=>{
+      e.stopPropagation();
+      if(q.caseItems.length<=2)return;
+      q.caseItems.splice(+button.dataset.caseItemDel,1);
       rerender();
     };
   });
@@ -1218,6 +1238,12 @@ function bindQuestionPaper(scope,q,handlers){
       const index=+el.dataset.optionIndex;
       ensureQuestionPaperDraft(q);
       q.options[index]=el.value;
+    });
+  });
+  scope.querySelectorAll('[data-case-item]').forEach(input=>{
+    track(input,el=>{
+      ensureQuestionPaperDraft(q);
+      q.caseItems[+el.dataset.caseItem]=el.value;
     });
   });
 }
@@ -1508,7 +1534,7 @@ function openQuestionNoteEditor(examId,qId){
     ?allowedGrades[0]
     :(allowedGrades.includes(q.grade)?q.grade:'');
   const initialTopics=q.topics.filter(topic=>getTopics(q.subject,initialGrade).includes(topic));
-  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,questionKind:q.questionKind||'',options:Array.isArray(q.options)?q.options.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
+  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,questionKind:q.questionKind||'',options:Array.isArray(q.options)?q.options.slice():[],caseItems:Array.isArray(q.caseItems)?q.caseItems.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
   const color=subjColor(q.subject);
   const specialTagsForSubject = getSpecialTagsForSubject(q.subject);
 
@@ -1637,7 +1663,7 @@ function openQuestionNoteEditor(examId,qId){
       const noteEl2=document.getElementById('qNote');if(noteEl2)s.note=noteEl2.value;
       ensureQuestionPaperDraft(s);
       if(s.status==='correct'){s.errorTypes=[];s.errorDetails={};s.reviewSolvable=null;}
-      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.questionKind=s.questionKind||'';q.options=s.options.slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
+      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.questionKind=s.questionKind||'';q.options=s.options.slice();q.caseItems=(s.caseItems||[]).slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
       syncExamResultsFromAnswers(exam);
       autoStarCorrectQuestion(q);
       save();closeModal();
@@ -1719,7 +1745,7 @@ function openAddQuestionsModal(id){
   const exam=state.exams.find(e=>e.id===id);if(!exam)return;
   const examSubjects=state.subjects.filter(s=>s.type==='specialized');
   if(!examSubjects.length){toast('هیچ درس تخصصی تعریف نشده');return;}
-  const draft={questionKind:'',options:[],correctOptions:[],questionText:'',answerText:''};
+  const draft={questionKind:'',options:[],caseItems:[],correctOptions:[],questionText:'',answerText:''};
 
   openModal(`<div class="modal-head"><div class="card-title">➕ افزودن سوال</div><button class="icon-btn" data-close>✕</button></div>
     <label class="lbl mt-0">درس</label>
@@ -1751,7 +1777,7 @@ function openAddQuestionsModal(id){
       id:uid(),subject,number:Math.max(0,...exam.questions.map(q=>q.number))+1,
       grade,topics:examTopics.slice(),status:'pending',
       errorTypes:[],errorDetails:{},specialTags:[],questionTypes:[],
-      questionKind:draft.questionKind,options:draft.options.slice(),correctOptions:[correct],
+      questionKind:draft.questionKind,options:draft.options.slice(),caseItems:draft.caseItems.slice(),correctOptions:[correct],
       legacyCorrectOptions:[],starred:false,questionText,
       answerText:String(draft.answerText||'').trim(),reviewSolvable:null,
       figureRef:'',note:'',noteHidden:false,ts:Date.now()
@@ -1916,14 +1942,18 @@ function renderGlobalAnalysis(){
       const starBadge = q.starred ? '<span class="ac-err star">⭐</span>' : '';
       const hasQ = q.questionText && q.questionText.trim();
       const hasA = q.answerText && q.answerText.trim();
-      const options=Array.isArray(q.options)?q.options.slice(0,4):[];
+      const options=Array.isArray(q.options)?q.options.slice():[];
+      const caseItems=Array.isArray(q.caseItems)?q.caseItems.filter(item=>String(item||'').trim()):[];
       const correct=Array.isArray(q.correctOptions)?q.correctOptions:[];
       let qaBlock = '';
       if(hasQ){qaBlock += `<div class="ac-question-block"><div class="ac-q-label">📋 سوال</div><div class="ac-q-text">${esc(q.questionText)}</div></div>`;}
+      if(caseItems.length){
+        qaBlock+=`<div class="ac-case-items"><div class="ac-q-label">📋 موارد سوال (${fa(caseItems.length)})</div>${caseItems.map((item,i)=>`<div class="ac-case-item"><b>${fa(i+1)}.</b> ${esc(item)}</div>`).join('')}</div>`;
+      }
       if(options.length){
         qaBlock+=`<div class="ac-options">${options.map((text,i)=>{
-          const mark=q.questionKind==='case'?fa(i+1):String.fromCharCode(65+i);
-          return `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${mark}. ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`;
+          const mark=q.questionKind==='case'?`${fa(i+1)})`:`${String.fromCharCode(65+i)}.`;
+          return `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${mark} ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`;
         }).join('')}</div>`;
       }
       if(hasA){qaBlock += `<button type="button" class="ac-show-answer" data-show-answer="${q.id}">👁️ نمایش پاسخ</button><div class="ac-answer-content hidden" data-answer-for="${q.id}">${esc(q.answerText)}</div>`;}

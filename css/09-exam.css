@@ -570,6 +570,12 @@
   border-right: 3px solid rgba(124,92,255,.5);
   border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.ac-case-items{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.ac-case-item{
+  font-size:10.5px;color:#cbd3e8;padding:3px 7px;border-radius:5px;
+  background:rgba(34,211,238,.05);line-height:1.6;
+}
+.ac-case-item b{color:#4de2f5;font-weight:800;margin-left:4px}
 .ac-options{display:flex;flex-direction:column;gap:3px;margin-top:6px}
 .ac-option-line{
   font-size:10.5px;color:#cbd3e8;padding:3px 7px;border-radius:5px;
@@ -874,6 +880,24 @@
   color:#e8ecf7;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;
 }
 .nc-option-number{flex:1;font-size:10.5px;color:#cbd3e8}
+.nc-case-items{
+  display:flex;flex-direction:column;gap:5px;
+  padding:7px 8px;border-radius:8px;
+  border:1px solid rgba(34,211,238,.16);background:rgba(34,211,238,.035);
+}
+.nc-case-label{font-size:9.5px;font-weight:800;color:#8b94ad;line-height:1.5}
+.nc-case-item-row{display:flex;align-items:center;gap:6px}
+.nc-case-item-num{
+  flex:0 0 20px;height:20px;display:grid;place-items:center;
+  border-radius:6px;background:rgba(124,92,255,.18);color:#c7bfff;
+  font-size:9.5px;font-weight:800;
+}
+.nc-case-item-input{min-height:28px;font-size:10.5px;padding:4px 7px}
+.nc-case-item-del{
+  flex:0 0 22px;height:22px;padding:0;border-radius:6px;
+  border:1px solid rgba(255,139,163,.24);background:rgba(255,139,163,.08);
+  color:#fda4af;font-family:inherit;font-size:13px;line-height:1;cursor:pointer;
+}
 .nc-q-delete{
   align-self:flex-end;padding:5px 8px;border-radius:7px;
   border:1px solid rgba(244,63,94,.3);background:rgba(244,63,94,.08);

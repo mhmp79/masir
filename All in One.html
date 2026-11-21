@@ -953,12 +953,14 @@ select option{background:#0d1524;color:var(--txt)}
 /* SETTINGS — lives inside the app shell: topbar and bottom tabs stay visible */
 #settingsOverlay{
   position:fixed;inset:0;z-index:0;
-  overflow-y:auto;background:transparent;
+  overflow-y:auto;overflow-x:hidden;background:transparent;
   -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
 }
+#settingsOverlay::-webkit-scrollbar{display:none}
 #settingsOverlay .wr-top{display:none}
 #settingsOverlay .wr-shell{
-  max-width:480px;margin:0 auto;
+  width:100%;max-width:480px;margin:0 auto;box-sizing:border-box;
   padding:96px 14px calc(104px + env(safe-area-inset-bottom));
 }
 .app.settings-open{pointer-events:none}
@@ -990,8 +992,9 @@ select option{background:#0d1524;color:var(--txt)}
 }
 
 /* Paged settings: cards open their own page instead of collapsing */
-#settingsBody{display:flex;flex-direction:column;gap:12px}
-.settings-page{display:none;flex-direction:column;gap:12px}
+#settingsBody{display:flex;flex-direction:column;gap:8px}
+#settingsBody .card{margin-bottom:0}
+.settings-page{display:none;flex-direction:column;gap:8px}
 .settings-page.active{display:flex}
 .settings-page-head{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 2px}
 .set-page-back{
@@ -1011,24 +1014,34 @@ select option{background:#0d1524;color:var(--txt)}
   font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;
 }
 .settings-link{
-  width:100%;display:flex;align-items:center;gap:12px;
-  padding:14px;text-align:right;cursor:pointer;
+  width:100%;display:flex;align-items:center;gap:10px;
+  padding:11px 12px;text-align:right;cursor:pointer;
   font-family:inherit;color:inherit;
   transition:border-color .2s,background .2s,transform .2s;
 }
 .settings-link:hover{border-color:rgba(124,92,255,.4);background:rgba(124,92,255,.08);transform:translateY(-1px)}
 .settings-link.danger-link{border-color:rgba(255,139,163,.22)}
+.settings-link .set-link-main{
+  flex:1;min-width:0;display:flex;align-items:center;gap:10px;
+  padding:0;border:0;background:transparent;color:inherit;
+  font:inherit;text-align:right;cursor:pointer;
+}
 .set-link-icon{
-  width:38px;height:38px;flex:0 0 38px;border-radius:12px;
-  display:grid;place-items:center;font-size:18px;
+  width:34px;height:34px;flex:0 0 34px;border-radius:11px;
+  display:grid;place-items:center;font-size:16px;
   background:rgba(124,92,255,.12);
 }
-.set-link-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.set-link-copy b{font-size:12.5px;font-weight:800;color:#e8ecf7}
-.set-link-copy small{font-size:10.5px;color:#8b94ad;line-height:1.5}
-.set-link-arrow{font-size:22px;color:#8b94ad;line-height:1}
-.sync-mini-card{display:flex;align-items:center;gap:12px;padding:14px}
-.sync-mini-btn{flex:0 0 auto;min-width:auto;padding:9px 12px;font-size:11px}
+.set-link-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.set-link-copy b{font-size:12px;font-weight:800;color:#e8ecf7;line-height:1.4}
+.set-link-copy small{font-size:10px;color:#8b94ad;line-height:1.4}
+.set-link-arrow{font-size:20px;color:#8b94ad;line-height:1;flex:0 0 auto}
+.sync-mini-btn{
+  flex:0 0 34px;width:34px;height:34px;display:grid;place-items:center;
+  border:1px solid rgba(34,211,238,.38);border-radius:10px;
+  background:rgba(34,211,238,.12);color:#4de2f5;
+  font-size:15px;line-height:1;cursor:pointer;
+}
+.sync-mini-btn:hover{background:rgba(34,211,238,.2)}
 #gaBody>.flt-card{
   padding:16px;border-color:rgba(124,92,255,.22);
   background:linear-gradient(155deg,rgba(124,92,255,.055),rgba(255,255,255,.02));
@@ -3866,6 +3879,12 @@ body.creating-block .pool-drop-wrap {
   border-right: 3px solid rgba(124,92,255,.5);
   border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere;
 }
+.ac-case-items{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.ac-case-item{
+  font-size:10.5px;color:#cbd3e8;padding:3px 7px;border-radius:5px;
+  background:rgba(34,211,238,.05);line-height:1.6;
+}
+.ac-case-item b{color:#4de2f5;font-weight:800;margin-left:4px}
 .ac-options{display:flex;flex-direction:column;gap:3px;margin-top:6px}
 .ac-option-line{
   font-size:10.5px;color:#cbd3e8;padding:3px 7px;border-radius:5px;
@@ -4170,6 +4189,24 @@ body.creating-block .pool-drop-wrap {
   color:#e8ecf7;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;
 }
 .nc-option-number{flex:1;font-size:10.5px;color:#cbd3e8}
+.nc-case-items{
+  display:flex;flex-direction:column;gap:5px;
+  padding:7px 8px;border-radius:8px;
+  border:1px solid rgba(34,211,238,.16);background:rgba(34,211,238,.035);
+}
+.nc-case-label{font-size:9.5px;font-weight:800;color:#8b94ad;line-height:1.5}
+.nc-case-item-row{display:flex;align-items:center;gap:6px}
+.nc-case-item-num{
+  flex:0 0 20px;height:20px;display:grid;place-items:center;
+  border-radius:6px;background:rgba(124,92,255,.18);color:#c7bfff;
+  font-size:9.5px;font-weight:800;
+}
+.nc-case-item-input{min-height:28px;font-size:10.5px;padding:4px 7px}
+.nc-case-item-del{
+  flex:0 0 22px;height:22px;padding:0;border-radius:6px;
+  border:1px solid rgba(255,139,163,.24);background:rgba(255,139,163,.08);
+  color:#fda4af;font-family:inherit;font-size:13px;line-height:1;cursor:pointer;
+}
 .nc-q-delete{
   align-self:flex-end;padding:5px 8px;border-radius:7px;
   border:1px solid rgba(244,63,94,.3);background:rgba(244,63,94,.08);
@@ -5948,7 +5985,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .app { max-width: 100%; padding: 16px 24px 100px; }
   .topbar { margin: 0 0 14px; padding: 13px 16px; }
   .nav { max-width: 100%; }
-  #settingsOverlay .wr-shell { max-width: 100%; padding: 104px 24px calc(110px + env(safe-area-inset-bottom)); }
+  #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -6047,7 +6084,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     transform: none;
     width: auto; max-width: none;
     flex-direction: column; justify-content: flex-start;
-    margin: 14px 0 14px 14px;
+    margin: 8px 14px 14px 14px;
     padding: 12px 10px; gap: 4px;
     background: rgba(11,16,34,.76);
     backdrop-filter: blur(18px) saturate(150%);-webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -6077,8 +6114,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .nav-btn:not(.active):hover { color: #cfd6ea; }
 
   #settingsOverlay {
-    left: var(--sidebar-w); top: var(--topbar-h);
-    right: 0; bottom: 0;
+    left: 0; right: var(--sidebar-w); top: var(--topbar-h);
+    bottom: 0;
   }
   #settingsOverlay .wr-shell { max-width: 1120px; padding: var(--main-pad); }
 
@@ -7117,16 +7154,13 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           <span class="set-link-arrow">‹</span>
         </button>
 
-        <button type="button" class="card settings-link" data-go="sync">
-          <span class="set-link-icon">☁️</span>
-          <span class="set-link-copy"><b>همگام سازی و حساب کاربری</b><small>ورود، خروج و تنظیمات همگام سازی</small></span>
-          <span class="set-link-arrow">‹</span>
-        </button>
-
-        <div class="card sync-mini-card">
-          <span class="set-link-icon">🔄</span>
-          <span class="set-link-copy"><b>همگام سازی دستی</b><small id="homeSyncState">برای همگام سازی وارد حساب کاربری شوید.</small></span>
-          <button type="button" class="btn primary sync-mini-btn" id="homeSyncNowBtn">همگام سازی</button>
+        <div class="card settings-link sync-link-row">
+          <button type="button" class="set-link-main" data-go="sync">
+            <span class="set-link-icon">☁️</span>
+            <span class="set-link-copy"><b>همگام سازی و حساب کاربری</b><small id="homeSyncState">ورود، خروج و تنظیمات همگام سازی</small></span>
+            <span class="set-link-arrow">‹</span>
+          </button>
+          <button type="button" class="sync-mini-btn" id="homeSyncNowBtn" title="همگام سازی دستی" aria-label="همگام سازی دستی">🔄</button>
         </div>
 
         <button type="button" class="card settings-link" data-go="backup">
@@ -8247,6 +8281,9 @@ function normalizeQuestion(q){
     specialTags: Array.isArray(q.specialTags) ? q.specialTags.filter(t => typeof t === 'string') : [],
     questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
     options,
+    caseItems: Array.isArray(q.caseItems)
+      ? q.caseItems.map(item => String(item && item.text != null ? item.text : item || '')).slice(0, 10)
+      : [],
     correctOptions,
     questionKind: q.questionKind === 'case' ? 'case' : (q.questionKind === 'mcq' ? 'mcq' : ''),
     legacyCorrectOptions: Array.isArray(q.legacyCorrectOptions)
@@ -9754,6 +9791,7 @@ function qHasUsefulInfo(q){
   if(q.questionText && q.questionText.trim()) return true;
   if(q.note && q.note.trim()) return true;
   if(q.answerText && q.answerText.trim()) return true;
+  if(q.caseItems && q.caseItems.some(item => String(item||'').trim())) return true;
   if(q.errorTypes && q.errorTypes.length > 0) return true;
   if(q.specialTags && q.specialTags.length > 0) return true;
   if(q.errorDetails && Object.keys(q.errorDetails).some(k => Array.isArray(q.errorDetails[k]) && q.errorDetails[k].length > 0)) return true;
@@ -15056,13 +15094,15 @@ function noteErrorDetailsHTML(q){
   return displayChips.length?`<div class="nc-subtags-show">${displayChips.join('')}</div>`:'';
 }
 
-/* A question can be a classic four-option item or a case-based item. Case
-   options are numbered automatically; the count is adjustable. Older records
-   are inferred from their stored options, and legacy text is never deleted. */
+/* A question is either a classic four-option item or a multi-item question
+   (چندموردی): one main stem, several numbered statements (`caseItems`) and
+   answer options whose values are numbers stating how many statements are
+   correct. Legacy text is never deleted; numeric MCQ options stay MCQ. */
 function questionPaperExists(q){
   if(!q)return false;
   const options=Array.isArray(q.options)?q.options.filter(text=>String(text||'').trim()):[];
   return q.questionKind==='mcq'||q.questionKind==='case'||
+    (Array.isArray(q.caseItems)&&q.caseItems.length>0)||
     options.length>0||(Array.isArray(q.correctOptions)&&q.correctOptions.length>0);
 }
 
@@ -15070,19 +15110,22 @@ function inferQuestionKind(q){
   if(q.questionKind)return q.questionKind;
   if(!questionPaperExists(q))return '';
   const options=Array.isArray(q.options)?q.options:[];
-  const numeric=options.length>0&&options.every(text=>/^[0-9۰-۹]+$/.test(String(text||'').trim()));
-  q.questionKind=(numeric||options.length>4)?'case':'mcq';
+  const hasCaseItems=Array.isArray(q.caseItems)&&q.caseItems.length>0;
+  q.questionKind=(hasCaseItems||options.length>4)?'case':'mcq';
   return q.questionKind;
 }
 
 function ensureQuestionPaperDraft(q){
   if(!Array.isArray(q.options))q.options=[];
   if(!Array.isArray(q.correctOptions))q.correctOptions=[];
+  if(!Array.isArray(q.caseItems))q.caseItems=[];
   inferQuestionKind(q);
   if(q.questionKind==='case'){
-    const count=Math.max(2,Math.min(10,q.options.length||4));
-    q.options=Array.from({length:count},(_,i)=>fa(i+1));
-    q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<count);
+    while(q.caseItems.length<4)q.caseItems.push('');
+    q.caseItems=q.caseItems.slice(0,10).map(item=>String(item||''));
+    while(q.options.length<4)q.options.push(fa(q.options.length+1));
+    q.options=q.options.slice(0,10).map(value=>String(value||''));
+    q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<q.options.length);
   }else if(q.questionKind==='mcq'){
     while(q.options.length<4)q.options.push('');
   }
@@ -15097,7 +15140,7 @@ function questionPaperHTML(q,ownerId){
       <div class="nc-qpaper-title">📋 سوال و پاسخ</div>
       <div class="aq-mode-picker" data-q-kind-picker>
         <button type="button" data-q-kind="mcq">چهار گزینه ای</button>
-        <button type="button" data-q-kind="case">موردی (پیش فرض ۴)</button>
+        <button type="button" data-q-kind="case">چندموردی</button>
       </div>
     </div>`;
   }
@@ -15106,24 +15149,31 @@ function questionPaperHTML(q,ownerId){
   const correct=q.correctOptions[0];
   const stepper=isCase?`<div class="nc-case-stepper">
     <button type="button" data-case-step="-1" title="کم کردن مورد">−</button>
-    <span>${fa(q.options.length)} مورد</span>
+    <span>${fa(q.caseItems.length)} مورد</span>
     <button type="button" data-case-step="1" title="اضافه کردن مورد">＋</button>
   </div>`:'';
-  const options=q.options.map((text,i)=>isCase
-    ?`<div class="nc-option-edit-row">
-        <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="مورد درست">${fa(i+1)}</button>
-        <span class="nc-option-number">گزینه ${fa(i+1)}</span>
-      </div>`
-    :`<div class="nc-option-edit-row">
-        <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
-        <input class="input nc-option-input" data-option-index="${i}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
-      </div>`).join('');
+  const caseItems=isCase?`<div class="nc-case-items">
+    <div class="nc-case-label">موارد سوال (هر مورد صورت جداگانه دارد)</div>
+    ${q.caseItems.map((item,i)=>`<div class="nc-case-item-row">
+      <span class="nc-case-item-num">${fa(i+1)}</span>
+      <input class="input nc-case-item-input" data-case-item="${i}" value="${esc(item||'')}" placeholder="مورد ${fa(i+1)}" maxlength="300">
+      <button type="button" class="nc-case-item-del" data-case-item-del="${i}" title="حذف مورد" aria-label="حذف مورد ${fa(i+1)}">×</button>
+    </div>`).join('')}
+  </div>`:'';
+  const options=q.options.map((text,i)=>`<div class="nc-option-edit-row">
+    <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
+    ${isCase
+      ?`<input class="input nc-option-input num-input" inputmode="numeric" dir="ltr" data-option-index="${i}" value="${esc(text||'')}" placeholder="تعداد درست" maxlength="10">`
+      :`<input class="input nc-option-input" data-option-index="${i}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">`}
+  </div>`).join('');
   return `<div class="nc-qpaper" data-qpaper="${id}">
     <div class="nc-qpaper-head">
-      <div class="nc-qpaper-title">📋 ${isCase?'سوال موردی':'سوال چهار گزینه ای'} + جواب درست</div>
+      <div class="nc-qpaper-title">📋 ${isCase?'سوال چندموردی':'سوال چهار گزینه ای'} + جواب درست</div>
       ${stepper}
     </div>
-    <textarea class="nc-qa-input nc-question-input" data-q-text="${id}" placeholder="متن سوال (اختیاری)...">${esc(q.questionText||'')}</textarea>
+    <textarea class="nc-qa-input nc-question-input" data-q-text="${id}" placeholder="${isCase?'متن سوال اصلی (مثلاً: چند مورد از موارد بالا صحیح است؟)...':'متن سوال (اختیاری)...'}">${esc(q.questionText||'')}</textarea>
+    ${caseItems}
+    ${isCase?'<div class="nc-case-label">گزینه ها (عدد تعداد موارد درست)</div>':''}
     <div class="nc-option-edit-list">${options}</div>
     <textarea class="nc-qa-input nc-answer-input" data-a-text="${id}" placeholder="توضیح جواب (اختیاری)...">${esc(q.answerText||'')}</textarea>
     <button type="button" class="nc-q-delete" data-q-delete="${id}">🗑 حذف سوال و جواب</button>
@@ -15136,7 +15186,7 @@ function questionPaperLauncherHTML(q){
     <button type="button" class="mini-btn nc-qpaper-add" data-qpaper-add>＋ افزودن سوال و پاسخ</button>
     <div class="aq-mode-picker" data-q-kind-picker hidden>
       <button type="button" data-q-kind="mcq">چهار گزینه ای</button>
-      <button type="button" data-q-kind="case">موردی (پیش فرض ۴)</button>
+      <button type="button" data-q-kind="case">چندموردی</button>
     </div>
   </div>`;
 }
@@ -15175,9 +15225,17 @@ function bindQuestionPaper(scope,q,handlers){
   scope.querySelectorAll('[data-case-step]').forEach(button=>{
     button.onclick=(e)=>{
       e.stopPropagation();
-      const next=Math.max(2,Math.min(10,q.options.length+(+button.dataset.caseStep)));
-      q.options=Array.from({length:next},(_,i)=>fa(i+1));
-      q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<next);
+      const next=Math.max(2,Math.min(10,q.caseItems.length+(+button.dataset.caseStep)));
+      while(q.caseItems.length<next)q.caseItems.push('');
+      q.caseItems=q.caseItems.slice(0,next);
+      rerender();
+    };
+  });
+  scope.querySelectorAll('[data-case-item-del]').forEach(button=>{
+    button.onclick=(e)=>{
+      e.stopPropagation();
+      if(q.caseItems.length<=2)return;
+      q.caseItems.splice(+button.dataset.caseItemDel,1);
       rerender();
     };
   });
@@ -15209,6 +15267,12 @@ function bindQuestionPaper(scope,q,handlers){
       const index=+el.dataset.optionIndex;
       ensureQuestionPaperDraft(q);
       q.options[index]=el.value;
+    });
+  });
+  scope.querySelectorAll('[data-case-item]').forEach(input=>{
+    track(input,el=>{
+      ensureQuestionPaperDraft(q);
+      q.caseItems[+el.dataset.caseItem]=el.value;
     });
   });
 }
@@ -15499,7 +15563,7 @@ function openQuestionNoteEditor(examId,qId){
     ?allowedGrades[0]
     :(allowedGrades.includes(q.grade)?q.grade:'');
   const initialTopics=q.topics.filter(topic=>getTopics(q.subject,initialGrade).includes(topic));
-  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,questionKind:q.questionKind||'',options:Array.isArray(q.options)?q.options.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
+  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,questionKind:q.questionKind||'',options:Array.isArray(q.options)?q.options.slice():[],caseItems:Array.isArray(q.caseItems)?q.caseItems.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
   const color=subjColor(q.subject);
   const specialTagsForSubject = getSpecialTagsForSubject(q.subject);
 
@@ -15628,7 +15692,7 @@ function openQuestionNoteEditor(examId,qId){
       const noteEl2=document.getElementById('qNote');if(noteEl2)s.note=noteEl2.value;
       ensureQuestionPaperDraft(s);
       if(s.status==='correct'){s.errorTypes=[];s.errorDetails={};s.reviewSolvable=null;}
-      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.questionKind=s.questionKind||'';q.options=s.options.slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
+      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.questionKind=s.questionKind||'';q.options=s.options.slice();q.caseItems=(s.caseItems||[]).slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
       syncExamResultsFromAnswers(exam);
       autoStarCorrectQuestion(q);
       save();closeModal();
@@ -15710,7 +15774,7 @@ function openAddQuestionsModal(id){
   const exam=state.exams.find(e=>e.id===id);if(!exam)return;
   const examSubjects=state.subjects.filter(s=>s.type==='specialized');
   if(!examSubjects.length){toast('هیچ درس تخصصی تعریف نشده');return;}
-  const draft={questionKind:'',options:[],correctOptions:[],questionText:'',answerText:''};
+  const draft={questionKind:'',options:[],caseItems:[],correctOptions:[],questionText:'',answerText:''};
 
   openModal(`<div class="modal-head"><div class="card-title">➕ افزودن سوال</div><button class="icon-btn" data-close>✕</button></div>
     <label class="lbl mt-0">درس</label>
@@ -15742,7 +15806,7 @@ function openAddQuestionsModal(id){
       id:uid(),subject,number:Math.max(0,...exam.questions.map(q=>q.number))+1,
       grade,topics:examTopics.slice(),status:'pending',
       errorTypes:[],errorDetails:{},specialTags:[],questionTypes:[],
-      questionKind:draft.questionKind,options:draft.options.slice(),correctOptions:[correct],
+      questionKind:draft.questionKind,options:draft.options.slice(),caseItems:draft.caseItems.slice(),correctOptions:[correct],
       legacyCorrectOptions:[],starred:false,questionText,
       answerText:String(draft.answerText||'').trim(),reviewSolvable:null,
       figureRef:'',note:'',noteHidden:false,ts:Date.now()
@@ -15907,14 +15971,18 @@ function renderGlobalAnalysis(){
       const starBadge = q.starred ? '<span class="ac-err star">⭐</span>' : '';
       const hasQ = q.questionText && q.questionText.trim();
       const hasA = q.answerText && q.answerText.trim();
-      const options=Array.isArray(q.options)?q.options.slice(0,4):[];
+      const options=Array.isArray(q.options)?q.options.slice():[];
+      const caseItems=Array.isArray(q.caseItems)?q.caseItems.filter(item=>String(item||'').trim()):[];
       const correct=Array.isArray(q.correctOptions)?q.correctOptions:[];
       let qaBlock = '';
       if(hasQ){qaBlock += `<div class="ac-question-block"><div class="ac-q-label">📋 سوال</div><div class="ac-q-text">${esc(q.questionText)}</div></div>`;}
+      if(caseItems.length){
+        qaBlock+=`<div class="ac-case-items"><div class="ac-q-label">📋 موارد سوال (${fa(caseItems.length)})</div>${caseItems.map((item,i)=>`<div class="ac-case-item"><b>${fa(i+1)}.</b> ${esc(item)}</div>`).join('')}</div>`;
+      }
       if(options.length){
         qaBlock+=`<div class="ac-options">${options.map((text,i)=>{
-          const mark=q.questionKind==='case'?fa(i+1):String.fromCharCode(65+i);
-          return `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${mark}. ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`;
+          const mark=q.questionKind==='case'?`${fa(i+1)})`:`${String.fromCharCode(65+i)}.`;
+          return `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${mark} ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`;
         }).join('')}</div>`;
       }
       if(hasA){qaBlock += `<button type="button" class="ac-show-answer" data-show-answer="${q.id}">👁️ نمایش پاسخ</button><div class="ac-answer-content hidden" data-answer-for="${q.id}">${esc(q.answerText)}</div>`;}
@@ -17383,7 +17451,7 @@ function updateHomeSyncState(){
   const el=document.getElementById('homeSyncState');
   if(!el) return;
   const loggedIn=typeof isLoggedIn==='function'&&isLoggedIn();
-  el.textContent=loggedIn?'وضعیت: همگام سازی فعال است.':'برای همگام سازی وارد حساب کاربری شوید.';
+  el.textContent=loggedIn?'همگام سازی فعال است':'برای همگام سازی وارد حساب شوید';
 }
 const _homeSyncNowBtn=document.getElementById('homeSyncNowBtn');
 if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{

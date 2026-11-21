@@ -5,7 +5,7 @@
    نسخه ۰.۹.۴ — state.sessions جایگزین plan/reserved
    ============================================================ */
 
-const APP_VERSION = '0.9.4';
+const APP_VERSION = '0.9.5';
 if (typeof window !== 'undefined') window.APP_VERSION = APP_VERSION;
 
 /* ============ JALALI ============ */
@@ -2145,7 +2145,11 @@ function switchView(name){
   updateContextButton(name);
   window.scrollTo({top:0,behavior:'smooth'});
 }
-document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>switchView(btn.dataset.view));});
+document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>{
+  const app=document.querySelector('.app');
+  if(app && app.classList.contains('settings-open') && typeof closeSettingsOverlay==='function') closeSettingsOverlay(true);
+  switchView(btn.dataset.view);
+});});
 
 /* ============ MODAL ============ */
 const modalBackdrop=document.getElementById('modalBackdrop');

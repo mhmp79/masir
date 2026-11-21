@@ -1,9 +1,41 @@
 'use strict';
 
 /* ============================================================
-   SETTINGS — Profile (no phone), subjects, tags, exam
-   Sync UI is rendered by 14-pocketbase.js → renderSyncUI()
+   SETTINGS — paged: home → profile / subjects / exam / sync / backup / danger
+   Sync UI is rendered by 12-pocketbase.js → renderSyncUI()
    ============================================================ */
+
+/* ============ PAGED NAVIGATION ============ */
+let settingsPage = 'home';
+function setSettingsPage(page){
+  const overlay=document.getElementById('settingsOverlay');
+  if(!overlay) return;
+  const pages=overlay.querySelectorAll('.settings-page');
+  if(!pages.length) return;
+  settingsPage=Array.from(pages).some(p=>p.dataset.page===page)?page:'home';
+  pages.forEach(p=>{
+    const active=p.dataset.page===settingsPage;
+    p.classList.toggle('active',active);
+    p.hidden=!active;
+  });
+  overlay.scrollTop=0;
+  const body=document.getElementById('settingsBody');
+  if(body) body.scrollTop=0;
+  if(settingsPage==='home') updateHomeSyncState();
+}
+document.querySelectorAll('#settingsBody [data-go]').forEach(btn=>{
+  btn.addEventListener('click',()=>setSettingsPage(btn.dataset.go));
+});
+function updateHomeSyncState(){
+  const el=document.getElementById('homeSyncState');
+  if(!el) return;
+  const loggedIn=typeof isLoggedIn==='function'&&isLoggedIn();
+  el.textContent=loggedIn?'وضعیت: همگام سازی فعال است.':'برای همگام سازی وارد حساب کاربری شوید.';
+}
+const _homeSyncNowBtn=document.getElementById('homeSyncNowBtn');
+if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{
+  if(typeof syncNow==='function') syncNow();
+};
 
 /* ============ PROFILE ============ */
 function renderProfileSection(){
@@ -11,8 +43,6 @@ function renderProfileSection(){
   const displayNameEl = document.getElementById('profileDisplayName');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
-  const editFieldsEl = document.getElementById('profileEditFields');
-  const editBtn = document.getElementById('editProfileBtn');
   const fnEl = document.getElementById('setFirstName');
   const lnEl = document.getElementById('setLastName');
   const fEl = document.getElementById('setField');
@@ -25,19 +55,12 @@ function renderProfileSection(){
   if(lnEl) lnEl.value = p.lastName || '';
   if(fEl) fEl.value = p.field || 'تجربی';
   if(gEl) gEl.value = p.grade || 'دوازدهم';
-  if(editFieldsEl) editFieldsEl.hidden = true;
-  if(editBtn) editBtn.setAttribute('aria-expanded','false');
   updateProfileHint();
   try{ if(typeof renderSyncUI==='function') renderSyncUI(); }catch(e){}
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => {
-  const editFields = document.getElementById('profileEditFields');
-  const isEditing = editFields && !editFields.hidden;
-  if(editFields) editFields.hidden = isEditing;
-  _editProfileBtn.setAttribute('aria-expanded',String(!isEditing));
-};
+if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('profile');
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;
@@ -783,13 +806,10 @@ function setSettingsChrome(open){
   if(brandTitle) brandTitle.classList.toggle('hidden',open);
   if(settingsTitle) settingsTitle.classList.toggle('hidden',!open);
   if(backBtn) backBtn.classList.toggle('hidden',!open);
-  document.querySelectorAll('.nav-btn').forEach(btn=>{
-    if(open) btn.setAttribute('aria-disabled','true');
-    else btn.removeAttribute('aria-disabled');
-  });
 }
 function openSettingsOverlay(){
   const overlay=document.getElementById('settingsOverlay');if(!overlay)return;
+  setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);
   try{renderProfileSection();}catch(e){console.error(e);}
@@ -802,10 +822,14 @@ function openSettingsOverlay(){
   const verEl = document.getElementById('appVersionDisplay');
   if(verEl) verEl.textContent = APP_VERSION;
 }
-function closeSettingsOverlay(){
+function closeSettingsOverlay(force){
   const overlay=document.getElementById('settingsOverlay');
   if(!overlay)return;
-  overlay.querySelectorAll('.acc-card.open').forEach(card=>card.classList.remove('open'));
+  if(force!==true&&settingsPage!=='home'){
+    setSettingsPage('home');
+    return;
+  }
+  setSettingsPage('home');
   renderProfileSection();
   overlay.classList.remove('show');
   setSettingsChrome(false);

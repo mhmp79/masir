@@ -63,6 +63,7 @@ function buildWeeklyTableHTML(data){
     const totBadges=[];
     if(s.total.time>0){totBadges.push(`<span class="meta-badge">⏱ ${hmString(s.total.time)}</span>`);} 
     if(s.total.t>0)totBadges.push(`<span class="meta-badge t-test">📝 ${fa(s.total.t)}</span>`);
+    if(s.total.c||s.total.w||s.total.b)totBadges.push(testBadge(s.total.c,s.total.w,s.total.b));
     const totCompact=s.total.time>0?hmTotalStr(s.total.time):'—';
     const totHTML=totBadges.length?`<span class="cell-time-compact">${totCompact}</span><div class="cell-full"><div class="meta-badges center">${totBadges.join('')}</div></div>`:'<span class="cell-time-compact">—</span><span class="cell-full text-dim">—</span>';
     return`<tr><td class="subj-col"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:6px;background:${s.color};vertical-align:middle"></span><b class="wr-subject-name">${esc(s.name)}</b></td>${cells}<td class="total-col">${totHTML}</td></tr>`;
@@ -92,6 +93,7 @@ function buildWeeklyTableHTML(data){
   const grandBadges=[];
   if(data.grand.time)grandBadges.push(`<span class="meta-badge">⏱ ${hmString(data.grand.time)}</span>`);
   if(data.grand.t)grandBadges.push(`<span class="meta-badge t-test">📝 ${fa(data.grand.t)}</span>`);
+  if(data.grand.c||data.grand.w||data.grand.b)grandBadges.push(testBadge(data.grand.c,data.grand.w,data.grand.b));
   const grandCompact=data.grand.time?hmTotalStr(data.grand.time):'—';
   const grandHTML=grandBadges.length?`<span class="cell-time-compact">${grandCompact}</span><div class="cell-full">${grandBadges.join('')}</div>`:'<span class="cell-time-compact">—</span><span class="cell-full">—</span>';
   const totalsRow=`<tr class="totals-row"><td class="subj-col">مجموع روز</td>${totalCells}<td class="total-col">${grandHTML}</td></tr>`;
@@ -464,8 +466,13 @@ async function generateWeeklyReportCanvas(){
     const lines=[];
     if(s.total.time>0)lines.push({t:'⏱ '+hmString(s.total.time),c:'#4de2f5',f:'700 18px'});
     if(s.total.t>0)lines.push({t:'📝 '+fa(s.total.t)+' تست',c:'#7dd3fc',f:'700 16px'});
-    if(!lines.length){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,cy);}
-    else lines.forEach((ln,idx)=>{const y=cy+(idx-(lines.length-1)/2)*26;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+    const showTriplet=!!(s.total.c||s.total.w||s.total.b);
+    const slots=lines.length+(showTriplet?1:0);
+    if(!slots){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,cy);}
+    else{
+      lines.forEach((ln,idx)=>{const y=cy+(idx-(slots-1)/2)*26;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+      if(showTriplet)drawTriplet(s.total.c,s.total.w,s.total.b,totalLeft+totalColW/2,cy+((slots-1)/2)*26,13);
+    }
     tblY+=rowH;
   });
 
@@ -510,8 +517,13 @@ async function generateWeeklyReportCanvas(){
   const glines=[];
   if(data.grand.time>0)glines.push({t:'⏱ '+hmString(data.grand.time),c:'#4de2f5',f:'800 20px'});
   if(data.grand.t>0)glines.push({t:'📝 '+fa(data.grand.t)+' تست',c:'#7dd3fc',f:'700 17px'});
-  if(!glines.length){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,gcy);}
-  else glines.forEach((ln,idx)=>{const y=gcy+(idx-(glines.length-1)/2)*28;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+  const showGrandTriplet=!!(data.grand.c||data.grand.w||data.grand.b);
+  const gslots=glines.length+(showGrandTriplet?1:0);
+  if(!gslots){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,gcy);}
+  else{
+    glines.forEach((ln,idx)=>{const y=gcy+(idx-(gslots-1)/2)*28;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+    if(showGrandTriplet)drawTriplet(data.grand.c,data.grand.w,data.grand.b,totalLeft+totalColW/2,gcy+((gslots-1)/2)*28,15);
+  }
   tblY+=totalsRowH;
 
   drawCell(subjLeft,tblY,subjColW,sleepRowH,'',{bg:'rgba(99,102,241,.16)'});

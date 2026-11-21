@@ -445,7 +445,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r29'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r30'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -522,7 +522,8 @@ test('REWORK: bottom navigation mirrors the rounded topbar card without a centre
   const desktop = read('css/14-desktop.css');
   const navBtnAt = desktop.indexOf('.nav-btn {');
   const desktopNav = desktop.slice(desktop.lastIndexOf('.nav {', navBtnAt), navBtnAt);
-  assert.ok(/backdrop-filter:\s*none/.test(desktopNav), 'desktop sidebar must stay flat');
+  assert.ok(/backdrop-filter:\s*blur\(18px\) saturate\(150%\)/.test(desktopNav), 'desktop sidebar must match the topbar glass card');
+  assert.ok(!/backdrop-filter:\s*none/.test(desktopNav), 'flat sidebar is gone');
   assert.ok(!/\.nav::before/.test(desktop));
   assert.ok(!/\.nav-btn:nth-child\(3\)/.test(desktop));
   assert.ok(read('css/02-typography.css').includes('[hidden]{display:none!important}'));
@@ -567,11 +568,13 @@ test('REWORK: topbar action buttons use minimal icons and output labels', () => 
   assert.ok(/<svg viewBox="0 0 24 24"/.test(ctxBtn));
   assert.ok(!/📊|🖼️/.test(ctxBtn), 'emoji action icons are gone');
   const ctxCss = buttons.slice(buttons.indexOf('.icon-btn.context-btn{'), buttons.indexOf('/* Settings version footer */'));
-  assert.ok(/border:0;background:transparent/.test(ctxCss));
+  assert.ok(/border-color:rgba\(34,211,238,\.38\)/.test(ctxCss), 'output buttons keep their cyan border');
+  assert.ok(/background:rgba\(34,211,238,\.12\)/.test(ctxCss));
+  assert.ok(/color:#4de2f5/.test(ctxCss), 'output button text colour is restored');
   assert.ok(/stroke:currentColor;fill:none/.test(ctxCss));
 });
 
-test('REWORK: settings stays inside the app shell with visible disabled tabs', () => {
+test('REWORK: settings stays inside the app shell with visible active tabs', () => {
   const html = read('index.html');
   const overlays = read('css/05-overlays.css');
   const settings = read('js/08-settings.js');
@@ -581,17 +584,64 @@ test('REWORK: settings stays inside the app shell with visible disabled tabs', (
   assert.ok(topbar.includes('id="appLogo"'));
   assert.ok(topbar.includes('id="brandTitle"') && topbar.includes('>مسیر کنکور<'));
   assert.ok(topbar.includes('id="settingsTitle"') && topbar.includes('>تنظیمات<'));
-  const settingsCss = overlays.slice(overlays.indexOf('/* SETTINGS — lives inside the app shell'), overlays.indexOf('#settingsBody>.acc-card,'));
+  const settingsCss = overlays.slice(overlays.indexOf('/* SETTINGS — lives inside the app shell'), overlays.indexOf('#gaBody>.flt-card{'));
   assert.ok(/#settingsOverlay\{\s*position:fixed;inset:0;z-index:0/.test(settingsCss));
   assert.ok(/#settingsOverlay \.wr-top\{display:none\}/.test(settingsCss), 'no separate app-within-app header');
   assert.ok(/\.app\.settings-open > main\{display:none\}/.test(settingsCss));
-  assert.ok(/\.app\.settings-open \.nav-btn\{pointer-events:none/.test(settingsCss), 'tabs must stay visible but disabled');
+  assert.ok(!/\.app\.settings-open \.nav-btn\{pointer-events:none/.test(settingsCss), 'tabs must remain active');
   assert.ok(/\.icon-btn\.settings-back-btn svg/.test(settingsCss));
+  assert.ok(/\.icon-btn\.settings-back-btn\{\s*width:44px;height:44px/.test(settingsCss), 'settings back button matches the 44px logo');
   assert.ok(settings.includes('setSettingsChrome(true)') && settings.includes('setSettingsChrome(false)'));
   assert.ok(settings.includes("app.classList.toggle('settings-open',open)"));
   assert.ok(settings.includes("document.getElementById('settingsBackBtn').onclick=closeSettingsOverlay"));
+  assert.ok(!settings.includes("aria-disabled"), 'no disabled tab state remains');
   assert.ok(/#settingsOverlay \{/.test(desktop), 'desktop settings must use the app grid');
   assert.ok(/#settingsOverlay \.wr-shell \{ max-width: 1120px/.test(desktop));
+  assert.ok(/\.icon-btn\.settings-back-btn \{ width: 38px; height: 38px; \}/.test(desktop), 'desktop back button matches the desktop logo');
+});
+
+test('REWORK: settings is paged, with merged sync/account and a direct manual sync', () => {
+  const html = read('index.html');
+  const settings = read('js/08-settings.js');
+  const body = html.slice(html.indexOf('<main class="wr-body" id="settingsBody">'), html.indexOf('</main>', html.indexOf('<main class="wr-body" id="settingsBody">')));
+  const pages = ['home', 'profile', 'subjects', 'exam', 'sync', 'backup', 'danger'];
+  pages.forEach(p => assert.ok(body.includes(`data-page="${p}"`), `${p} page is missing`));
+  assert.ok(!body.includes('data-acc-toggle'), 'settings sections must not collapse');
+  assert.ok(!body.includes('acc-chevron'), 'accordion chevrons are gone');
+  assert.ok(body.includes('id="editProfileBtn"') && body.includes('>پروفایل<'), 'profile card uses a profile button instead of a pencil');
+  assert.ok(!body.includes('✎'), 'pencil is gone');
+  assert.ok(body.includes('id="accountUI"') && body.includes('id="syncUI"'), 'account and sync settings are merged');
+  const syncPage = body.slice(body.indexOf('data-page="sync"'), body.indexOf('data-page="backup"'));
+  assert.ok(syncPage.indexOf('id="accountUI"') < syncPage.indexOf('id="syncUI"'), 'login UI lives inside the sync page');
+  const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="profile"'));
+  assert.ok(homePage.includes('id="homeSyncNowBtn"'), 'manual sync must be available from the home page');
+  assert.ok(settings.includes('function setSettingsPage('));
+  assert.ok(settings.includes("setSettingsPage('home')"));
+  assert.ok(settings.includes('if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{'));
+  assert.ok(settings.includes("if(typeof syncNow==='function') syncNow();"));
+  assert.ok(!settings.includes("editFields.hidden"), 'profile fields no longer toggle hidden inline');
+});
+
+test('REWORK: weekly totals show correct/wrong/blank and plan images have a preview', () => {
+  const reports = read('js/09-reports.js');
+  const plan = read('js/03-plan.js');
+  const reportsCss = read('css/13-reports.css');
+  assert.ok(reports.includes('totBadges.push(testBadge(s.total.c,s.total.w,s.total.b))'), 'activity weekly table last column');
+  assert.ok(reports.includes('grandBadges.push(testBadge(data.grand.c,data.grand.w,data.grand.b))'), 'activity weekly grand total');
+  assert.ok(reports.includes('drawTriplet(s.total.c,s.total.w,s.total.b'), 'weekly report image subject total');
+  assert.ok(reports.includes('drawTriplet(data.grand.c,data.grand.w,data.grand.b'), 'weekly report image grand total');
+  assert.ok(/async function generatePlanWeekCanvas\(/.test(plan), 'plan canvas generator is reusable');
+  assert.ok(plan.includes('return cv;'), 'generator returns the canvas instead of downloading immediately');
+  assert.ok(/async function downloadPlanWeekImage\(/.test(plan), 'download remains a separate step');
+  assert.ok(plan.includes('id="piPreview"'), 'plan picker renders a preview');
+  assert.ok(plan.includes("generatePlanWeekCanvas(ws).then((cv)"), 'preview is generated for the selected week');
+  assert.ok(/\.plan-preview img\{/.test(reportsCss), 'preview has sizing rules');
+});
+
+test('REWORK: app version is 0.9.5 everywhere', () => {
+  assert.ok(read('js/01-core.js').includes("const APP_VERSION = '0.9.5';"));
+  assert.strictEqual(JSON.parse(read('manifest.json')).version, '0.9.5');
+  assert.strictEqual(JSON.parse(read('pwa/twa-manifest.json')).appVersion, '0.9.5');
 });
 
 test('REWORK: installed PWA uses a black status bar, not purple', () => {

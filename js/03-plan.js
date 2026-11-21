@@ -8,6 +8,51 @@ const PHASE_SIZE = 120;
 const PHASE_COUNT = 12;
 function phaseStartMin(n) { return (n - 1) * PHASE_SIZE; }
 
+/* A block's real, half-open time range. Phase cells and pills share this helper
+   so a block ending exactly at a boundary never spills into the next phase. */
+function itemTimeRange(item) {
+  if (!item || item.startMin == null) return null;
+  const start = +item.startMin;
+  const end = item.endMin != null ? +item.endMin : start + (+item.minutes || +item.durMin || 0);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return { start, end: Math.max(start, end) };
+}
+
+/* Persian calendar helpers for the month timeline. j2d returns an absolute day
+   number, so subtracting two month starts gives the real month length. */
+function shiftPersianMonth(jy, jm, delta) {
+  const total = (+jy) * 12 + (+jm) - 1 + (+delta);
+  return { jy: Math.floor(total / 12), jm: ((total % 12) + 12) % 12 + 1 };
+}
+
+function monthKeysOf(jy, jm) {
+  const start = j2d(+jy, +jm, 1);
+  const next = shiftPersianMonth(jy, jm, 1);
+  const count = Math.max(1, j2d(next.jy, next.jm, 1) - start);
+  return Array.from({ length: count }, (_, i) => jKey(d2j(start + i)));
+}
+
+function timelineStepDays() {
+  return tlMode === 'day' ? 1 : tlMode === '3day' ? 3 : 7;
+}
+
+/* Month navigation changes the calendar month instead of jumping a fixed number
+   of days, so the 29/30/31-day months always advance by exactly one screen. */
+function shiftTimelineAnchor(dir) {
+  if (tlMode === 'month') {
+    const m = shiftPersianMonth(calYear, calMonth, dir);
+    calYear = m.jy;
+    calMonth = m.jm;
+    calSelected = jKey(d2j(j2d(m.jy, m.jm, 1)));
+    return calSelected;
+  }
+  calSelected = jKey(d2j(jdnFromKey(calSelected) + dir * timelineStepDays()));
+  const j = parseKey(calSelected);
+  calYear = j.jy;
+  calMonth = j.jm;
+  return calSelected;
+}
+
 let planView = 'timeline';
 let tlMode = 'day';
 let calYear = TODAY_J.jy;
@@ -30,6 +75,7 @@ function syncCompat() {
 }
 
 function timelineContainsToday() {
+  if (tlMode === 'month') return calYear === TODAY_J.jy && calMonth === TODAY_J.jm;
   const jdn = jdnFromKey(calSelected);
   if (tlMode === 'day') return jdn === TODAY_JDN;
   if (tlMode === '3day') return jdn <= TODAY_JDN && TODAY_JDN <= jdn + 2;
@@ -873,6 +919,9 @@ function applyDrop(st, target) {
 function onTimelineSwipeStart(e) {
   if (e.pointerType !== 'touch') return;
   if (!e.target.closest('#tlBody')) return;
+  /* The month grid is wider than the screen and scrolls sideways itself. Keep
+     touch gestures native there so swiping does not change the whole month. */
+  if (tlMode === 'month' && e.target.closest('.wv-scroll')) return;
   if (e.target.closest('.tl-block, .tl-activity, .tl-exam, .tl-sleep, .reserved-bar, [data-sid], button, input, .tl-hour, .resize-handle, .grid-header, .tl-mode-row')) return;
   if (dragState || createDragState) return;
   if (document.getElementById('modalBackdrop')?.classList.contains('show')) return;
@@ -1011,11 +1060,7 @@ function onTimelineSwipeEnd(e) {
     nextEl.style.transform = 'translateX(0)';
 
     setTimeout(() => {
-      const step = tlMode === 'day' ? 1 : tlMode === '3day' ? 3 : 7;
-      calSelected = jKey(d2j(jdnFromKey(calSelected) + direction * step));
-      const j = parseKey(calSelected);
-      calYear = j.jy;
-      calMonth = j.jm;
+      shiftTimelineAnchor(direction);
       syncCompat();
       renderCalendar();
       renderViewContent();
@@ -1047,23 +1092,27 @@ function renderAdjacentTimelineHTML(targetDir) {
   const savedYear = calYear;
   const savedMonth = calMonth;
 
-  const step = tlMode === 'day' ? 1 : tlMode === '3day' ? 3 : 7;
-  const targetJdn = jdnFromKey(calSelected) + targetDir * step;
-
-  calSelected = jKey(d2j(targetJdn));
-  const j = parseKey(calSelected);
-  calYear = j.jy;
-  calMonth = j.jm;
-
+  const savedMode = tlMode;
   let html;
   try {
-    if (tlMode === 'day') {
-      html = renderTimelineDay(calSelected);
-    } else if (tlMode === '3day') {
-      const keys = Array.from({ length: 3 }, (_, i) => jKey(d2j(targetJdn + i)));
-      html = renderTimelineMulti(keys);
+    if (savedMode === 'month') {
+      shiftTimelineAnchor(targetDir);
+      html = renderTimelineMulti(monthKeysOf(calYear, calMonth));
     } else {
-      html = renderTimelineMulti(weekKeysOf(targetJdn));
+      const step = timelineStepDays();
+      const targetJdn = jdnFromKey(calSelected) + targetDir * step;
+      calSelected = jKey(d2j(targetJdn));
+      const j = parseKey(calSelected);
+      calYear = j.jy;
+      calMonth = j.jm;
+      if (savedMode === 'day') {
+        html = renderTimelineDay(calSelected);
+      } else if (savedMode === '3day') {
+        const keys = Array.from({ length: 3 }, (_, i) => jKey(d2j(targetJdn + i)));
+        html = renderTimelineMulti(keys);
+      } else {
+        html = renderTimelineMulti(weekKeysOf(targetJdn));
+      }
     }
   } catch (err) {
     console.warn('[plan] adjacent render failed:', err);
@@ -1088,6 +1137,7 @@ function renderTimeline(box) {
           <button data-tlmode="day" class="${tlMode === 'day' ? 'active' : ''}">روز</button>
           <button data-tlmode="3day" class="${tlMode === '3day' ? 'active' : ''}">۳ روز</button>
           <button data-tlmode="week" class="${tlMode === 'week' ? 'active' : ''}">هفته</button>
+          <button data-tlmode="month" class="${tlMode === 'month' ? 'active' : ''}">ماه</button>
         </div>
       </div>
       <div class="grid-header">
@@ -1111,11 +1161,7 @@ function renderTimeline(box) {
   if (todayBtn) todayBtn.onclick = () => gotoToday();
   box.querySelectorAll('[data-nav]').forEach(btn => {
     btn.onclick = () => {
-      const step = tlMode === 'day' ? 1 : tlMode === '3day' ? 3 : 7;
-      const dir = +btn.dataset.nav;
-      calSelected = jKey(d2j(jdnFromKey(calSelected) + dir * step));
-      const j = parseKey(calSelected);
-      calYear = j.jy; calMonth = j.jm;
+      shiftTimelineAnchor(+btn.dataset.nav);
       syncCompat();
       renderCalendar();
       renderViewContent();
@@ -1125,6 +1171,7 @@ function renderTimeline(box) {
 }
 
 function timelineTitle() {
+  if (tlMode === 'month') return `${MONTHS[calMonth - 1]} ${fa(calYear)}`;
   if (tlMode === 'day') {
     const jdn = jdnFromKey(calSelected);
     const j = d2j(jdn);
@@ -1143,13 +1190,16 @@ function timelineTitle() {
 function renderTimelineBody() {
   const body = document.getElementById('tlBody');
   if (!body) return;
-  body.innerHTML = tlMode === 'day'
-    ? renderTimelineDay(calSelected)
-    : renderTimelineMulti(
-        tlMode === '3day'
-          ? Array.from({ length: 3 }, (_, i) => jKey(d2j(jdnFromKey(calSelected) + i)))
-          : weekKeysOf(jdnFromKey(calSelected))
-      );
+  if (tlMode === 'day') {
+    body.innerHTML = renderTimelineDay(calSelected);
+  } else if (tlMode === 'month') {
+    body.innerHTML = renderTimelineMulti(monthKeysOf(calYear, calMonth));
+  } else {
+    const keys = tlMode === '3day'
+      ? Array.from({ length: 3 }, (_, i) => jKey(d2j(jdnFromKey(calSelected) + i)))
+      : weekKeysOf(jdnFromKey(calSelected));
+    body.innerHTML = renderTimelineMulti(keys);
+  }
   bindCardsInContainer(body);
   body.querySelectorAll('[data-drop-timeline]').forEach(tl => {
     tl.addEventListener('pointerdown', onTimelinePointerDown);
@@ -1416,7 +1466,7 @@ function renderTimelineDay(dayKey) {
 
 function renderTimelineMulti(keys) {
   const cols = keys.length;
-  const wrapper = cols >= 7 ? 'week-view narrow' : 'week-view';
+  const wrapper = cols > 14 ? 'week-view narrow month-view' : cols >= 7 ? 'week-view narrow' : 'week-view';
   const head = `<div class="wv-head" style="--cols:${cols}"><div></div>${keys.map(k => {
     const j = parseKey(k);
     const kd = j2d(j.jy, j.jm, j.jd);
@@ -1578,10 +1628,8 @@ function renderPill(s) {
 function phaseCellItems(dayKey,sessions,activities,phaseStart,phaseEnd){
   const linkedIds=new Set((sessions||[]).map(s=>s.activityId).filter(Boolean));
   const inPhase=item=>{
-    if(!item||item.startMin==null)return false;
-    const start=+item.startMin;
-    const end=item.endMin!=null?+item.endMin:start+(+item.minutes||+item.durMin||0);
-    return Number.isFinite(start)&&Number.isFinite(end)&&end>phaseStart&&start<phaseEnd;
+    const range=itemTimeRange(item);
+    return !!range&&range.end>phaseStart&&range.start<phaseEnd;
   };
   const planned=(sessions||[]).filter(inPhase).map(s=>({...s,_kind:'session'}));
   const recorded=(activities||[]).filter(a=>a.date===dayKey&&!linkedIds.has(a.id)).filter(inPhase).map(a=>({...a,_kind:'activity'}));
@@ -1648,8 +1696,9 @@ function phasePillTimeLabel(sStart, sEnd) {
 function renderPhasePill(s, phaseStart, phaseEnd) {
   const isActivity = s._kind === 'activity';
   const color = subjColor(s.subject);
-  const sStart = +s.startMin;
-  const sEnd = s.endMin != null ? +s.endMin : sStart + (+s.minutes || +s.durMin || 0);
+  const range = itemTimeRange(s) || { start: +s.startMin || 0, end: +s.startMin || 0 };
+  const sStart = range.start;
+  const sEnd = range.end;
   const isContStart = sStart < phaseStart;
   const isContEnd = sEnd > phaseEnd;
   const classes = ['sess-pill', 'phase-pill'];
@@ -1658,16 +1707,18 @@ function renderPhasePill(s, phaseStart, phaseEnd) {
   if (isContStart) classes.push('cont-start');
   if (isContEnd) classes.push('cont-end');
   if (isContStart && isContEnd) classes.push('cont-both');
+  /* Each repeated pill owns only its slice of the block. Showing the full range
+     in every cell made a 16:00–22:00 block look shifted into phases 10–12. */
   const segStart = Math.max(sStart, phaseStart);
   const segEnd = Math.min(sEnd, phaseEnd);
   const timeLabel = phasePillTimeLabel(sStart, sEnd);
-  const segmentLabel = phasePillTimeLabel(segStart, segEnd);
+  const segmentLabel = phasePillTimeLabel(segStart, segEnd) || timeLabel;
   const attrs = isActivity ? `data-act-id="${s.id}"` : `data-sid="${s.id}"`;
   const name = isActivity ? (s.topic || s.subject || 'فعالیت') : s.subject;
   const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${timeLabel || segmentLabel} · ${fa(Math.max(0, sEnd - sStart))}د)`;
-  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}" aria-label="${title}">
+  return `<div class="${classes.join(' ')}" ${attrs} data-seg-start="${segStart}" data-seg-end="${segEnd}" style="--pill:${color}" title="${title}" aria-label="${title}">
     <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${esc(name)}</span>
-    <span class="sp-dur">${timeLabel || segmentLabel}</span>
+    <span class="sp-dur">${segmentLabel}</span>
   </div>`;
 }
 

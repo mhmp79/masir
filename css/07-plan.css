@@ -1142,6 +1142,12 @@ body.creating-block .pool-drop-wrap {
 .week-view.narrow .wv-block span,
 .week-view.narrow .wv-act span,
 .week-view.narrow .wv-exam span { font-size: 6.5px; }
+.week-view.month-view .wv-scroll > * { min-width: 1280px; }
+.week-view.month-view .wv-day { padding: 5px 0; font-size: 8px; }
+.week-view.month-view .wv-day b { font-size: 10px; }
+.week-view.month-view .wv-block span,
+.week-view.month-view .wv-act span,
+.week-view.month-view .wv-exam span { font-size: 6px; }
 .wv-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
 /* ============ GRID VIEWS ============ */

@@ -2598,6 +2598,13 @@ body.creating-block .pool-drop-wrap {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.phase-pill.activity-pill {
+  border-color: rgba(52,211,153,.72);
+  background: rgba(16,185,129,.17);
+  cursor: pointer;
+}
+.phase-pill.activity-pill .sp-dur { color: #6ee7b7; }
+.phase-pill.activity-pill:hover { background: rgba(16,185,129,.27); }
 
 .phase-pill.cont-end {
   border-top-left-radius: 0;
@@ -10592,10 +10599,11 @@ function drawSleepPhoneStrip(x,W,pad,boxY,d){
 /* Canvas timeline must use the same minute axis as the hour grid. The DOM
    layout helper widens short blocks for readability, which shifts later blocks
    away from their real times in an image; overlapping items use lanes instead. */
-function reportTimelineExactLayout(items,tlW,startMin,endMin){
+function reportTimelineExactLayout(items,tlW,startMin,endMin,minWidth){
   const domainStart=+startMin||0,domainEnd=+endMin||domainStart+1440;
   const span=Math.max(1,domainEnd-domainStart);
   const pxPerMin=tlW/span;
+  const minVisualWidth=Math.max(0,+minWidth||0);
   const list=(items||[]).filter(Boolean).map((item,index)=>{
     const start=+(item.startMin!=null?item.startMin:item.start)||0;
     const end=item.endMin!=null?+item.endMin:start+(+item.durMin||0);
@@ -10607,13 +10615,28 @@ function reportTimelineExactLayout(items,tlW,startMin,endMin){
     const start=Math.max(domainStart,item.start),end=Math.min(domainEnd,item.end);
     const left=(start-domainStart)*pxPerMin;
     const right=(end-domainStart)*pxPerMin;
+    const exactWidth=Math.max(1,right-left);
+    /* Short blocks get just enough visual width for a name. Their start stays
+       on the real minute axis and overlaps move to a lane instead of shifting
+       later blocks into the wrong hour. */
+    const visualWidth=Math.max(minVisualWidth,exactWidth);
     let lane=laneEnds.findIndex(laneEnd=>laneEnd<=left+.5);
     if(lane<0){lane=laneEnds.length;laneEnds.push(0);}
-    laneEnds[lane]=right;
+    laneEnds[lane]=left+visualWidth;
     item._layoutStart=start;item._layoutEnd=end;
-    item.left=left;item.width=Math.max(1,right-left);item._lane=lane;
+    item.left=left;item.width=visualWidth;item.exactWidth=exactWidth;item._lane=lane;
   });
   return {blocks:list,lanes:Math.max(1,laneEnds.length),pxPerMin};
+}
+
+/* The image timeline keeps the hour axis as the only clock reference. A block
+   only needs the item name; printing start/end times inside it made short
+   blocks unreadable and visually crowded. */
+function reportTimelineItemName(item){
+  if(!item)return '';
+  if(item._kind==='sleep')return '🌙 خواب';
+  if(item._kind==='other'&&item.topic)return item.topic;
+  return item.subject||item.topic||'';
 }
 
 function drawReportTimelineDaySection(x,W,pad,y0,d){
@@ -10629,7 +10652,7 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
 
   const tlLeft=pad+10,tlRight=W-pad-10;
   const tlW=tlRight-tlLeft;
-  const tlTop=y0+60,tlH=130;
+  const tlTop=y0+60,tlH=160;
   const totalRange=Math.max(1,END_MIN-START_MIN);
 
   rr(x,tlLeft,tlTop,tlW,tlH,22);
@@ -10652,7 +10675,7 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.fillText(minToStr(m),clampedHx,tlTop+tlH+12);
   }
 
-  const blockY=tlTop+24,blockH=tlH-48;
+  const blockY=tlTop+30,blockH=tlH-60;
   const allTimelineItems=[
     ...d.acts.map(a=>({...a,_kind:'study'})),
     ...(d.timelineOtherActs||[]).map(a=>({...a,_kind:'other'})),
@@ -10667,10 +10690,10 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
   }else{
     /* Blocks stay on the real minute axis; overlaps use vertical lanes so a
        later activity is never pushed under the wrong hour label. */
-    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN);
+    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN,28);
     const by=blockY+2;
-    const laneH=Math.max(8,Math.min(26,Math.floor((blockH-4)/layout.lanes)));
-    const bh=Math.max(6,laneH-4);
+    const laneH=Math.max(12,Math.min(30,Math.floor((blockH-4)/layout.lanes)));
+    const bh=Math.max(8,laneH-4);
     const rad=Math.min(8,bh/2);
 
     layout.blocks.forEach(a=>{
@@ -10678,7 +10701,7 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
       const bw=Math.max(1,Math.min(a.width,tlLeft+tlW-bx));
       const byLane=by+a._lane*laneH;
       if(bw<=0||byLane+bh>tlTop+tlH-4)return;
-      const timeLabel=`${minToStr(a._layoutStart)}–${minToStr(a._layoutEnd)}`;
+      const label=reportTimelineItemName(a);
 
       if(a._kind==='sleep'){
         x.save();
@@ -10690,19 +10713,14 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
         x.restore();
         rr(x,bx+1,byLane,bw-2,bh,rad);
         x.strokeStyle='rgba(99,102,241,.88)';x.lineWidth=2;x.stroke();
-        if(bw>55&&bh>18){
+        if(bw>26&&bh>10){
+          x.save();
+          rr(x,bx+1,byLane,bw-2,bh,rad);x.clip();
           x.fillStyle='#c7d2fe';
-          x.font='700 11px Vazirmatn, Tahoma, sans-serif';
+          x.font='700 10px Vazirmatn, Tahoma, sans-serif';
           x.textAlign='center';x.textBaseline='middle';
-          x.fillText('🌙 خواب',bx+bw/2,byLane+bh/2-6);
-          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
-          x.fillStyle='rgba(199,210,254,.8)';
-          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
-        }else if(bw>34&&bh>12){
-          x.fillStyle='#c7d2fe';
-          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
-          x.textAlign='center';x.textBaseline='middle';
-          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
+          x.fillText(label,bx+bw/2,byLane+bh/2);
+          x.restore();
         }
       }else{
         const c=subjColor(a.subject);
@@ -10724,26 +10742,12 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
         }else{
           x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.5;x.stroke();
         }
-        if(bw>58&&bh>18){
-          let name=isOther&&a.topic?a.topic:a.subject;
-          while(x.measureText(name).width>bw-10&&name.length>2)name=name.slice(0,-1);
+        if(bw>26&&bh>10){
+          let name=label;
+          while(name.length>1&&x.measureText(name).width>bw-10)name=name.slice(0,-1);
+          if(name!==label&&name.length>1)name+='…';
           x.fillStyle='#fff';
-          x.textAlign='center';x.textBaseline='middle';
           x.font='700 10px Vazirmatn, Tahoma, sans-serif';
-          x.fillText(name,bx+bw/2,byLane+bh/2-6);
-          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
-          x.fillStyle='rgba(255,255,255,.78)';
-          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
-        }else if(bw>34&&bh>12){
-          x.fillStyle='#fff';
-          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
-          x.textAlign='center';x.textBaseline='middle';
-          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
-        }else if(bw>24&&bh>12){
-          let name=isOther&&a.topic?a.topic:a.subject;
-          while(x.measureText(name).width>bw-8&&name.length>2)name=name.slice(0,-1);
-          x.fillStyle='#fff';
-          x.font='700 9px Vazirmatn, Tahoma, sans-serif';
           x.textAlign='center';x.textBaseline='middle';
           x.fillText(name,bx+bw/2,byLane+bh/2);
         }
@@ -10751,7 +10755,7 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     });
   }
 
-  return y0+260;
+  return y0+290;
 }
 
 /* ============================================================
@@ -11238,7 +11242,7 @@ async function generateDailyReportCanvas(kind,anchor,options){
   const heights={
     title:350,
     stats:opts.stats?measureStatsHeight(opts):0,
-    timeline:opts.timeline?(isDay?260:(56+32+7*52+70)):0,
+    timeline:opts.timeline?(isDay?290:(56+32+7*52+70)):0,
     charts:opts.charts?measureChartsHeight(d):0,
     details:opts.details?measureDetailsHeight(d):0,
     footer:180
@@ -12553,7 +12557,7 @@ function visualLaneEnd(item) {
 }
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes, syncExamSessionsTopics };
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes, syncExamSessionsTopics, phaseCellItems };
 }
 
 function assignLanes(items) {
@@ -12877,6 +12881,22 @@ function renderPill(s) {
 }
 
 /* ============ PHASES VIEW ============ */
+/* Volume planning shows planned sessions and already recorded activities in the
+   same phase grid. A linked activity is skipped because its session pill is
+   already rendered, so nothing appears twice. */
+function phaseCellItems(dayKey,sessions,activities,phaseStart,phaseEnd){
+  const linkedIds=new Set((sessions||[]).map(s=>s.activityId).filter(Boolean));
+  const inPhase=item=>{
+    if(!item||item.startMin==null)return false;
+    const start=+item.startMin;
+    const end=item.endMin!=null?+item.endMin:start+(+item.minutes||+item.durMin||0);
+    return Number.isFinite(start)&&Number.isFinite(end)&&end>phaseStart&&start<phaseEnd;
+  };
+  const planned=(sessions||[]).filter(inPhase).map(s=>({...s,_kind:'session'}));
+  const recorded=(activities||[]).filter(a=>a.date===dayKey&&!linkedIds.has(a.id)).filter(inPhase).map(a=>({...a,_kind:'activity'}));
+  return [...planned,...recorded].sort((a,b)=>a.startMin-b.startMin||(a._kind==='session'?-1:1));
+}
+
 function renderPhases(box) {
   const st = activeWeekStart();
   const days = Array.from({ length: 7 }, (_, i) => jKey(d2j(st + i)));
@@ -12909,13 +12929,9 @@ function renderPhases(box) {
     for (let p = 1; p <= PHASE_COUNT; p++) {
       const phaseStart = phaseStartMin(p);
       const phaseEnd = phaseStart + PHASE_SIZE;
-      const cellSessions = timedOfDay(k).filter(s => {
-        const sEnd = s.startMin + s.durMin;
-        return s.startMin < phaseEnd && sEnd > phaseStart;
-      });
-      cellSessions.sort((a, b) => a.startMin - b.startMin);
+      const cellItems = phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd);
       html += `<td class="gt-cell phase-cell" data-drop-day="${k}" data-drop-phase="${p}">
-        ${cellSessions.map(s => renderPhasePill(s, phaseStart, phaseEnd)).join('')}
+        ${cellItems.map(s => renderPhasePill(s, phaseStart, phaseEnd)).join('')}
       </td>`;
     }
     html += `</tr>`;
@@ -12932,21 +12948,26 @@ function renderPhases(box) {
 }
 
 function renderPhasePill(s, phaseStart, phaseEnd) {
+  const isActivity = s._kind === 'activity';
   const color = subjColor(s.subject);
-  const sStart = s.startMin;
-  const sEnd = s.startMin + s.durMin;
+  const sStart = +s.startMin;
+  const sEnd = s.endMin != null ? +s.endMin : sStart + (+s.minutes || +s.durMin || 0);
   const isContStart = sStart < phaseStart;
   const isContEnd = sEnd > phaseEnd;
   const classes = ['sess-pill', 'phase-pill'];
+  if (isActivity) classes.push('activity-pill', 'tl-activity');
   if (s.done) classes.push('done');
   if (isContStart) classes.push('cont-start');
   if (isContEnd) classes.push('cont-end');
   if (isContStart && isContEnd) classes.push('cont-both');
   const segStart = Math.max(sStart, phaseStart);
   const segEnd = Math.min(sEnd, phaseEnd);
-  return `<div class="${classes.join(' ')}" data-sid="${s.id}" style="--pill:${color}" title="${esc(s.subject)}${s.topic ? ' — ' + esc(s.topic) : ''} (${minToStr(segStart)} — ${minToStr(segEnd)})">
-    <span class="sp-label" style="color:${color}">${esc(s.subject)}</span>
-    <span class="sp-dur">${fa(s.durMin)}د</span>
+  const attrs = isActivity ? `data-act-id="${s.id}"` : `data-sid="${s.id}"`;
+  const name = isActivity ? (s.topic || s.subject || 'فعالیت') : s.subject;
+  const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${minToStr(segStart)} — ${minToStr(segEnd)})`;
+  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}">
+    <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${isActivity ? '✓ ' : ''}${esc(name)}</span>
+    <span class="sp-dur">${fa(Math.max(0, sEnd - sStart))}د</span>
   </div>`;
 }
 

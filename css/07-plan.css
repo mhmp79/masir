@@ -1255,6 +1255,13 @@ body.creating-block .pool-drop-wrap {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.phase-pill.activity-pill {
+  border-color: rgba(52,211,153,.72);
+  background: rgba(16,185,129,.17);
+  cursor: pointer;
+}
+.phase-pill.activity-pill .sp-dur { color: #6ee7b7; }
+.phase-pill.activity-pill:hover { background: rgba(16,185,129,.27); }
 
 .phase-pill.cont-end {
   border-top-left-radius: 0;

@@ -263,7 +263,7 @@ test('BUGFIX: note/question/answer edits are tracked as question sync mutations'
 });
 
 test('BUGFIX: daily report timeline uses real minute positions with overlap lanes', () => {
-  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineExactLayout']);
+  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineExactLayout', 'reportTimelineItemName']);
   const items = [
     { id: 'a', startMin: 480, endMin: 540 },
     { id: 'b', startMin: 510, endMin: 570 },
@@ -282,11 +282,48 @@ test('BUGFIX: daily report timeline uses real minute positions with overlap lane
   const dashboard = read('js/02-dashboard.js');
   const section = dashboard.slice(dashboard.indexOf('function drawReportTimelineDaySection'),
     dashboard.indexOf('function drawReportTimelineWeekSection'));
-  assert.ok(section.includes('reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN)'),
-    'daily image timeline must use the exact minute layout');
+  const shortOnly = ctx.reportTimelineExactLayout([{ startMin: 600, endMin: 615 }], 960, 0, 1440, 28);
+  assert.strictEqual(shortOnly.blocks[0].exactWidth, 10, 'the real duration must stay available');
+  assert.strictEqual(shortOnly.blocks[0].width, 28, 'short blocks need enough width for their name');
+  assert.ok(section.includes('reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN,28)'),
+    'daily image timeline must use the exact minute layout with readable short blocks');
   assert.ok(section.includes('minToStr(START_MIN)') && section.includes('minToStr(m)'),
     'timeline labels must use the shared minute formatter');
   assert.ok(!section.includes('layoutTimelineBlocks('), 'daily report must not shift blocks with minWidth/minGap');
+
+  assert.strictEqual(ctx.reportTimelineItemName({ subject: 'ریاضی' }), 'ریاضی');
+  assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'other', subject: 'دیگر', topic: 'سایر' }), 'سایر');
+  assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'sleep' }), '🌙 خواب');
+  assert.ok(section.includes('reportTimelineItemName(a)'), 'blocks must show only the item name');
+  assert.ok(!section.includes('timeLabel'), 'blocks must not print clock times inside them');
+  assert.ok(section.includes('tlH=160') && dashboard.includes('(isDay?290:'),
+    'the image timeline needs enough height for readable, uncluttered blocks');
+});
+
+test('FEAT: volume planning shows recorded activities without duplicating linked ones', () => {
+  const ctx = loadFunctions('js/03-plan.js', ['phaseCellItems']);
+  const sessions = [
+    { id: 's1', startMin: 480, durMin: 60 },
+    { id: 's2', startMin: 600, durMin: 60, activityId: 'a-linked' }
+  ];
+  const activities = [
+    { id: 'a1', date: 'day1', subject: 'ریاضی', startMin: 510, endMin: 540, minutes: 30 },
+    { id: 'a-linked', date: 'day1', subject: 'فیزیک', startMin: 600, endMin: 660, minutes: 60 },
+    { id: 'a2', date: 'day1', subject: 'شیمی', startMin: 660, endMin: 675, minutes: 15 },
+    { id: 'a-other-day', date: 'day2', subject: 'ادبیات', startMin: 510, endMin: 540, minutes: 30 },
+    { id: 'a-outside', date: 'day1', subject: 'ادبیات', startMin: 720, endMin: 780, minutes: 60 }
+  ];
+  const out = ctx.phaseCellItems('day1', sessions, activities, 480, 720);
+  assert.strictEqual(out.map(item => item.id).join(','), 's1,a1,s2,a2');
+  assert.strictEqual(out[1]._kind, 'activity');
+  assert.strictEqual(out[2]._kind, 'session');
+
+  const plan = read('js/03-plan.js');
+  assert.ok(plan.includes('phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd)'),
+    'volume cells must include recorded activities');
+  assert.ok(plan.includes("classes.push('activity-pill', 'tl-activity')"),
+    'activity pills need their own clickable style');
+  assert.ok(/\.phase-pill\.activity-pill\s*\{/.test(read('css/07-plan.css')));
 });
 
 test('REWORK: dashboard report dialog uses the plan export design', () => {
@@ -653,7 +690,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r33'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r34'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

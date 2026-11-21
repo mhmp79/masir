@@ -258,7 +258,8 @@ body::after{
 }
 .icon-btn:active{transform:scale(.94);background:rgba(255,255,255,.12)}
 .icon-btn.context-btn{
-  border:0;background:transparent;color:#98a2bb;
+  border-color:rgba(34,211,238,.38);
+  background:rgba(34,211,238,.12);color:#4de2f5;
 }
 .icon-btn.settings-btn{
   width:38px;height:38px;
@@ -465,19 +466,18 @@ body::after{
 .icon-btn.context-btn{
   width:auto;height:38px;
   min-width:auto;
-  padding:0 9px;
+  padding:0 12px;
   gap:6px;
-  border:0;
-  background:transparent;
-  color:#98a2bb;
-  font-size:11px;
+  border-color:rgba(34,211,238,.38);
+  background:rgba(34,211,238,.12);
+  color:#4de2f5;
+  font-size:11.5px;
   font-weight:700;
   font-family:'Vazirmatn',Tahoma,system-ui,sans-serif;
   display:inline-flex;
   align-items:center;
   white-space:nowrap;
 }
-.icon-btn.context-btn:hover{color:#fff;background:rgba(255,255,255,.06)}
 .icon-btn.context-btn .ctx-icon{display:grid;place-items:center;line-height:1}
 .icon-btn.context-btn .ctx-icon svg{
   width:18px;height:18px;
@@ -966,10 +966,8 @@ select option{background:#0d1524;color:var(--txt)}
 .app.settings-open .nav{pointer-events:auto}
 .app.settings-open > main{display:none}
 .app.settings-open .context-btn{display:none}
-.app.settings-open .nav-btn{pointer-events:none;opacity:.42;filter:saturate(.6)}
-.app.settings-open .nav-btn.active{background:rgba(255,255,255,.06);box-shadow:none}
 .icon-btn.settings-back-btn{
-  width:38px;height:38px;
+  width:44px;height:44px;
   border:0;background:transparent;color:#98a2bb;
 }
 .icon-btn.settings-back-btn svg{
@@ -979,17 +977,58 @@ select option{background:#0d1524;color:var(--txt)}
 }
 .icon-btn.settings-back-btn:hover{color:#fff;background:rgba(255,255,255,.06)}
 
-#settingsBody>.acc-card,
+#settingsBody .card,
 #gaBody>.flt-card,
 #examCompareBody>.card{
   border-color:rgba(255,255,255,.08);
   box-shadow:0 14px 32px -28px #000;
 }
-#settingsBody>.profile-card{border-color:rgba(124,92,255,.3)}
-#settingsBody>.acc-card.exam-settings-card{
+#settingsBody .profile-card{border-color:rgba(124,92,255,.3)}
+#settingsBody .exam-settings-card{
   border-color:rgba(124,92,255,.32);
   background:linear-gradient(155deg,rgba(124,92,255,.06),rgba(255,255,255,.02));
 }
+
+/* Paged settings: cards open their own page instead of collapsing */
+#settingsBody{display:flex;flex-direction:column;gap:12px}
+.settings-page{display:none;flex-direction:column;gap:12px}
+.settings-page.active{display:flex}
+.settings-page-head{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 2px}
+.set-page-back{
+  width:38px;height:38px;flex:0 0 38px;
+  display:grid;place-items:center;
+  border:1px solid rgba(255,255,255,.10);border-radius:12px;
+  background:rgba(255,255,255,.05);color:#98a2bb;
+  font-size:22px;line-height:1;cursor:pointer;
+}
+.set-page-back:hover{color:#fff;background:rgba(255,255,255,.10)}
+.settings-page-head .page-title{font-size:15px;font-weight:800;color:#e8ecf7}
+.settings-detail-card{padding:16px}
+.profile-link-btn{
+  min-width:74px;height:38px;padding:0 12px;flex:0 0 auto;
+  border:1px solid rgba(124,92,255,.42);border-radius:12px;
+  background:rgba(124,92,255,.14);color:#c7bfff;
+  font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;
+}
+.settings-link{
+  width:100%;display:flex;align-items:center;gap:12px;
+  padding:14px;text-align:right;cursor:pointer;
+  font-family:inherit;color:inherit;
+  transition:border-color .2s,background .2s,transform .2s;
+}
+.settings-link:hover{border-color:rgba(124,92,255,.4);background:rgba(124,92,255,.08);transform:translateY(-1px)}
+.settings-link.danger-link{border-color:rgba(255,139,163,.22)}
+.set-link-icon{
+  width:38px;height:38px;flex:0 0 38px;border-radius:12px;
+  display:grid;place-items:center;font-size:18px;
+  background:rgba(124,92,255,.12);
+}
+.set-link-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.set-link-copy b{font-size:12.5px;font-weight:800;color:#e8ecf7}
+.set-link-copy small{font-size:10.5px;color:#8b94ad;line-height:1.5}
+.set-link-arrow{font-size:22px;color:#8b94ad;line-height:1}
+.sync-mini-card{display:flex;align-items:center;gap:12px;padding:14px}
+.sync-mini-btn{flex:0 0 auto;min-width:auto;padding:9px 12px;font-size:11px}
 #gaBody>.flt-card{
   padding:16px;border-color:rgba(124,92,255,.22);
   background:linear-gradient(155deg,rgba(124,92,255,.055),rgba(255,255,255,.02));
@@ -5868,6 +5907,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 }
 
 /* Weekly report image preview (dashboard report dialog) */
+.plan-preview{max-height:320px;margin-top:8px}
+.plan-preview img{max-height:300px;width:auto;max-width:100%}
 .cwr-preview{display:flex;justify-content:center;align-items:flex-start;overflow:auto;max-width:100%;border-radius:14px}
 .cwr-preview img{display:block;max-width:100%;height:auto;border-radius:12px;border:1px solid rgba(255,255,255,.07);box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .modal.report-modal #reportBody{margin-top:4px}
@@ -5997,26 +6038,29 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     box-shadow: 0 12px 32px -22px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
   }
   .logo { width: 38px; height: 38px; font-size: 16px; border-radius: 12px; }
+  .icon-btn.settings-back-btn { width: 38px; height: 38px; }
   .brand-title { font-size: 14px; }
 
   .nav {
     grid-area: nav;
     position: relative; top: auto; left: auto; bottom: auto;
     transform: none;
-    width: 100%; max-width: 100%;
+    width: auto; max-width: none;
     flex-direction: column; justify-content: flex-start;
-    padding: 16px 10px; gap: 4px;
-    background: rgba(9,13,26,.55);
-    backdrop-filter: none; -webkit-backdrop-filter: none;
-    border: 0; border-left: 1px solid rgba(255,255,255,.06);
-    border-radius: 0; box-shadow: none;
+    margin: 14px 0 14px 14px;
+    padding: 12px 10px; gap: 4px;
+    background: rgba(11,16,34,.76);
+    backdrop-filter: blur(18px) saturate(150%);-webkit-backdrop-filter: blur(18px) saturate(150%);
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 18px;
+    box-shadow: 0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
     overflow-y: auto;
   }
   .nav-btn {
     flex: 0 0 auto; width: 100%;
     flex-direction: row; justify-content: flex-start; align-items: center;
     gap: 12px; padding: 12px 14px;
-    border: 1px solid transparent; border-left: 2px solid transparent;
+    border: 1px solid transparent;
     border-radius: 12px; font-size: 13px;
     background: transparent; box-shadow: none; transform: none;
   }
@@ -6024,11 +6068,11 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .nav-btn span { font-size: 13px; font-weight: 600; }
   .nav-btn.active {
     color: #fff;
-    background: linear-gradient(270deg,rgba(139,92,246,.24),rgba(139,92,246,.05));
-    border-color: transparent;
-    border-left-color: rgba(139,92,246,.85);
-    box-shadow: none; transform: none;
-    backdrop-filter: none; -webkit-backdrop-filter: none;
+    background: rgba(255,255,255,.09);
+    border-color: rgba(255,255,255,.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transform: none;
   }
   .nav-btn:not(.active):hover { color: #cfd6ea; }
 
@@ -7045,21 +7089,72 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     </header>
     <main class="wr-body" id="settingsBody">
 
-      <div class="card profile-card">
-        <div class="profile-summary">
-          <div class="profile-summary-info">
-            <div class="profile-display-name" id="profileDisplayName">نام ثبت نشده</div>
-            <div class="profile-summary-meta">
-              <span id="profileDisplayField">رشته: تجربی</span>
-              <span class="profile-meta-divider">•</span>
-              <span id="profileDisplayGrade">پایه: دوازدهم</span>
+      <!-- ===== SETTINGS HOME ===== -->
+      <section class="settings-page active" data-page="home">
+        <div class="card profile-card settings-home-profile">
+          <div class="profile-summary">
+            <div class="profile-summary-info">
+              <div class="profile-display-name" id="profileDisplayName">نام ثبت نشده</div>
+              <div class="profile-summary-meta">
+                <span id="profileDisplayField">رشته: تجربی</span>
+                <span class="profile-meta-divider">•</span>
+                <span id="profileDisplayGrade">پایه: دوازدهم</span>
+              </div>
             </div>
+            <button type="button" class="profile-link-btn" id="editProfileBtn" title="پروفایل" aria-label="پروفایل">پروفایل</button>
           </div>
-          <button type="button" class="profile-edit-btn" id="editProfileBtn" aria-label="ویرایش پروفایل" aria-expanded="false" title="ویرایش پروفایل">✎</button>
         </div>
-        <div id="accountUI" class="account-ui"></div>
-        <div class="profile-edit-fields" id="profileEditFields" hidden>
-          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجی‌های تصویری استفاده می‌شود.</div>
+
+        <button type="button" class="card settings-link" data-go="subjects">
+          <span class="set-link-icon">🎨</span>
+          <span class="set-link-copy"><b>تنظیمات دروس و رنگها</b><small>ترتیب، نوع و تنظیمات پیشرفته درسها</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link" data-go="exam">
+          <span class="set-link-icon">📝</span>
+          <span class="set-link-copy"><b>تنظیمات آزمون و اشتباهات</b><small>آزمون پیشفرض و برچسبهای اشتباهات</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link" data-go="sync">
+          <span class="set-link-icon">☁️</span>
+          <span class="set-link-copy"><b>همگام سازی و حساب کاربری</b><small>ورود، خروج و تنظیمات همگام سازی</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <div class="card sync-mini-card">
+          <span class="set-link-icon">🔄</span>
+          <span class="set-link-copy"><b>همگام سازی دستی</b><small id="homeSyncState">برای همگام سازی وارد حساب کاربری شوید.</small></span>
+          <button type="button" class="btn primary sync-mini-btn" id="homeSyncNowBtn">همگام سازی</button>
+        </div>
+
+        <button type="button" class="card settings-link" data-go="backup">
+          <span class="set-link-icon">💾</span>
+          <span class="set-link-copy"><b>پشتیبانگیری</b><small>ذخیره و بازگردانی فایل پشتیبان</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link danger-link" data-go="danger">
+          <span class="set-link-icon">⚠️</span>
+          <span class="set-link-copy"><b>حذف دادهها</b><small>پاک کردن تمام اطلاعات برنامه</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <div class="settings-version">
+          نسخه برنامه: <b id="appVersionDisplay">—</b>
+          <div class="mt-6 fs-10 opacity-60">Made by MH.Mahdipanah</div>
+        </div>
+      </section>
+
+      <!-- ===== PROFILE PAGE ===== -->
+      <section class="settings-page" data-page="profile" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">پروفایل</div>
+        </div>
+        <div class="card settings-detail-card">
+          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجیهای تصویری استفاده میشود.</div>
           <div class="profile-identity-grid">
             <div class="profile-field">
               <label class="lbl mt-0">نام</label>
@@ -7092,19 +7187,16 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
             <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card sync-card" id="syncCard">
-        <div id="syncUI"></div>
-      </div>
-
-      <div class="card acc-card settings-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">🎨 تنظیمات دروس و رنگ‌ها</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
-          <div class="muted mb-10 fs-11h">با دستگیره <b>⠿</b> ترتیب درس‌ها را در گروه تخصصی یا عمومی جابه‌جا کن؛ تخصصی‌ها همیشه بالاتر هستند. با دکمه <b>⚙</b> تنظیمات پیشرفته را باز کن.</div>
+      <!-- ===== SUBJECTS PAGE ===== -->
+      <section class="settings-page" data-page="subjects" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">تنظیمات دروس و رنگها</div>
+        </div>
+        <div class="card settings-detail-card settings-card">
+          <div class="muted mb-10 fs-11h">با دستگیره <b>⠿</b> ترتیب درسها را در گروه تخصصی یا عمومی جابهجا کن؛ تخصصیها همیشه بالاتر هستند. با دکمه <b>⚙</b> تنظیمات پیشرفته را باز کن.</div>
           <div id="subjectManager"></div>
           <div class="toggle-card mt-12" id="finalEleventhSetting" hidden>
             <div>
@@ -7115,21 +7207,22 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           </div>
           <button class="btn btn-add mt-12" id="addSubjectBtn">+ افزودن درس جدید</button>
         </div>
-      </div>
+      </section>
 
-      <div class="card acc-card exam-settings-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">📝 تنظیمات آزمون</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
+      <!-- ===== EXAM PAGE ===== -->
+      <section class="settings-page" data-page="exam" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">تنظیمات آزمون و اشتباهات</div>
+        </div>
+        <div class="card settings-detail-card exam-settings-card">
           <div class="toggle-card exam mb-12" id="examToggleCard">
-            <div><div class="fw-700 fs-13">فعال‌سازی آزمون</div></div>
+            <div><div class="fw-700 fs-13">فعالسازی آزمون</div></div>
             <label class="switch"><input type="checkbox" id="examEnabledToggle"><span></span></label>
           </div>
           <div id="examSettingsBody" class="hidden">
-            <div class="setting-row"><div class="sr-label">نام پیش‌فرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
-            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input dir="ltr" inputmode="numeric" class="input input-sm num-input" type="text" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
+            <div class="setting-row"><div class="sr-label">نام پیشفرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
+            <div class="setting-row"><div class="sr-label">مدت پیشفرض (ساعت)</div><div class="sr-control"><input dir="ltr" inputmode="numeric" class="input input-sm num-input" type="text" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
           </div>
           <div class="err-sep"></div>
           <div class="err-sec-title">🏷️ تنظیمات اشتباهات</div>
@@ -7142,34 +7235,46 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           <div id="subjectErrorsList" class="mt-10"></div>
           <div class="add-topic"><input class="input" id="newSubjectErr" placeholder="اشتباه اختصاصی جدید..."><button id="addSubjectErrBtn">+</button></div>
         </div>
-      </div>
+      </section>
 
-      <div class="card acc-card backup-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">💾 پشتیبان‌گیری</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
-          <div class="muted mb-12 fs-11 lh-19">شامل تمام داده‌ها: پروفایل، دروس، فعالیت‌ها، برنامه، خواب، گوشی، کلاس‌ها، آزمون‌ها، تنظیمات، شمارنده تست.</div>
+      <!-- ===== SYNC + ACCOUNT PAGE ===== -->
+      <section class="settings-page" data-page="sync" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">همگام سازی و حساب کاربری</div>
+        </div>
+        <div class="card settings-detail-card">
+          <div class="card-title">حساب کاربری</div>
+          <div id="accountUI" class="account-ui"></div>
+        </div>
+        <div class="card sync-card settings-detail-card" id="syncCard">
+          <div id="syncUI"></div>
+        </div>
+      </section>
+
+      <!-- ===== BACKUP PAGE ===== -->
+      <section class="settings-page" data-page="backup" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">پشتیبانگیری</div>
+        </div>
+        <div class="card settings-detail-card backup-card">
+          <div class="muted mb-12 fs-11 lh-19">شامل تمام دادهها: پروفایل، دروس، فعالیتها، برنامه، خواب، گوشی، کلاسها، آزمونها، تنظیمات، شمارنده تست.</div>
           <button class="btn backup-btn mb-9" id="exportBtn">⬇ ذخیره فایل پشتیبان (.json)</button>
           <label class="file-btn">⬆ ایمپورت<input type="file" id="importInput" class="hidden" accept="application/json,.json"></label>
         </div>
-      </div>
+      </section>
 
-      <div class="card acc-card danger-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">⚠ حذف داده‌ها</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
+      <!-- ===== DANGER PAGE ===== -->
+      <section class="settings-page" data-page="danger" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">حذف دادهها</div>
+        </div>
+        <div class="card settings-detail-card danger-card">
           <button class="btn danger" id="clearDataBtn">🗑 پاک کردن تمام اطلاعات</button>
         </div>
-      </div>
-
-      <div class="settings-version">
-        نسخه برنامه: <b id="appVersionDisplay">—</b>
-        <div class="mt-6 fs-10 opacity-60">Made by MH.Mahdipanah</div>
-      </div>
+      </section>
 
     </main>
   </div>
@@ -7415,7 +7520,7 @@ if (typeof globalThis !== 'undefined') {
    نسخه ۰.۹.۴ — state.sessions جایگزین plan/reserved
    ============================================================ */
 
-const APP_VERSION = '0.9.4';
+const APP_VERSION = '0.9.5';
 if (typeof window !== 'undefined') window.APP_VERSION = APP_VERSION;
 
 /* ============ JALALI ============ */
@@ -9555,7 +9660,11 @@ function switchView(name){
   updateContextButton(name);
   window.scrollTo({top:0,behavior:'smooth'});
 }
-document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>switchView(btn.dataset.view));});
+document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>{
+  const app=document.querySelector('.app');
+  if(app && app.classList.contains('settings-open') && typeof closeSettingsOverlay==='function') closeSettingsOverlay(true);
+  switchView(btn.dataset.view);
+});});
 
 /* ============ MODAL ============ */
 const modalBackdrop=document.getElementById('modalBackdrop');
@@ -12827,7 +12936,9 @@ function openSessionEditor(sid, defaults) {
 /* ============ PLAN IMAGE EXPORT ============ */
 function openPlanImagePicker() {
   let anchor = jdnFromKey(calSelected);
+  let previewToken = 0;
   const render = () => {
+    const token = ++previewToken;
     const ws = weekStartJdn(anchor);
     const a = d2j(ws), b = d2j(ws + 6);
     const label = `${fa(a.jd)} ${MONTHS[a.jm - 1]} تا ${fa(b.jd)} ${MONTHS[b.jm - 1]} ${fa(b.jy)}`;
@@ -12849,6 +12960,7 @@ function openPlanImagePicker() {
         </div>
         <button class="rn-btn" id="piNext" type="button" ${canGoNext ? '' : 'disabled'}>‹</button>
       </div>
+      <div class="cwr-preview plan-preview" id="piPreview"><div class="muted report-empty">در حال ساخت پیشنمایش…</div></div>
       <button class="btn primary mt-6" id="piDownload">⬇ دانلود تصویر برنامه هفتگی</button>
       <div class="report-madeby">Made by MH.Mahdipanah</div>
     `);
@@ -12862,11 +12974,23 @@ function openPlanImagePicker() {
       closeModal();
       setTimeout(() => downloadPlanWeekImage(targetWs), 120);
     };
+    if (typeof generatePlanWeekCanvas === 'function') {
+      generatePlanWeekCanvas(ws).then((cv) => {
+        if (token !== previewToken || !cv) return;
+        const preview = document.getElementById('piPreview');
+        if (preview) preview.innerHTML = `<img src="${cv.toDataURL('image/png')}" alt="پیشنمایش تصویر برنامه هفتگی">`;
+      }).catch((err) => {
+        console.error(err);
+        if (token !== previewToken) return;
+        const preview = document.getElementById('piPreview');
+        if (preview) preview.innerHTML = '<div class="muted report-empty">خطا در ساخت پیشنمایش</div>';
+      });
+    }
   };
   render();
 }
 
-async function downloadPlanWeekImage(weekStartJdnVal) {
+async function generatePlanWeekCanvas(weekStartJdnVal) {
   const ws = weekStartJdnVal;
   const we = ws + 6;
   const wsJ = d2j(ws), weJ = d2j(we);
@@ -13038,16 +13162,28 @@ async function downloadPlanWeekImage(weekStartJdnVal) {
   cx.font = '600 20px Vazirmatn, Tahoma, sans-serif';
   cx.fillText('Made by MH.Mahdipanah', W / 2, H - 50);
 
-  cv.toBlob((blob) => {
-    if (!blob) { toast('خطا در تولید تصویر'); return; }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `plan-week-${wsJ.jy}-${pad2(wsJ.jm)}-${pad2(wsJ.jd)}.png`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast('تصویر دانلود شد ✓');
-  }, 'image/png');
+  return cv;
+}
+
+async function downloadPlanWeekImage(weekStartJdnVal) {
+  try {
+    const cv = await generatePlanWeekCanvas(weekStartJdnVal);
+    if (!cv) { toast('خطا در تولید تصویر'); return; }
+    cv.toBlob((blob) => {
+      if (!blob) { toast('خطا در تولید تصویر'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const j = d2j(weekStartJdnVal);
+      a.download = `plan-week-${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('تصویر دانلود شد ✓');
+    }, 'image/png');
+  } catch (err) {
+    console.error(err);
+    toast('خطا در تولید تصویر');
+  }
 }
 
 /* ============ TEXT WRAP ============ */
@@ -17218,9 +17354,41 @@ function openCompactClassEditor(subjectName, i){
 'use strict';
 
 /* ============================================================
-   SETTINGS — Profile (no phone), subjects, tags, exam
-   Sync UI is rendered by 14-pocketbase.js → renderSyncUI()
+   SETTINGS — paged: home → profile / subjects / exam / sync / backup / danger
+   Sync UI is rendered by 12-pocketbase.js → renderSyncUI()
    ============================================================ */
+
+/* ============ PAGED NAVIGATION ============ */
+let settingsPage = 'home';
+function setSettingsPage(page){
+  const overlay=document.getElementById('settingsOverlay');
+  if(!overlay) return;
+  const pages=overlay.querySelectorAll('.settings-page');
+  if(!pages.length) return;
+  settingsPage=Array.from(pages).some(p=>p.dataset.page===page)?page:'home';
+  pages.forEach(p=>{
+    const active=p.dataset.page===settingsPage;
+    p.classList.toggle('active',active);
+    p.hidden=!active;
+  });
+  overlay.scrollTop=0;
+  const body=document.getElementById('settingsBody');
+  if(body) body.scrollTop=0;
+  if(settingsPage==='home') updateHomeSyncState();
+}
+document.querySelectorAll('#settingsBody [data-go]').forEach(btn=>{
+  btn.addEventListener('click',()=>setSettingsPage(btn.dataset.go));
+});
+function updateHomeSyncState(){
+  const el=document.getElementById('homeSyncState');
+  if(!el) return;
+  const loggedIn=typeof isLoggedIn==='function'&&isLoggedIn();
+  el.textContent=loggedIn?'وضعیت: همگام سازی فعال است.':'برای همگام سازی وارد حساب کاربری شوید.';
+}
+const _homeSyncNowBtn=document.getElementById('homeSyncNowBtn');
+if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{
+  if(typeof syncNow==='function') syncNow();
+};
 
 /* ============ PROFILE ============ */
 function renderProfileSection(){
@@ -17228,8 +17396,6 @@ function renderProfileSection(){
   const displayNameEl = document.getElementById('profileDisplayName');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
-  const editFieldsEl = document.getElementById('profileEditFields');
-  const editBtn = document.getElementById('editProfileBtn');
   const fnEl = document.getElementById('setFirstName');
   const lnEl = document.getElementById('setLastName');
   const fEl = document.getElementById('setField');
@@ -17242,19 +17408,12 @@ function renderProfileSection(){
   if(lnEl) lnEl.value = p.lastName || '';
   if(fEl) fEl.value = p.field || 'تجربی';
   if(gEl) gEl.value = p.grade || 'دوازدهم';
-  if(editFieldsEl) editFieldsEl.hidden = true;
-  if(editBtn) editBtn.setAttribute('aria-expanded','false');
   updateProfileHint();
   try{ if(typeof renderSyncUI==='function') renderSyncUI(); }catch(e){}
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => {
-  const editFields = document.getElementById('profileEditFields');
-  const isEditing = editFields && !editFields.hidden;
-  if(editFields) editFields.hidden = isEditing;
-  _editProfileBtn.setAttribute('aria-expanded',String(!isEditing));
-};
+if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('profile');
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;
@@ -18000,13 +18159,10 @@ function setSettingsChrome(open){
   if(brandTitle) brandTitle.classList.toggle('hidden',open);
   if(settingsTitle) settingsTitle.classList.toggle('hidden',!open);
   if(backBtn) backBtn.classList.toggle('hidden',!open);
-  document.querySelectorAll('.nav-btn').forEach(btn=>{
-    if(open) btn.setAttribute('aria-disabled','true');
-    else btn.removeAttribute('aria-disabled');
-  });
 }
 function openSettingsOverlay(){
   const overlay=document.getElementById('settingsOverlay');if(!overlay)return;
+  setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);
   try{renderProfileSection();}catch(e){console.error(e);}
@@ -18019,10 +18175,14 @@ function openSettingsOverlay(){
   const verEl = document.getElementById('appVersionDisplay');
   if(verEl) verEl.textContent = APP_VERSION;
 }
-function closeSettingsOverlay(){
+function closeSettingsOverlay(force){
   const overlay=document.getElementById('settingsOverlay');
   if(!overlay)return;
-  overlay.querySelectorAll('.acc-card.open').forEach(card=>card.classList.remove('open'));
+  if(force!==true&&settingsPage!=='home'){
+    setSettingsPage('home');
+    return;
+  }
+  setSettingsPage('home');
   renderProfileSection();
   overlay.classList.remove('show');
   setSettingsChrome(false);
@@ -18098,6 +18258,7 @@ function buildWeeklyTableHTML(data){
     const totBadges=[];
     if(s.total.time>0){totBadges.push(`<span class="meta-badge">⏱ ${hmString(s.total.time)}</span>`);} 
     if(s.total.t>0)totBadges.push(`<span class="meta-badge t-test">📝 ${fa(s.total.t)}</span>`);
+    if(s.total.c||s.total.w||s.total.b)totBadges.push(testBadge(s.total.c,s.total.w,s.total.b));
     const totCompact=s.total.time>0?hmTotalStr(s.total.time):'—';
     const totHTML=totBadges.length?`<span class="cell-time-compact">${totCompact}</span><div class="cell-full"><div class="meta-badges center">${totBadges.join('')}</div></div>`:'<span class="cell-time-compact">—</span><span class="cell-full text-dim">—</span>';
     return`<tr><td class="subj-col"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;margin-left:6px;background:${s.color};vertical-align:middle"></span><b class="wr-subject-name">${esc(s.name)}</b></td>${cells}<td class="total-col">${totHTML}</td></tr>`;
@@ -18127,6 +18288,7 @@ function buildWeeklyTableHTML(data){
   const grandBadges=[];
   if(data.grand.time)grandBadges.push(`<span class="meta-badge">⏱ ${hmString(data.grand.time)}</span>`);
   if(data.grand.t)grandBadges.push(`<span class="meta-badge t-test">📝 ${fa(data.grand.t)}</span>`);
+  if(data.grand.c||data.grand.w||data.grand.b)grandBadges.push(testBadge(data.grand.c,data.grand.w,data.grand.b));
   const grandCompact=data.grand.time?hmTotalStr(data.grand.time):'—';
   const grandHTML=grandBadges.length?`<span class="cell-time-compact">${grandCompact}</span><div class="cell-full">${grandBadges.join('')}</div>`:'<span class="cell-time-compact">—</span><span class="cell-full">—</span>';
   const totalsRow=`<tr class="totals-row"><td class="subj-col">مجموع روز</td>${totalCells}<td class="total-col">${grandHTML}</td></tr>`;
@@ -18499,8 +18661,13 @@ async function generateWeeklyReportCanvas(){
     const lines=[];
     if(s.total.time>0)lines.push({t:'⏱ '+hmString(s.total.time),c:'#4de2f5',f:'700 18px'});
     if(s.total.t>0)lines.push({t:'📝 '+fa(s.total.t)+' تست',c:'#7dd3fc',f:'700 16px'});
-    if(!lines.length){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,cy);}
-    else lines.forEach((ln,idx)=>{const y=cy+(idx-(lines.length-1)/2)*26;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+    const showTriplet=!!(s.total.c||s.total.w||s.total.b);
+    const slots=lines.length+(showTriplet?1:0);
+    if(!slots){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,cy);}
+    else{
+      lines.forEach((ln,idx)=>{const y=cy+(idx-(slots-1)/2)*26;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+      if(showTriplet)drawTriplet(s.total.c,s.total.w,s.total.b,totalLeft+totalColW/2,cy+((slots-1)/2)*26,13);
+    }
     tblY+=rowH;
   });
 
@@ -18545,8 +18712,13 @@ async function generateWeeklyReportCanvas(){
   const glines=[];
   if(data.grand.time>0)glines.push({t:'⏱ '+hmString(data.grand.time),c:'#4de2f5',f:'800 20px'});
   if(data.grand.t>0)glines.push({t:'📝 '+fa(data.grand.t)+' تست',c:'#7dd3fc',f:'700 17px'});
-  if(!glines.length){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,gcy);}
-  else glines.forEach((ln,idx)=>{const y=gcy+(idx-(glines.length-1)/2)*28;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+  const showGrandTriplet=!!(data.grand.c||data.grand.w||data.grand.b);
+  const gslots=glines.length+(showGrandTriplet?1:0);
+  if(!gslots){cx.fillStyle='#4b5470';cx.font='500 22px Vazirmatn, Tahoma, sans-serif';cx.fillText('—',totalLeft+totalColW/2,gcy);}
+  else{
+    glines.forEach((ln,idx)=>{const y=gcy+(idx-(gslots-1)/2)*28;cx.fillStyle=ln.c;cx.font=ln.f+' Vazirmatn, Tahoma, sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(ln.t,totalLeft+totalColW/2,y);});
+    if(showGrandTriplet)drawTriplet(data.grand.c,data.grand.w,data.grand.b,totalLeft+totalColW/2,gcy+((gslots-1)/2)*28,15);
+  }
   tblY+=totalsRowH;
 
   drawCell(subjLeft,tblY,subjColW,sleepRowH,'',{bg:'rgba(99,102,241,.16)'});

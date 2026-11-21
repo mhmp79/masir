@@ -5,7 +5,7 @@
   "lang": "fa",
   "dir": "rtl",
   "description": "اپلیکیشن ثبت مطالعه و تحلیل آزمون کنکور — کاملاً آفلاین",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#000000",

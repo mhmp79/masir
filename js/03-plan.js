@@ -1828,7 +1828,9 @@ function openSessionEditor(sid, defaults) {
 /* ============ PLAN IMAGE EXPORT ============ */
 function openPlanImagePicker() {
   let anchor = jdnFromKey(calSelected);
+  let previewToken = 0;
   const render = () => {
+    const token = ++previewToken;
     const ws = weekStartJdn(anchor);
     const a = d2j(ws), b = d2j(ws + 6);
     const label = `${fa(a.jd)} ${MONTHS[a.jm - 1]} تا ${fa(b.jd)} ${MONTHS[b.jm - 1]} ${fa(b.jy)}`;
@@ -1850,6 +1852,7 @@ function openPlanImagePicker() {
         </div>
         <button class="rn-btn" id="piNext" type="button" ${canGoNext ? '' : 'disabled'}>‹</button>
       </div>
+      <div class="cwr-preview plan-preview" id="piPreview"><div class="muted report-empty">در حال ساخت پیشنمایش…</div></div>
       <button class="btn primary mt-6" id="piDownload">⬇ دانلود تصویر برنامه هفتگی</button>
       <div class="report-madeby">Made by MH.Mahdipanah</div>
     `);
@@ -1863,11 +1866,23 @@ function openPlanImagePicker() {
       closeModal();
       setTimeout(() => downloadPlanWeekImage(targetWs), 120);
     };
+    if (typeof generatePlanWeekCanvas === 'function') {
+      generatePlanWeekCanvas(ws).then((cv) => {
+        if (token !== previewToken || !cv) return;
+        const preview = document.getElementById('piPreview');
+        if (preview) preview.innerHTML = `<img src="${cv.toDataURL('image/png')}" alt="پیشنمایش تصویر برنامه هفتگی">`;
+      }).catch((err) => {
+        console.error(err);
+        if (token !== previewToken) return;
+        const preview = document.getElementById('piPreview');
+        if (preview) preview.innerHTML = '<div class="muted report-empty">خطا در ساخت پیشنمایش</div>';
+      });
+    }
   };
   render();
 }
 
-async function downloadPlanWeekImage(weekStartJdnVal) {
+async function generatePlanWeekCanvas(weekStartJdnVal) {
   const ws = weekStartJdnVal;
   const we = ws + 6;
   const wsJ = d2j(ws), weJ = d2j(we);
@@ -2039,16 +2054,28 @@ async function downloadPlanWeekImage(weekStartJdnVal) {
   cx.font = '600 20px Vazirmatn, Tahoma, sans-serif';
   cx.fillText('Made by MH.Mahdipanah', W / 2, H - 50);
 
-  cv.toBlob((blob) => {
-    if (!blob) { toast('خطا در تولید تصویر'); return; }
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `plan-week-${wsJ.jy}-${pad2(wsJ.jm)}-${pad2(wsJ.jd)}.png`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    toast('تصویر دانلود شد ✓');
-  }, 'image/png');
+  return cv;
+}
+
+async function downloadPlanWeekImage(weekStartJdnVal) {
+  try {
+    const cv = await generatePlanWeekCanvas(weekStartJdnVal);
+    if (!cv) { toast('خطا در تولید تصویر'); return; }
+    cv.toBlob((blob) => {
+      if (!blob) { toast('خطا در تولید تصویر'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const j = d2j(weekStartJdnVal);
+      a.download = `plan-week-${j.jy}-${pad2(j.jm)}-${pad2(j.jd)}.png`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('تصویر دانلود شد ✓');
+    }, 'image/png');
+  } catch (err) {
+    console.error(err);
+    toast('خطا در تولید تصویر');
+  }
 }
 
 /* ============ TEXT WRAP ============ */

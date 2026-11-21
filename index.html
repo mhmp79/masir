@@ -505,21 +505,72 @@
     </header>
     <main class="wr-body" id="settingsBody">
 
-      <div class="card profile-card">
-        <div class="profile-summary">
-          <div class="profile-summary-info">
-            <div class="profile-display-name" id="profileDisplayName">نام ثبت نشده</div>
-            <div class="profile-summary-meta">
-              <span id="profileDisplayField">رشته: تجربی</span>
-              <span class="profile-meta-divider">•</span>
-              <span id="profileDisplayGrade">پایه: دوازدهم</span>
+      <!-- ===== SETTINGS HOME ===== -->
+      <section class="settings-page active" data-page="home">
+        <div class="card profile-card settings-home-profile">
+          <div class="profile-summary">
+            <div class="profile-summary-info">
+              <div class="profile-display-name" id="profileDisplayName">نام ثبت نشده</div>
+              <div class="profile-summary-meta">
+                <span id="profileDisplayField">رشته: تجربی</span>
+                <span class="profile-meta-divider">•</span>
+                <span id="profileDisplayGrade">پایه: دوازدهم</span>
+              </div>
             </div>
+            <button type="button" class="profile-link-btn" id="editProfileBtn" title="پروفایل" aria-label="پروفایل">پروفایل</button>
           </div>
-          <button type="button" class="profile-edit-btn" id="editProfileBtn" aria-label="ویرایش پروفایل" aria-expanded="false" title="ویرایش پروفایل">✎</button>
         </div>
-        <div id="accountUI" class="account-ui"></div>
-        <div class="profile-edit-fields" id="profileEditFields" hidden>
-          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجی‌های تصویری استفاده می‌شود.</div>
+
+        <button type="button" class="card settings-link" data-go="subjects">
+          <span class="set-link-icon">🎨</span>
+          <span class="set-link-copy"><b>تنظیمات دروس و رنگها</b><small>ترتیب، نوع و تنظیمات پیشرفته درسها</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link" data-go="exam">
+          <span class="set-link-icon">📝</span>
+          <span class="set-link-copy"><b>تنظیمات آزمون و اشتباهات</b><small>آزمون پیشفرض و برچسبهای اشتباهات</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link" data-go="sync">
+          <span class="set-link-icon">☁️</span>
+          <span class="set-link-copy"><b>همگام سازی و حساب کاربری</b><small>ورود، خروج و تنظیمات همگام سازی</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <div class="card sync-mini-card">
+          <span class="set-link-icon">🔄</span>
+          <span class="set-link-copy"><b>همگام سازی دستی</b><small id="homeSyncState">برای همگام سازی وارد حساب کاربری شوید.</small></span>
+          <button type="button" class="btn primary sync-mini-btn" id="homeSyncNowBtn">همگام سازی</button>
+        </div>
+
+        <button type="button" class="card settings-link" data-go="backup">
+          <span class="set-link-icon">💾</span>
+          <span class="set-link-copy"><b>پشتیبانگیری</b><small>ذخیره و بازگردانی فایل پشتیبان</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link danger-link" data-go="danger">
+          <span class="set-link-icon">⚠️</span>
+          <span class="set-link-copy"><b>حذف دادهها</b><small>پاک کردن تمام اطلاعات برنامه</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <div class="settings-version">
+          نسخه برنامه: <b id="appVersionDisplay">—</b>
+          <div class="mt-6 fs-10 opacity-60">Made by MH.Mahdipanah</div>
+        </div>
+      </section>
+
+      <!-- ===== PROFILE PAGE ===== -->
+      <section class="settings-page" data-page="profile" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">پروفایل</div>
+        </div>
+        <div class="card settings-detail-card">
+          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجیهای تصویری استفاده میشود.</div>
           <div class="profile-identity-grid">
             <div class="profile-field">
               <label class="lbl mt-0">نام</label>
@@ -552,19 +603,16 @@
             <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="card sync-card" id="syncCard">
-        <div id="syncUI"></div>
-      </div>
-
-      <div class="card acc-card settings-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">🎨 تنظیمات دروس و رنگ‌ها</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
-          <div class="muted mb-10 fs-11h">با دستگیره <b>⠿</b> ترتیب درس‌ها را در گروه تخصصی یا عمومی جابه‌جا کن؛ تخصصی‌ها همیشه بالاتر هستند. با دکمه <b>⚙</b> تنظیمات پیشرفته را باز کن.</div>
+      <!-- ===== SUBJECTS PAGE ===== -->
+      <section class="settings-page" data-page="subjects" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">تنظیمات دروس و رنگها</div>
+        </div>
+        <div class="card settings-detail-card settings-card">
+          <div class="muted mb-10 fs-11h">با دستگیره <b>⠿</b> ترتیب درسها را در گروه تخصصی یا عمومی جابهجا کن؛ تخصصیها همیشه بالاتر هستند. با دکمه <b>⚙</b> تنظیمات پیشرفته را باز کن.</div>
           <div id="subjectManager"></div>
           <div class="toggle-card mt-12" id="finalEleventhSetting" hidden>
             <div>
@@ -575,21 +623,22 @@
           </div>
           <button class="btn btn-add mt-12" id="addSubjectBtn">+ افزودن درس جدید</button>
         </div>
-      </div>
+      </section>
 
-      <div class="card acc-card exam-settings-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">📝 تنظیمات آزمون</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
+      <!-- ===== EXAM PAGE ===== -->
+      <section class="settings-page" data-page="exam" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">تنظیمات آزمون و اشتباهات</div>
+        </div>
+        <div class="card settings-detail-card exam-settings-card">
           <div class="toggle-card exam mb-12" id="examToggleCard">
-            <div><div class="fw-700 fs-13">فعال‌سازی آزمون</div></div>
+            <div><div class="fw-700 fs-13">فعالسازی آزمون</div></div>
             <label class="switch"><input type="checkbox" id="examEnabledToggle"><span></span></label>
           </div>
           <div id="examSettingsBody" class="hidden">
-            <div class="setting-row"><div class="sr-label">نام پیش‌فرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
-            <div class="setting-row"><div class="sr-label">مدت پیش‌فرض (ساعت)</div><div class="sr-control"><input dir="ltr" inputmode="numeric" class="input input-sm num-input" type="text" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
+            <div class="setting-row"><div class="sr-label">نام پیشفرض آزمون</div><div class="sr-control"><input class="input input-md" type="text" id="setExamName" value="آزمون آزمایشی"></div></div>
+            <div class="setting-row"><div class="sr-label">مدت پیشفرض (ساعت)</div><div class="sr-control"><input dir="ltr" inputmode="numeric" class="input input-sm num-input" type="text" id="setExamDuration" min="0.5" max="6" step="0.5" value="3"></div></div>
           </div>
           <div class="err-sep"></div>
           <div class="err-sec-title">🏷️ تنظیمات اشتباهات</div>
@@ -602,34 +651,46 @@
           <div id="subjectErrorsList" class="mt-10"></div>
           <div class="add-topic"><input class="input" id="newSubjectErr" placeholder="اشتباه اختصاصی جدید..."><button id="addSubjectErrBtn">+</button></div>
         </div>
-      </div>
+      </section>
 
-      <div class="card acc-card backup-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">💾 پشتیبان‌گیری</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
-          <div class="muted mb-12 fs-11 lh-19">شامل تمام داده‌ها: پروفایل، دروس، فعالیت‌ها، برنامه، خواب، گوشی، کلاس‌ها، آزمون‌ها، تنظیمات، شمارنده تست.</div>
+      <!-- ===== SYNC + ACCOUNT PAGE ===== -->
+      <section class="settings-page" data-page="sync" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">همگام سازی و حساب کاربری</div>
+        </div>
+        <div class="card settings-detail-card">
+          <div class="card-title">حساب کاربری</div>
+          <div id="accountUI" class="account-ui"></div>
+        </div>
+        <div class="card sync-card settings-detail-card" id="syncCard">
+          <div id="syncUI"></div>
+        </div>
+      </section>
+
+      <!-- ===== BACKUP PAGE ===== -->
+      <section class="settings-page" data-page="backup" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">پشتیبانگیری</div>
+        </div>
+        <div class="card settings-detail-card backup-card">
+          <div class="muted mb-12 fs-11 lh-19">شامل تمام دادهها: پروفایل، دروس، فعالیتها، برنامه، خواب، گوشی، کلاسها، آزمونها، تنظیمات، شمارنده تست.</div>
           <button class="btn backup-btn mb-9" id="exportBtn">⬇ ذخیره فایل پشتیبان (.json)</button>
           <label class="file-btn">⬆ ایمپورت<input type="file" id="importInput" class="hidden" accept="application/json,.json"></label>
         </div>
-      </div>
+      </section>
 
-      <div class="card acc-card danger-card">
-        <button class="acc-head" data-acc-toggle>
-          <div class="acc-head-title">⚠ حذف داده‌ها</div>
-          <span class="acc-chevron">▼</span>
-        </button>
-        <div class="acc-body">
+      <!-- ===== DANGER PAGE ===== -->
+      <section class="settings-page" data-page="danger" hidden>
+        <div class="settings-page-head">
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
+          <div class="page-title">حذف دادهها</div>
+        </div>
+        <div class="card settings-detail-card danger-card">
           <button class="btn danger" id="clearDataBtn">🗑 پاک کردن تمام اطلاعات</button>
         </div>
-      </div>
-
-      <div class="settings-version">
-        نسخه برنامه: <b id="appVersionDisplay">—</b>
-        <div class="mt-6 fs-10 opacity-60">Made by MH.Mahdipanah</div>
-      </div>
+      </section>
 
     </main>
   </div>

@@ -318,6 +318,14 @@ test('REWORK: dashboard insights are a mistake-tag distribution, not progress', 
 });
 
 /* ---------- Static integration checks ---------- */
+test('REWORK: dashboard widget text is general-only and free of raw escapes', () => {
+  const html = read('index.html');
+  const exam = read('js/05-exam.js');
+  assert.ok(html.includes('🏷️ پراکندگی تگهای عمومی اشتباهات'));
+  assert.ok(!html.includes('\\u200c'), 'literal JS escape leaked into HTML');
+  assert.ok(!exam.includes('<div class="ei-title">'), 'widget title is duplicated');
+});
+
 test('REWORK: exams keep the calendar sidebar; analysis uses the tag sidebar', () => {
   const css = read('css/09-exam.css');
   const html = read('index.html');
@@ -374,7 +382,7 @@ test('REWORK: comprehensive analysis has subject-bound topic/type filters', () =
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r22'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r23'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

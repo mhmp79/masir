@@ -37,6 +37,11 @@ function setupBackExitGuard(){
       document.body.style.overflow='';
       rearm(); return;
     }
+    const tagDrawer=document.getElementById('noteTagBackdrop');
+    if(tagDrawer && !tagDrawer.hidden){
+      try{ setNoteTagSidebarOpen(false); }catch(_){}
+      rearm(); return;
+    }
     const exam=document.getElementById('examOverlay');
     if(exam && exam.style.display==='block'){
       try{ closeExamDetail(); }catch(_){}
@@ -47,12 +52,6 @@ function setupBackExitGuard(){
       try{ closeModal(); }catch(_){}
       rearm(); return;
     }
-    const examDrawer=document.getElementById('view-exam');
-    if(examDrawer && examDrawer.classList.contains('sidebar-open')){
-      try{ setExamSidebarOpen(false); }catch(_){}
-      rearm(); return;
-    }
-
     /* ۲) بازگشت از تب‌ها به داشبورد */
     const active=document.querySelector('.nav-btn.active');
     const viewName=active ? active.dataset.view : 'dashboard';

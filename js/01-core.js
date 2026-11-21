@@ -611,8 +611,14 @@ function normalizeSubject(s){
     : (DEFAULT_SPECIALIZED_TAGS[s.name]||[]).map(e=>({...e}));
 
   /* TASK SPEC v1.2.0 — FEAT-7: question types, note emphasis and subject group. */
+  /* FEAT-7: user-created question types. A type may be tied to one or more
+     topics of this subject; an empty list means it applies to every topic. */
   let questionTypes = Array.isArray(s.questionTypes)
-    ? s.questionTypes.map(e=>({id:String(e.id||uid()), label:String(e.label||'').slice(0,60)})).filter(e=>e.label)
+    ? s.questionTypes.map(e=>({
+        id:String(e.id||uid()),
+        label:String(e.label||'').slice(0,60),
+        topics:Array.isArray(e.topics)?e.topics.filter(t=>typeof t==='string'):[]
+      })).filter(e=>e.label)
     : [];
   const emphasis=['note','question-type','both'].includes(s.emphasis)?s.emphasis:'note';
   const group=String(s.group||'').slice(0,40);
@@ -707,6 +713,13 @@ function normalizeSubject(s){
 }
 
 function normalizeQuestion(q){
+  const options=Array.isArray(q.options)
+    ? q.options.map(o => String(o && o.text != null ? o.text : o)).filter(t => t !== '').slice(0, 10)
+    : [];
+  const correctOptions=Array.isArray(q.correctOptions)
+    ? q.correctOptions.map(i => Math.max(0, Math.min(options.length - 1, +i || 0)))
+        .filter((i, idx, arr) => i < options.length && arr.indexOf(i) === idx)
+    : [];
   return {
     id: q.id || uid(),
     subject: String(q.subject || ''),
@@ -718,6 +731,8 @@ function normalizeQuestion(q){
     errorDetails: (q.errorDetails && typeof q.errorDetails === 'object') ? JSON.parse(JSON.stringify(q.errorDetails)) : {},
     specialTags: Array.isArray(q.specialTags) ? q.specialTags.filter(t => typeof t === 'string') : [],
     questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
+    options,
+    correctOptions,
     starred: !!q.starred,
     questionText: String(q.questionText || ''),
     answerText: String(q.answerText || ''),
@@ -2054,10 +2069,9 @@ function examNeedsAttention(exam){
     const st=qStatus(q);
     if(st==='correct'||st==='pending')return false;
     if(q.noteHidden)return false;
-    const hasNote=q.note&&q.note.trim();
-    const hasQ=q.questionText&&q.questionText.trim();
-    const hasTags=(q.errorTypes&&q.errorTypes.length>0)||(q.specialTags&&q.specialTags.length>0)||(q.reviewSolvable!==null);
-    return !hasNote && !hasQ && !hasTags;
+    const hasTags=['topics','errorTypes','specialTags','questionTypes'].some(key=>
+      Array.isArray(q[key])&&q[key].length>0);
+    return !hasTags;
   });
 }
 function ensureContinuousNumbering(exam){

@@ -139,6 +139,68 @@ test('FEAT-1: every analysis field counts independently', () => {
   assert.strictEqual(isQuestionAnalyzed({ ...base, status: 'correct' }), false, 'status alone is not analysis');
 });
 
+/* ---------- REWORK: tag-only completion semantics ---------- */
+const tagProgress = loadFunctions('js/05-exam.js', ['isQuestionTagAnalyzed', 'subjectAnalysisStats']);
+test('REWORK: only tagged wrong/blank questions count toward completion', () => {
+  const questions = [
+    { id: 'w1', status: 'wrong', errorTypes: ['e1'] },
+    { id: 'b1', status: 'blank', topics: ['t1'] },
+    { id: 'w2', status: 'wrong' },
+    { id: 'c1', status: 'correct', note: 'note', errorTypes: ['e1'] },
+    { id: 'p1', status: 'pending', questionTypes: ['qt1'] }
+  ];
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[0]), true);
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[1]), true);
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[2]), false);
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[3]), false, 'correct is excluded');
+  assert.strictEqual(tagProgress.isQuestionTagAnalyzed(questions[4]), false, 'pending is excluded');
+  const stats = tagProgress.subjectAnalysisStats(questions);
+  assert.strictEqual(stats.total, 3);
+  assert.strictEqual(stats.analyzed, 2);
+  assert.strictEqual(stats.remaining, 1);
+  assert.strictEqual(stats.pct, 67);
+  assert.strictEqual(stats.done, false);
+  const done = tagProgress.subjectAnalysisStats([{ status: 'blank', questionTypes: ['qt2'] }]);
+  assert.strictEqual(done.done, true);
+  const exam = read('js/05-exam.js');
+  assert.ok(/class=\"nsp-pct nsp-done\">تحلیل شد/.test(exam), 'finished subject needs the done badge');
+  assert.ok(/if\(stats\.done\)\{pct\.textContent='تحلیل شد'/.test(exam), 'live updates must flip to the done badge');
+  assert.ok(/class=\"nsp-progress\$\{stats\.done\?' hidden':''\}/.test(exam), 'progress bar must be hidden at 100%');
+});
+
+/* ---------- REWORK: topic-bound, user-created question types ---------- */
+const typeSandbox = loadFunctions(
+  'js/05-exam.js',
+  ['subjectQuestionTypes', 'typesForQuestion', 'questionTypeLabel'],
+  {
+    state: {
+      subjects: [{
+        name: 'ریاضی',
+        questionTypes: [
+          { id: 'qt1', label: 'مثلثات', topics: ['احتمال'] },
+          { id: 'qt2', label: 'عمومی', topics: [] }
+        ]
+      }]
+    }
+  }
+);
+test('REWORK: question types are scoped to the question topic', () => {
+  const oneTopic = { subject: 'ریاضی', topics: ['احتمال'] };
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion(oneTopic).map(t => t.id)), ['qt1', 'qt2']);
+  const otherTopic = { subject: 'ریاضی', topics: ['جبر'] };
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion(otherTopic).map(t => t.id)), ['qt2']);
+  assert.strictEqual(typeSandbox.questionTypeLabel('qt1', 'ریاضی'), 'مثلثات');
+});
+
+/* ---------- REWORK: global analysis includes tag-only questions ---------- */
+const contentCore = loadFunctions('js/05-exam.js', ['qHasAnalysisContent']);
+test('REWORK: question types, error tags and options make a question analysable', () => {
+  assert.strictEqual(contentCore.qHasAnalysisContent({ status: 'pending' }), false);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ questionTypes: ['qt1'] }), true);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ errorTypes: ['e1'] }), true);
+  assert.strictEqual(contentCore.qHasAnalysisContent({ options: ['a', 'b'], correctOptions: [0] }), true);
+});
+
 /* ---------- FEAT-2: draft storage removed ---------- */
 test('FEAT-2: examNoteDrafts and the register button are gone', () => {
   const source = read('js/05-exam.js');
@@ -228,35 +290,75 @@ test('FEAT-6: auto-group needs 2+ types and 30% share', () => {
   assert.strictEqual(suggestQuestionTypeGroups(tooSmallShare).length, 0, '2 of 10 types = 20% share');
 });
 
-test('FEAT-8: pending questions never count as analyzed in dashboard insights', () => {
+test('REWORK: dashboard insights are a mistake-tag distribution, not progress', () => {
   const sandbox = loadFunctions('js/05-exam.js', ['isQuestionAnalyzed', 'examInsights'], {
     state: {
       subjects: [{ name: 'ریاضی', type: 'specialized' }],
       exams: [{
         id: 'e1',
         questions: [
-          { id: 'q1', subject: 'ریاضی', status: 'wrong', note: 'note', questionTypes: [] },
-          { id: 'q2', subject: 'ریاضی', status: 'pending', note: 'draft only', questionTypes: [] }
+          { id: 'q1', subject: 'ریاضی', status: 'wrong', errorTypes: ['e1'] },
+          { id: 'q2', subject: 'ریاضی', status: 'blank', specialTags: ['s1'] },
+          { id: 'q3', subject: 'ریاضی', status: 'correct', errorTypes: ['e1'] },
+          { id: 'q4', subject: 'ریاضی', status: 'pending', errorTypes: ['e1'] }
         ]
       }]
     },
+    getErr: (id) => ({ id, label: 'tag-' + id, color: '#fff' }),
+    errColor: () => '#fff',
     getSortedQuestions: (exam) => exam.questions
   });
   const d = sandbox.examInsights();
-  assert.strictEqual(d.total, 2);
-  assert.strictEqual(d.answered, 1);
-  assert.strictEqual(d.analyzed, 1, 'pending question with text must not count as analyzed');
+  assert.strictEqual(d.total, 2, 'correct and pending questions are excluded');
+  assert.deepStrictEqual(Array.from(d.tags.map(t => t.id)), ['e1', 's1']);
+  assert.strictEqual(d.byTag['tag-e1'], 1);
+  assert.strictEqual(d.byTag['tag-s1'], 1);
 });
 
 /* ---------- Static integration checks ---------- */
-test('P4: exam layout uses 280px grid, sticky sidebar and mobile drawer', () => {
+test('REWORK: calendar is inline; only the tag selector has a sidebar/drawer', () => {
   const css = read('css/09-exam.css');
   const html = read('index.html');
-  assert.ok(/grid-template-columns:\s*280px minmax\(0,1fr\)/.test(css));
-  assert.ok(/position:sticky;top:16px/.test(css));
-  assert.ok(/max-height:90vh/.test(css));
-  assert.ok(/overflow-y:auto/.test(css));
-  assert.ok(html.includes('examSidebarToggle'), 'mobile drawer button missing');
+  const desktop = read('css/14-desktop.css');
+  const exam = read('js/05-exam.js');
+  assert.ok(html.includes('examCalendarDetails'), 'inline exam calendar missing');
+  assert.ok(!html.includes('examSidebarToggle'), 'old calendar drawer button still present');
+  assert.ok(html.includes('noteTagToggle'), 'tag drawer button missing');
+  assert.ok(html.includes('noteTagBackdrop'), 'tag drawer backdrop missing');
+  assert.ok(/grid-template-columns:minmax\(0,1fr\) 280px/.test(css));
+  assert.ok(/#examOverlay\.tags-open \.note-tag-sidebar/.test(css));
+  assert.ok(!/#view-exam\.active\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+340px/.test(desktop),
+    'desktop cascade still reserves a calendar column');
+  assert.ok(/function setNoteTagSidebarOpen\(/.test(exam));
+  assert.ok(exam.includes('فقط سلکشن تگ تحلیل سوال (پیشنهادی)'), 'tag sidebar is not scoped correctly');
+  assert.ok(!/exam-layout\.analysis-mode/.test(css), 'stale analysis-mode layout remains');
+});
+
+test('REWORK: note section is not collapsible and add-question is one unified form', () => {
+  const exam = read('js/05-exam.js');
+  const css = read('css/09-exam.css');
+  assert.ok(/nc-static-note/.test(exam));
+  assert.ok(/nc-static-note/.test(css));
+  assert.ok(!/<details class="nc-fold nc-note-fold"/.test(exam), 'note is still collapsible');
+  assert.ok(/data-aq-mode="single"/.test(exam));
+  assert.ok(/چند جواب صحیح/.test(exam));
+  assert.ok(/options:clean,correctOptions/.test(exam));
+  assert.ok(!/aqAnswerText/.test(exam), 'separate answer field still present');
+});
+
+test('REWORK: comprehensive analysis has subject-bound topic/type filters', () => {
+  const exam = read('js/05-exam.js');
+  assert.ok(/if\(f\.subject&&availableTopics\.length\)/.test(exam));
+  assert.ok(/data-f="questionType"/.test(exam));
+  assert.ok(/class="ac-type"/.test(exam));
+  assert.ok(/f\.questionType=''/.test(exam));
+  assert.ok(/const availableTypes=f\.subject\?subjectQuestionTypes\(f\.subject\):\[\]/.test(exam),
+    'type filter must list the selected subject types');
+});
+
+test('REWORK: service worker cache is bumped for returning users', () => {
+  const sw = read('sw.js');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r21'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

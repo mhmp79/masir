@@ -549,7 +549,7 @@
   #view-dashboard #monthlyHeatmap { min-height: 0; }
   #view-dashboard .hm-grid { grid-template-rows: repeat(6, minmax(0, 1fr)); }
   #view-plan.active { grid-template-columns: minmax(0, 1fr) 340px; }
-  #view-exam.active { grid-template-columns: minmax(0, 1fr) 340px; }
+  #view-exam.active { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 767px) {

@@ -1248,7 +1248,7 @@ function visualLaneEnd(item) {
 }
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes, syncExamSessionsTopics };
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes, syncExamSessionsTopics, phaseCellItems };
 }
 
 function assignLanes(items) {
@@ -1572,6 +1572,22 @@ function renderPill(s) {
 }
 
 /* ============ PHASES VIEW ============ */
+/* Volume planning shows planned sessions and already recorded activities in the
+   same phase grid. A linked activity is skipped because its session pill is
+   already rendered, so nothing appears twice. */
+function phaseCellItems(dayKey,sessions,activities,phaseStart,phaseEnd){
+  const linkedIds=new Set((sessions||[]).map(s=>s.activityId).filter(Boolean));
+  const inPhase=item=>{
+    if(!item||item.startMin==null)return false;
+    const start=+item.startMin;
+    const end=item.endMin!=null?+item.endMin:start+(+item.minutes||+item.durMin||0);
+    return Number.isFinite(start)&&Number.isFinite(end)&&end>phaseStart&&start<phaseEnd;
+  };
+  const planned=(sessions||[]).filter(inPhase).map(s=>({...s,_kind:'session'}));
+  const recorded=(activities||[]).filter(a=>a.date===dayKey&&!linkedIds.has(a.id)).filter(inPhase).map(a=>({...a,_kind:'activity'}));
+  return [...planned,...recorded].sort((a,b)=>a.startMin-b.startMin||(a._kind==='session'?-1:1));
+}
+
 function renderPhases(box) {
   const st = activeWeekStart();
   const days = Array.from({ length: 7 }, (_, i) => jKey(d2j(st + i)));
@@ -1604,13 +1620,9 @@ function renderPhases(box) {
     for (let p = 1; p <= PHASE_COUNT; p++) {
       const phaseStart = phaseStartMin(p);
       const phaseEnd = phaseStart + PHASE_SIZE;
-      const cellSessions = timedOfDay(k).filter(s => {
-        const sEnd = s.startMin + s.durMin;
-        return s.startMin < phaseEnd && sEnd > phaseStart;
-      });
-      cellSessions.sort((a, b) => a.startMin - b.startMin);
+      const cellItems = phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd);
       html += `<td class="gt-cell phase-cell" data-drop-day="${k}" data-drop-phase="${p}">
-        ${cellSessions.map(s => renderPhasePill(s, phaseStart, phaseEnd)).join('')}
+        ${cellItems.map(s => renderPhasePill(s, phaseStart, phaseEnd)).join('')}
       </td>`;
     }
     html += `</tr>`;
@@ -1627,21 +1639,26 @@ function renderPhases(box) {
 }
 
 function renderPhasePill(s, phaseStart, phaseEnd) {
+  const isActivity = s._kind === 'activity';
   const color = subjColor(s.subject);
-  const sStart = s.startMin;
-  const sEnd = s.startMin + s.durMin;
+  const sStart = +s.startMin;
+  const sEnd = s.endMin != null ? +s.endMin : sStart + (+s.minutes || +s.durMin || 0);
   const isContStart = sStart < phaseStart;
   const isContEnd = sEnd > phaseEnd;
   const classes = ['sess-pill', 'phase-pill'];
+  if (isActivity) classes.push('activity-pill', 'tl-activity');
   if (s.done) classes.push('done');
   if (isContStart) classes.push('cont-start');
   if (isContEnd) classes.push('cont-end');
   if (isContStart && isContEnd) classes.push('cont-both');
   const segStart = Math.max(sStart, phaseStart);
   const segEnd = Math.min(sEnd, phaseEnd);
-  return `<div class="${classes.join(' ')}" data-sid="${s.id}" style="--pill:${color}" title="${esc(s.subject)}${s.topic ? ' — ' + esc(s.topic) : ''} (${minToStr(segStart)} — ${minToStr(segEnd)})">
-    <span class="sp-label" style="color:${color}">${esc(s.subject)}</span>
-    <span class="sp-dur">${fa(s.durMin)}د</span>
+  const attrs = isActivity ? `data-act-id="${s.id}"` : `data-sid="${s.id}"`;
+  const name = isActivity ? (s.topic || s.subject || 'فعالیت') : s.subject;
+  const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${minToStr(segStart)} — ${minToStr(segEnd)})`;
+  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}">
+    <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${isActivity ? '✓ ' : ''}${esc(name)}</span>
+    <span class="sp-dur">${fa(Math.max(0, sEnd - sStart))}د</span>
   </div>`;
 }
 

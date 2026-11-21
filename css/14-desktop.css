@@ -14,7 +14,7 @@
   .app { max-width: 100%; padding: 16px 24px 100px; }
   .topbar { margin: 0 0 14px; padding: 13px 16px; }
   .nav { max-width: 100%; }
-  #settingsOverlay .wr-shell { max-width: 100%; padding: 104px 24px calc(110px + env(safe-area-inset-bottom)); }
+  #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -113,7 +113,7 @@
     transform: none;
     width: auto; max-width: none;
     flex-direction: column; justify-content: flex-start;
-    margin: 14px 0 14px 14px;
+    margin: 8px 14px 14px 14px;
     padding: 12px 10px; gap: 4px;
     background: rgba(11,16,34,.76);
     backdrop-filter: blur(18px) saturate(150%);-webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -143,8 +143,8 @@
   .nav-btn:not(.active):hover { color: #cfd6ea; }
 
   #settingsOverlay {
-    left: var(--sidebar-w); top: var(--topbar-h);
-    right: 0; bottom: 0;
+    left: 0; right: var(--sidebar-w); top: var(--topbar-h);
+    bottom: 0;
   }
   #settingsOverlay .wr-shell { max-width: 1120px; padding: var(--main-pad); }
 

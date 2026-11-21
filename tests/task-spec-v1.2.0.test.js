@@ -409,7 +409,8 @@ test('CLARIFIED: note cards start collapsed with an add button and a kind picker
   assert.ok(/＋ افزودن سوال و پاسخ/.test(exam), 'add question button missing');
   assert.ok(/data-q-kind="mcq"/.test(exam), 'four-option kind missing');
   assert.ok(/data-q-kind="case"/.test(exam), 'case-based kind missing');
-  assert.ok(/موردی \(پیش فرض ۴\)/.test(exam), 'case default of four is missing');
+  assert.ok(/data-q-kind="case">چندموردی</.test(exam), 'multi-item kind must be labelled چندموردی');
+  assert.ok(!/موردی \(پیش فرض ۴\)/.test(exam), 'old case label is gone');
   assert.ok(/data-case-step/.test(exam), 'case count cannot be adjusted');
   assert.ok(/q\.correctOptions=q\.correctOptions\[0\]===index\?\[\]:\[index\]/.test(exam),
     'correct answer must toggle off when pressed again');
@@ -418,6 +419,30 @@ test('CLARIFIED: note cards start collapsed with an add button and a kind picker
   assert.ok(/ensureQuestionPaperDraft\(s\)/.test(exam), 'draft is not prepared before saving');
   assert.ok(/questionKind/.test(core), 'question kind must survive normalization');
   assert.ok(/legacyCorrectOptions/.test(exam), 'legacy correct answers must survive');
+});
+
+test('REWORK: چندموردی has a main stem, editable items and numeric options', () => {
+  const exam = read('js/05-exam.js');
+  const core = read('js/01-core.js');
+  const css = read('css/09-exam.css');
+  assert.ok(/سوال چندموردی/.test(exam), 'multi-item paper title');
+  assert.ok(/nc-case-item-input/.test(exam), 'sub-item statements must be editable');
+  assert.ok(/data-case-item=/.test(exam), 'sub-item changes are bound');
+  assert.ok(/data-case-item-del/.test(exam), 'sub-items can be removed');
+  assert.ok(/q\.caseItems\.length\+/.test(exam), 'stepper adjusts the item count, not the options');
+  assert.ok(!/q\.options=Array\.from\(\{length:next\}/.test(exam), 'stepper no longer overwrites options with indices');
+  assert.ok(!/q\.options=Array\.from\(\{length:count\},/.test(exam), 'draft no longer replaces numeric options');
+  assert.ok(/inputmode="numeric"/.test(exam), 'answer options are numeric');
+  assert.ok(/گزینه ها \(عدد تعداد موارد درست\)/.test(exam), 'numeric option hint');
+  assert.ok(!/const numeric=options\.length>0/.test(exam), 'numeric MCQ options are no longer misclassified');
+  assert.ok(/hasCaseItems\|\|options\.length>4/.test(exam), 'case inference is conservative');
+  assert.ok(/caseItems:Array\.isArray\(q\.caseItems\)/.test(exam), 'full editor keeps sub-items');
+  assert.ok(/caseItems:draft\.caseItems\.slice\(\)/.test(exam), 'new questions save sub-items');
+  assert.ok(/const caseItems=Array\.isArray\(q\.caseItems\)/.test(exam), 'analysis list renders sub-items');
+  assert.ok(!/q\.options\.slice\(0,4\)/.test(exam), 'analysis list no longer truncates options');
+  assert.ok(/caseItems: Array\.isArray\(q\.caseItems\)/.test(core), 'normalization preserves sub-items');
+  assert.ok(/q\.caseItems && q\.caseItems\.some/.test(core), 'compaction keeps sub-items');
+  assert.ok(/\.ac-case-items\{/.test(css), 'analysis sub-item styles');
 });
 
 test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
@@ -445,7 +470,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r30'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r31'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -525,6 +550,7 @@ test('REWORK: bottom navigation mirrors the rounded topbar card without a centre
   assert.ok(/backdrop-filter:\s*blur\(18px\) saturate\(150%\)/.test(desktopNav), 'desktop sidebar must match the topbar glass card');
   assert.ok(!/backdrop-filter:\s*none/.test(desktopNav), 'flat sidebar is gone');
   assert.ok(!/\.nav::before/.test(desktop));
+  assert.ok(/margin: 8px 14px 14px 14px/.test(desktopNav), 'sidebar right edge and top spacing match the topbar');
   assert.ok(!/\.nav-btn:nth-child\(3\)/.test(desktop));
   assert.ok(read('css/02-typography.css').includes('[hidden]{display:none!important}'));
 });
@@ -603,6 +629,7 @@ test('REWORK: settings stays inside the app shell with visible active tabs', () 
 test('REWORK: settings is paged, with merged sync/account and a direct manual sync', () => {
   const html = read('index.html');
   const settings = read('js/08-settings.js');
+  const overlays = read('css/05-overlays.css');
   const body = html.slice(html.indexOf('<main class="wr-body" id="settingsBody">'), html.indexOf('</main>', html.indexOf('<main class="wr-body" id="settingsBody">')));
   const pages = ['home', 'profile', 'subjects', 'exam', 'sync', 'backup', 'danger'];
   pages.forEach(p => assert.ok(body.includes(`data-page="${p}"`), `${p} page is missing`));
@@ -615,6 +642,12 @@ test('REWORK: settings is paged, with merged sync/account and a direct manual sy
   assert.ok(syncPage.indexOf('id="accountUI"') < syncPage.indexOf('id="syncUI"'), 'login UI lives inside the sync page');
   const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="profile"'));
   assert.ok(homePage.includes('id="homeSyncNowBtn"'), 'manual sync must be available from the home page');
+  assert.ok(homePage.includes('class="card settings-link sync-link-row"'), 'manual sync lives on the sync row');
+  assert.ok(!homePage.includes('sync-mini-card'), 'separate manual-sync card is gone');
+  assert.ok(homePage.indexOf('id="homeSyncNowBtn"') > homePage.indexOf('data-go="sync"'), 'manual sync follows the sync link');
+  assert.ok(/#settingsBody \.card\{margin-bottom:0\}/.test(overlays), 'settings cards drop the global bottom margin');
+  assert.ok(/#settingsBody\{display:flex;flex-direction:column;gap:8px\}/.test(overlays), 'settings gaps are compact');
+  assert.ok(/#settingsOverlay\{[\s\S]*?overflow-x:hidden/.test(overlays), 'settings overlay cannot scroll sideways');
   assert.ok(settings.includes('function setSettingsPage('));
   assert.ok(settings.includes("setSettingsPage('home')"));
   assert.ok(settings.includes('if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{'));

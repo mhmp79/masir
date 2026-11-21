@@ -732,6 +732,9 @@ function normalizeQuestion(q){
     specialTags: Array.isArray(q.specialTags) ? q.specialTags.filter(t => typeof t === 'string') : [],
     questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
     options,
+    caseItems: Array.isArray(q.caseItems)
+      ? q.caseItems.map(item => String(item && item.text != null ? item.text : item || '')).slice(0, 10)
+      : [],
     correctOptions,
     questionKind: q.questionKind === 'case' ? 'case' : (q.questionKind === 'mcq' ? 'mcq' : ''),
     legacyCorrectOptions: Array.isArray(q.legacyCorrectOptions)
@@ -2239,6 +2242,7 @@ function qHasUsefulInfo(q){
   if(q.questionText && q.questionText.trim()) return true;
   if(q.note && q.note.trim()) return true;
   if(q.answerText && q.answerText.trim()) return true;
+  if(q.caseItems && q.caseItems.some(item => String(item||'').trim())) return true;
   if(q.errorTypes && q.errorTypes.length > 0) return true;
   if(q.specialTags && q.specialTags.length > 0) return true;
   if(q.errorDetails && Object.keys(q.errorDetails).some(k => Array.isArray(q.errorDetails[k]) && q.errorDetails[k].length > 0)) return true;

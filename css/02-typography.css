@@ -38,6 +38,7 @@
 .row-between{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px}
 
 .hidden{display:none!important}
+[hidden]{display:none!important}
 
 .progress{
   height:8px;border-radius:6px;

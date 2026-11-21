@@ -124,6 +124,7 @@ body::after{
 .row-between{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px}
 
 .hidden{display:none!important}
+[hidden]{display:none!important}
 
 .progress{
   height:8px;border-radius:6px;
@@ -769,23 +770,34 @@ select option{background:#0d1524;color:var(--txt)}
 .brand-title{font-weight:800;font-size:15px;letter-spacing:.2px}
 .topbar-actions{display:flex;gap:8px;align-items:center}
 
-/* NAV */
+/* NAV — floating iPhone-style liquid glass */
 .nav{
-  position:fixed;bottom:0;left:50%;transform:translateX(-50%);
-  width:100%;max-width:480px;
-  display:flex;justify-content:space-around;
-  padding:9px 4px calc(9px + env(safe-area-inset-bottom));
-  background:rgba(9,13,26,.86);
-  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  border-top:1px solid rgba(255,255,255,.08);
+  position:fixed;bottom:calc(8px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  width:calc(100% - 24px);max-width:460px;
+  display:flex;justify-content:space-around;align-items:stretch;gap:2px;
+  padding:7px 8px;
+  background:linear-gradient(180deg,rgba(44,54,86,.64),rgba(12,17,34,.72));
+  backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%);
+  border:1px solid rgba(255,255,255,.16);
+  border-radius:24px;
+  box-shadow:0 18px 40px -18px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.18);
   z-index:100;
 }
-.nav-btn{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
-  background:none;border:0;color:#7d879f;
-  font-family:inherit;font-size:9.5px;padding:6px 0;
-  border-radius:14px;transition:.22s;cursor:pointer;
+.nav::before{
+  content:'';position:absolute;inset:1px 1px auto;height:42%;
+  border-radius:23px 23px 60% 60%/23px 23px 40% 40%;
+  background:linear-gradient(180deg,rgba(255,255,255,.16),transparent);
+  pointer-events:none;
 }
+.nav-btn{
+  position:relative;z-index:1;
+  flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:rgba(255,255,255,.03);border:1px solid transparent;color:#98a2bb;
+  font-family:inherit;font-size:9px;line-height:1.2;padding:7px 2px 6px;
+  border-radius:17px;transition:transform .22s,background .22s,color .22s,border-color .22s,box-shadow .22s;
+  cursor:pointer;
+}
+.nav-btn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .nav-btn svg{
   width:21px;height:21px;stroke:currentColor;fill:none;
   stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
@@ -793,10 +805,13 @@ select option{background:#0d1524;color:var(--txt)}
 }
 .nav-btn.active{
   color:#fff;
-  background:linear-gradient(180deg,rgba(124,92,255,.20),transparent);
+  background:linear-gradient(165deg,rgba(255,255,255,.22),rgba(124,92,255,.34));
+  border-color:rgba(255,255,255,.22);
+  box-shadow:0 8px 18px -10px rgba(124,92,255,.95),inset 0 1px 0 rgba(255,255,255,.24);
+  transform:translateY(-1px);
 }
 .nav-btn.active svg{
-  filter:drop-shadow(0 0 9px rgba(124,92,255,.95));
+  filter:drop-shadow(0 0 8px rgba(255,255,255,.55));
   transform:translateY(-1px);
 }
 
@@ -3296,6 +3311,9 @@ body.creating-block .pool-drop-wrap {
 .exam-side .cal-cell { font-size: 12px; border-radius: 10px; }
 .exam-side .cal-dow { font-size: 10px; margin-bottom: 6px; }
 .exam-side .cal-grid { gap: 4px; }
+.exam-tag-stats-card { padding: 12px; }
+.exam-tag-stats-card .card-title { font-size: 12px; margin-bottom: 8px; }
+.exam-analysis-sub { padding: 2px 2px 0; font-size: 11px; }
 
 /* ============ SEG (now on top of .exam-layout) ============ */
 #examModeSeg {
@@ -5651,7 +5669,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .exam-charts-row{grid-template-columns:1fr}
 }
 .exam-compare-toolbar{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  display:flex;align-items:stretch;flex-direction:column;gap:9px;
   padding:14px 16px;border:1px solid rgba(234,179,8,.2);
   border-radius:14px;background:linear-gradient(110deg,rgba(234,179,8,.1),rgba(124,92,255,.07));
 }
@@ -5659,7 +5677,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 .exam-compare-toolbar b{font-size:13px;color:#fcd34d}
 .exam-compare-toolbar span,.exam-compare-section-title span{font-size:10px;color:#8b94ad}
 .exam-compare-toolbar .btn{
-  flex:0 0 auto;margin:0;border-color:rgba(234,179,8,.4);
+  flex:0 0 auto;align-self:flex-start;margin:0;border-color:rgba(234,179,8,.4);
   background:rgba(234,179,8,.12);color:#fcd34d;
 }
 .exam-compare-summary{padding:16px;border-color:rgba(234,179,8,.2);background:linear-gradient(155deg,rgba(234,179,8,.055),rgba(255,255,255,.02))}
@@ -5881,15 +5899,15 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   }
   .activity-recent-card { max-height: min(70vh, 680px); }
 
-  #view-class.active {
+  #overviewClassPane {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(230px, 32%);
     gap: 14px;
     align-items: start;
   }
-  #view-class > .card { min-width: 0; margin-bottom: 0; }
-  #view-class > .card:first-child { grid-column: 2; grid-row: 1; }
-  #view-class > .card:nth-child(2) { grid-column: 1; grid-row: 1; }
+  #overviewClassPane > .card { min-width: 0; margin-bottom: 0; }
+  #overviewClassPane > .card:first-child { grid-column: 2; grid-row: 1; }
+  #overviewClassPane > .card:nth-child(2) { grid-column: 1; grid-row: 1; }
   .cls-grid { grid-template-columns: repeat(3, 1fr); }
   .modal-backdrop { align-items: center; padding: 20px; }
   .modal { max-width: 620px; border-radius: 22px; }
@@ -5955,10 +5973,14 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     flex-direction: column; justify-content: flex-start;
     padding: 16px 10px; gap: 4px;
     background: rgba(9,13,26,.55);
-    border-top: 0;
+    border: 0;
     border-left: 1px solid rgba(255,255,255,.06);
+    border-radius: 0;
+    box-shadow: none;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
     overflow-y: auto;
   }
+  .nav::before { display: none; }
   .nav-btn {
     flex: 0 0 auto; width: 100%;
     flex-direction: row; justify-content: flex-start; align-items: center;
@@ -5968,6 +5990,9 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .nav-btn span { font-size: 13px; font-weight: 600; }
   .nav-btn.active {
     background: linear-gradient(270deg, rgba(124,92,255,.24), rgba(124,92,255,.05));
+    border-color: transparent;
+    box-shadow: none;
+    transform: none;
     color: #fff;
   }
   .nav-btn:not(.active):hover { background: rgba(255,255,255,.04); color: #cfd6ea; }
@@ -6312,10 +6337,10 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   #desktopPaletteContainer { margin: 0; }
 
   /* ============ CLASS ============ */
-  #view-class.active { display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: var(--gap); }
-  #view-class > .card { margin-bottom: 0; }
-  #view-class > .card:first-child { grid-column: 2; grid-row: 1; overflow-y: auto; }
-  #view-class > .card:nth-child(2) { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+  #overviewClassPane { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 320px; gap: var(--gap); }
+  #overviewClassPane > .card { margin-bottom: 0; }
+  #overviewClassPane > .card:first-child { grid-column: 2; grid-row: 1; overflow-y: auto; }
+  #overviewClassPane > .card:nth-child(2) { grid-column: 1; grid-row: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
   #clsSessions { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
   .cls-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 
@@ -6853,6 +6878,10 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
               <div class="cal-grid" id="examCalGrid"></div>
             </div>
           </details>
+          <div class="card exam-tag-stats-card">
+            <div class="card-title">🏷️ پراکندگی تگهای عمومی اشتباهات</div>
+            <div id="examTagStats"></div>
+          </div>
         </aside>
         <aside class="exam-analysis-side" id="examAnalysisSide" hidden>
           <details class="ga-filter-details" id="gaFilterDetails" open>
@@ -6872,16 +6901,9 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
               </div>
               <div id="examsList"></div>
             </div>
-            <div class="card">
-              <div class="card-title">🏷️ پراکندگی تگهای عمومی اشتباهات</div>
-              <div id="examTagStats"></div>
-            </div>
           </div>
           <div id="examAnalysisPane" class="hidden">
-            <div class="card exam-analysis-header-card">
-              <div class="card-title">🔍 تحلیل جامع آزمونها</div>
-              <div class="muted" id="gaSub">—</div>
-            </div>
+            <div class="muted exam-analysis-sub" id="gaSub">—</div>
             <div id="gaBody"></div>
           </div>
         </div>
@@ -6892,42 +6914,40 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
       <div id="gaFilterBackdrop" class="ga-filter-backdrop" hidden></div>
     </section>
 
-    <!-- ===== OVERVIEW ===== -->
+    <!-- ===== OVERVIEW / SUBJECT PROGRESS ===== -->
     <section class="view" id="view-overview">
       <div class="overview-selector-wrap">
         <div class="seg overview-tabs">
           <button class="seg-btn active" data-ovt="specialized">🔬 تخصصی</button>
           <button class="seg-btn" data-ovt="general">📚 عمومی</button>
+          <button class="seg-btn" data-ovt="class" id="ovClassTab">🎓 کلاس ها</button>
         </div>
       </div>
       <div id="overviewBody"></div>
-    </section>
-
-    <!-- ===== CLASS ===== -->
-    <section class="view" id="view-class">
-      <div class="card">
-        <div class="card-title">ثبت کلاس‌ها</div>
-        <div class="chips" id="clsSubjects"></div>
-        <div class="progress"><div id="clsProgressBar" style="width:0%"></div></div>
-        <div class="row-between mt-9">
-          <span class="muted" id="clsProgressTxt">۰ از ۰ جلسه دیده شده</span>
-          <span class="muted" id="clsDownTxt">۰ دانلود</span>
+      <div id="overviewClassPane" hidden>
+        <div class="card">
+          <div class="card-title">ثبت کلاس‌ها</div>
+          <div class="chips" id="clsSubjects"></div>
+          <div class="progress"><div id="clsProgressBar" style="width:0%"></div></div>
+          <div class="row-between mt-9">
+            <span class="muted" id="clsProgressTxt">۰ از ۰ جلسه دیده شده</span>
+            <span class="muted" id="clsDownTxt">۰ دانلود</span>
+          </div>
+          <div class="d-flex gap-6 mt-10">
+            <button class="mini-btn flex-1 flex-center" id="clsViewToggle">👁️ نمایش فشرده</button>
+          </div>
         </div>
-        <div class="d-flex gap-6 mt-10">
-          <button class="mini-btn flex-1 flex-center" id="clsViewToggle">👁️ نمایش فشرده</button>
-        </div>
+        <div class="card"><div class="card-title">جلسات</div><div id="clsSessions"></div></div>
       </div>
-      <div class="card"><div class="card-title">جلسات</div><div id="clsSessions"></div></div>
     </section>
   </main>
 
   <nav class="nav">
     <button class="nav-btn active" data-view="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg><span>داشبورد</span></button>
     <button class="nav-btn" data-view="plan"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span>برنامه ریزی</span></button>
-    <button class="nav-btn" data-view="activity"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>فعالیت</span></button>
+    <button class="nav-btn" data-view="activity"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>ثبت فعالیت</span></button>
     <button class="nav-btn" data-view="exam"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg><span>آزمون</span></button>
-    <button class="nav-btn" data-view="overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>نمای کلی</span></button>
-    <button class="nav-btn" data-view="class"><svg viewBox="0 0 24 24"><path d="M22 9 12 4 2 9l10 5 10-5Z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/></svg><span>کلاس</span></button>
+    <button class="nav-btn" data-view="overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span>پیشرفت دروس</span></button>
   </nav>
 </div>
 
@@ -9443,12 +9463,9 @@ function getSortedQuestions(exam){
 /* ============ NAVIGATION ============ */
 let currentExamId=null;
 function applyHideClasses(){
-  const navBtn = document.querySelector('.nav-btn[data-view="class"]');
-  if(navBtn) navBtn.style.display = state.settings.hideClasses ? 'none' : '';
-  if(state.settings.hideClasses){
-    const classView = document.getElementById('view-class');
-    if(classView && classView.classList.contains('active')) switchView('dashboard');
-  }
+  const classTab = document.getElementById('ovClassTab');
+  if(classTab) classTab.hidden = !!state.settings.hideClasses;
+  if(state.settings.hideClasses&&classTab&&classTab.classList.contains('active')&&typeof setOverviewTab==='function')setOverviewTab('specialized');
 }
 
 function updateContextButton(viewName){
@@ -9470,7 +9487,11 @@ function updateContextButton(viewName){
 }
 
 function switchView(name){
-  if(name === 'class' && state.settings.hideClasses){ toast('بخش کلاس‌ها مخفی است'); return; }
+  if(name === 'class'){
+    if(state.settings.hideClasses){ toast('بخش کلاس‌ها مخفی است'); return; }
+    if(typeof setOverviewTab==='function')setOverviewTab('class');
+    name='overview';
+  }
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+name));
   if(name==='dashboard')renderDashboard();
@@ -16089,12 +16110,20 @@ function bindOverviewTabs(){
   wrap._ovTabsBound=true;
   wrap.addEventListener('click',e=>{
     const btn=e.target.closest('[data-ovt]');
-    if(!btn)return;
-    ovTab=btn.dataset.ovt;
-    wrap.querySelectorAll('[data-ovt]').forEach(b=>b.classList.toggle('active',b===btn));
-    renderOverview();
+    if(!btn||btn.hidden)return;
+    setOverviewTab(btn.dataset.ovt);
   });
 }
+
+function setOverviewTab(tab){
+  if(!['specialized','general','class'].includes(tab))return;
+  const btn=document.querySelector('.overview-tabs [data-ovt="'+tab+'"]');
+  if(!btn||btn.hidden)return;
+  ovTab=tab;
+  document.querySelectorAll('.overview-tabs [data-ovt]').forEach(b=>b.classList.toggle('active',b.dataset.ovt===tab));
+  renderOverview();
+}
+
 bindOverviewTabs();
 
 function renderOverview(){
@@ -16102,6 +16131,16 @@ function renderOverview(){
   bindOverviewTabs();
   const body=document.getElementById('overviewBody');
   if(!body)return;
+  const classPane=document.getElementById('overviewClassPane');
+  const classBtn=document.getElementById('ovClassTab');
+  const classTab=ovTab==='class'&&classPane&&!(classBtn&&classBtn.hidden);
+  if(classPane)classPane.hidden=!classTab;
+  body.hidden=classTab;
+  if(classTab){
+    if(ovFitRO){ovFitRO.disconnect();ovFitRO=null;}
+    renderClass();
+    return;
+  }
   try{
     if(ovTab==='specialized')renderSpecializedOverview(body);
     else renderGeneralOverview(body);

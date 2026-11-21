@@ -196,7 +196,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .exam-charts-row{grid-template-columns:1fr}
 }
 .exam-compare-toolbar{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  display:flex;align-items:stretch;flex-direction:column;gap:9px;
   padding:14px 16px;border:1px solid rgba(234,179,8,.2);
   border-radius:14px;background:linear-gradient(110deg,rgba(234,179,8,.1),rgba(124,92,255,.07));
 }
@@ -204,7 +204,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 .exam-compare-toolbar b{font-size:13px;color:#fcd34d}
 .exam-compare-toolbar span,.exam-compare-section-title span{font-size:10px;color:#8b94ad}
 .exam-compare-toolbar .btn{
-  flex:0 0 auto;margin:0;border-color:rgba(234,179,8,.4);
+  flex:0 0 auto;align-self:flex-start;margin:0;border-color:rgba(234,179,8,.4);
   background:rgba(234,179,8,.12);color:#fcd34d;
 }
 .exam-compare-summary{padding:16px;border-color:rgba(234,179,8,.2);background:linear-gradient(155deg,rgba(234,179,8,.055),rgba(255,255,255,.02))}

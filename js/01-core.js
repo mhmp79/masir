@@ -2100,12 +2100,9 @@ function getSortedQuestions(exam){
 /* ============ NAVIGATION ============ */
 let currentExamId=null;
 function applyHideClasses(){
-  const navBtn = document.querySelector('.nav-btn[data-view="class"]');
-  if(navBtn) navBtn.style.display = state.settings.hideClasses ? 'none' : '';
-  if(state.settings.hideClasses){
-    const classView = document.getElementById('view-class');
-    if(classView && classView.classList.contains('active')) switchView('dashboard');
-  }
+  const classTab = document.getElementById('ovClassTab');
+  if(classTab) classTab.hidden = !!state.settings.hideClasses;
+  if(state.settings.hideClasses&&classTab&&classTab.classList.contains('active')&&typeof setOverviewTab==='function')setOverviewTab('specialized');
 }
 
 function updateContextButton(viewName){
@@ -2127,7 +2124,11 @@ function updateContextButton(viewName){
 }
 
 function switchView(name){
-  if(name === 'class' && state.settings.hideClasses){ toast('بخش کلاس‌ها مخفی است'); return; }
+  if(name === 'class'){
+    if(state.settings.hideClasses){ toast('بخش کلاس‌ها مخفی است'); return; }
+    if(typeof setOverviewTab==='function')setOverviewTab('class');
+    name='overview';
+  }
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+name));
   if(name==='dashboard')renderDashboard();

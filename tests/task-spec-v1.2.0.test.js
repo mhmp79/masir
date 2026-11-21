@@ -445,7 +445,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r27'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r28'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -507,25 +507,55 @@ test('REWORK: classes are merged into the renamed overview as a third segment', 
   assert.ok(!/#view-class/.test(desktop), 'old class-view selectors must be gone');
 });
 
-test('REWORK: bottom navigation is a flat minimal bar, not liquid glass', () => {
+test('REWORK: bottom navigation is a liquid-glass bar with a raised centre tab', () => {
   const nav = read('css/05-overlays.css');
-  const block = nav.slice(nav.indexOf('/* NAV — flat, minimal bottom bar */'), nav.indexOf('/* MODAL */'));
+  const block = nav.slice(nav.indexOf('/* NAV — liquid glass bottom bar */'), nav.indexOf('/* MODAL */'));
   assert.ok(/position:fixed;bottom:0;left:50%;transform:translateX\(-50%\)/.test(block),
     'bar must stay pinned to the bottom edge');
-  assert.ok(/width:100%;max-width:480px/.test(block), 'bar must span the supported width');
-  assert.ok(/border-top:1px solid rgba\(255,255,255,\.08\)/.test(block));
-  assert.ok(!/border-radius:\s*24px/.test(block), 'floating glass radius is gone');
-  assert.ok(!/backdrop-filter/.test(block), 'glass blur is gone');
-  assert.ok(!/box-shadow/.test(block), 'glass shadow is gone');
-  assert.ok(!/nav::before/.test(block), 'glass reflection layer is gone');
-  assert.ok(/nav-btn\.active[\s\S]*?border-bottom-color:rgba\(124,92,255,\.85\)/.test(block),
-    'active tab uses a subtle accent line, not a pill');
+  assert.ok(/backdrop-filter:blur\(24px\) saturate\(180%\)/.test(block), 'glass blur missing');
+  assert.ok(/border-radius:22px 22px 0 0/.test(block), 'glass bar needs rounded top corners');
+  assert.ok(/inset 0 1px 0 rgba\(255,255,255,\.18\)/.test(block), 'glossy top highlight missing');
+  assert.ok(/nav::before/.test(block), 'glass reflection layer missing');
+  assert.ok(/nav-btn\.active[\s\S]*?rgba\(139,92,246,\.32\)/.test(block),
+    'active tab needs the frosted purple glass fill');
+  assert.ok(/nav-btn:nth-child\(3\)::before/.test(block), 'centre tab needs the raised glass bubble');
+  assert.ok(!/flat, minimal bottom bar/.test(nav));
   const desktop = read('css/14-desktop.css');
   const navBtnAt = desktop.indexOf('.nav-btn {');
   const desktopNav = desktop.slice(desktop.lastIndexOf('.nav {', navBtnAt), navBtnAt);
-  assert.ok(!/\.nav::before/.test(desktop));
-  assert.ok(!/border-radius/.test(desktopNav), 'desktop nav must stay squared off');
+  assert.ok(/backdrop-filter:\s*none/.test(desktopNav), 'desktop sidebar must stay flat');
+  assert.ok(/\.nav::before\s*\{\s*display:\s*none/.test(desktop), 'desktop reflection must be disabled');
   assert.ok(read('css/02-typography.css').includes('[hidden]{display:none!important}'));
+});
+
+test('REWORK: topbar is a rounded spaced card and settings uses a minimal line icon', () => {
+  const overlays = read('css/05-overlays.css');
+  const topbar = overlays.slice(overlays.indexOf('/* TOPBAR */'), overlays.indexOf('/* NAV — liquid glass bottom bar */'));
+  assert.ok(/margin:0 0 12px/.test(topbar), 'topbar must sit inside the app padding');
+  assert.ok(!/margin:-14px/.test(topbar), 'negative full-bleed margin is gone');
+  assert.ok(/top:10px/.test(topbar), 'sticky topbar needs breathing room');
+  assert.ok(/border-radius:18px/.test(topbar));
+  assert.ok(/backdrop-filter:blur\(18px\) saturate\(150%\)/.test(topbar));
+  assert.ok(/border:1px solid rgba\(255,255,255,\.10\)/.test(topbar));
+
+  const html = read('index.html');
+  const settingsBtn = html.slice(html.indexOf('id="settingsBtn"'), html.indexOf('</button>', html.indexOf('id="settingsBtn"')));
+  assert.ok(/<svg viewBox="0 0 24 24"/.test(settingsBtn), 'settings must use a stroke SVG');
+  assert.ok(!settingsBtn.includes('⚙️'), 'emoji gear is gone');
+  const buttons = read('css/03-buttons.css');
+  const settingsCss = buttons.slice(buttons.indexOf('.icon-btn.settings-btn{'), buttons.indexOf('.day-arrow-sm{'));
+  assert.ok(/border:0;background:transparent/.test(settingsCss));
+  assert.ok(/stroke:currentColor;fill:none/.test(settingsCss));
+});
+
+test('REWORK: installed PWA uses a black status bar, not purple', () => {
+  const html = read('index.html');
+  const manifest = JSON.parse(read('manifest.json'));
+  assert.ok(/<meta name="theme-color" content="#000000">/.test(html));
+  assert.ok(/<meta name="apple-mobile-web-app-status-bar-style" content="black">/.test(html));
+  assert.ok(!html.includes('content="#7c5cff"'));
+  assert.strictEqual(manifest.theme_color, '#000000');
+  assert.strictEqual(manifest.background_color, '#000000');
 });
 
 test('ASSETS: app icons use the cropped artwork with no white margin', () => {

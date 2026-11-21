@@ -941,14 +941,22 @@ select option{background:#0d1524;color:var(--txt)}
 #gaOverlay .wr-shell{max-width:760px}
 
 #settingsOverlay .wr-top,
-#gaOverlay .wr-top,
-#examCompareOverlay .wr-top{
+#gaOverlay .wr-top{
   border-bottom:1px solid rgba(255,255,255,.07);
   box-shadow:0 12px 30px -26px #000;
 }
 #settingsOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(245,158,11,.6)}
 #gaOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(34,211,238,.5)}
+#examCompareOverlay .wr-top{
+  margin:0 0 12px;padding:12px 14px;border-radius:18px;
+  border:1px solid rgba(255,255,255,.10);
+  background:linear-gradient(135deg,rgba(234,179,8,.14),rgba(124,92,255,.08)),rgba(18,25,51,.82);
+  backdrop-filter:blur(18px) saturate(150%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 12px 30px -26px #000;
+}
 #examCompareOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(234,179,8,.5)}
+#examCompareOverlay .wr-title{color:#fff}
 
 /* SETTINGS — lives inside the app shell: topbar and bottom tabs stay visible */
 #settingsOverlay{
@@ -5811,6 +5819,12 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .exam-compare-detail-head{align-items:flex-start;flex-direction:column;gap:3px}
   .exam-compare-section-title{gap:4px;flex-direction:column}
 }
+.exam-compare-layout{display:flex;flex-direction:column;gap:14px}
+.exam-compare-main,.exam-compare-side{display:flex;flex-direction:column;gap:10px;min-width:0}
+.exam-compare-stats{margin-bottom:0}
+.exam-compare-stats .exam-progress{margin-bottom:0}
+.exam-compare-charts-card > .card-title{margin:0 0 10px;font-size:12px;color:#fcd34d}
+.exam-compare-charts-card .exam-charts-row{margin-bottom:0}
 .exam-list-table{
   width:100%;border-collapse:collapse;font-size:11.5px;
   background:rgba(0,0,0,.20);
@@ -5965,6 +5979,50 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .modal.report-modal .cwr-preview img{width:auto;height:auto;max-width:100%;max-height:38vh;object-fit:contain}
   .modal.report-modal #dlReport{flex:0 0 auto;margin-top:8px}
   .modal.report-modal .report-madeby{flex:0 0 auto;margin-top:6px}
+}
+
+/* Plan export dialog — same glass/card language as the app topbar */
+.plan-export-modal .report-modal-head{
+  margin:-20px -16px 14px;padding:12px 16px;
+  border-radius:24px 24px 14px 14px;
+  background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(34,211,238,.10)),rgba(12,17,35,.86);
+  border:1px solid rgba(255,255,255,.10);
+  border-bottom-color:rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 14px 30px -26px #000;
+  backdrop-filter:blur(18px) saturate(150%);
+  -webkit-backdrop-filter:blur(18px) saturate(150%);
+}
+.plan-export-modal .report-modal-head .card-title{color:#fff;font-size:13px}
+.plan-export-modal .report-modal-logo{
+  width:40px;height:40px;border-radius:14px;font-size:17px;
+  background:linear-gradient(135deg,#7c5cff,#22d3ee);
+  box-shadow:0 10px 24px -12px rgba(34,211,238,.55);
+}
+.plan-export-modal .report-modal-head .wr-sub{margin-top:2px;font-size:10.5px}
+.plan-export-modal .report-nav{
+  padding:10px 12px;border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);
+}
+.plan-export-modal .plan-preview{
+  max-height:26vh;margin-top:10px;padding:8px;overflow:hidden;
+  border-radius:14px;background:rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.07);
+}
+.plan-export-modal .plan-preview img{
+  max-height:24vh;width:auto;max-width:100%;height:auto;
+  object-fit:contain;margin:0 auto;box-shadow:none;
+}
+.plan-export-modal #piDownload{
+  position:sticky;bottom:0;z-index:5;margin-top:10px;
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 12px 28px -16px #7c5cff;
+}
+.plan-export-modal .report-madeby{margin-top:8px}
+@media (min-width:768px){
+  .plan-export-modal .report-modal-head{margin:-24px -24px 14px;padding:14px 24px;border-radius:24px 24px 14px 14px}
+  .plan-export-modal .plan-preview{max-height:38vh}
+  .plan-export-modal .plan-preview img{max-height:36vh}
+  .plan-export-modal #piDownload{position:static;box-shadow:none}
 }
 
 
@@ -6490,6 +6548,12 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .wr-shell { max-width: 1240px; padding: 20px 24px 60px; }
   #settingsOverlay .wr-shell { max-width: 1120px; }
   #examCompareOverlay .wr-shell { max-width: 1240px; }
+  #examCompareOverlay .exam-compare-layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 14px; align-items: start;
+  }
+  #examCompareOverlay .exam-compare-side { position: sticky; top: 96px; }
+  #examCompareOverlay .exam-compare-charts-card .exam-charts-row { grid-template-columns: 1fr; }
   #examOverlay .exam-overlay-inner { max-width: 1000px; padding: 20px 24px 80px; }
 
   .toast { bottom: 40px; }
@@ -12358,8 +12422,22 @@ function timelineChainHTML(blocks, containerWidth, options) {
   return `<div class="tl-chain-scroll" style="overflow-x:${layout.scrollable ? 'auto' : 'hidden'}"><div class="tl-chain" style="width:${Math.ceil(layout.contentWidth)}px">${inner}</div></div>`;
 }
 
+/* A short block is painted taller than its real time range so its label stays
+   readable. Lane packing must use that painted end, otherwise two tiny blocks
+   that merely touch in time are drawn on top of each other. */
+function visualLaneEnd(item) {
+  const start = +item.startMin || 0;
+  const end = item._end != null ? +item._end : start + (+item.durMin || 0);
+  const minH = Math.max(0, +item._minH || 0);
+  const inset = Math.max(0, +item._inset || 0);
+  if (!minH) return Math.max(start, end);
+  const realH = Math.max(0, (Math.max(start, end) - start) * PX_PER_MIN - inset);
+  if (realH >= minH) return Math.max(start, end);
+  return end + (minH - realH) / Math.max(PX_PER_MIN, 0.0001);
+}
+
 if (typeof globalThis !== 'undefined') {
-  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, assignLanes };
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes };
 }
 
 function assignLanes(items) {
@@ -12367,7 +12445,7 @@ function assignLanes(items) {
   const withEnd = items.map((it, i) => ({
     ...it, _idx: i,
     _laneStart: +it.startMin || 0,
-    _laneEnd: it._end != null ? +it._end : (+it.startMin || 0) + 60
+    _laneEnd: visualLaneEnd(it)
   }));
   const sorted = [...withEnd].sort((a, b) => a._laneStart - b._laneStart);
   const laneEnds = [];
@@ -12429,7 +12507,12 @@ function renderTimelineDay(dayKey) {
       if (vis) sleeps.push({ ...s, _type: 'sleep', startMin: vis.top, _end: vis.bottom, _vis: vis });
     });
 
-  const allItems = [...merged.map(g => ({ ...g, _type: 'sess' })), ...acts, ...exams, ...sleeps];
+  const allItems = [
+    ...merged.map(g => ({ ...g, _type: 'sess', _minH: 6, _inset: 3 })),
+    ...acts.map(a => ({ ...a, _type: 'act', _minH: 8, _inset: 3 })),
+    ...exams.map(e => ({ ...e, _type: 'exam', _minH: 10, _inset: 3 })),
+    ...sleeps.map(s => ({ ...s, _type: 'sleep', _minH: 8, _inset: 3 }))
+  ];
   const { items: laned, laneCount } = assignLanes(allItems);
   const idx = { sess: {}, act: {}, exam: {}, sleep: {} };
   laned.forEach(it => {
@@ -12551,7 +12634,12 @@ function renderTimelineMulti(keys) {
         const vis = sleepVisibleRange(s, k);
         if (vis) sleeps.push({ ...s, _type: 'sleep', startMin: vis.top, _end: vis.bottom, _vis: vis });
       });
-    const allItems = [...merged.map(g => ({ ...g, _type: 'sess' })), ...acts, ...exams, ...sleeps];
+    const allItems = [
+      ...merged.map(g => ({ ...g, _type: 'sess', _minH: 4, _inset: 2 })),
+      ...acts.map(a => ({ ...a, _type: 'act', _minH: 6, _inset: 2 })),
+      ...exams.map(e => ({ ...e, _type: 'exam', _minH: 8, _inset: 2 })),
+      ...sleeps.map(s => ({ ...s, _type: 'sleep', _minH: 6, _inset: 2 }))
+    ];
     const { items: laned, laneCount } = assignLanes(allItems);
     const idx = { sess: {}, act: {}, exam: {}, sleep: {} };
     laned.forEach(it => {
@@ -12985,8 +13073,14 @@ function openPlanImagePicker() {
     const canGoNext = ws < weekStartJdn(TODAY_JDN);
     const isCurrentWeek = ws === weekStartJdn(TODAY_JDN);
     openModal(`
-      <div class="modal-head">
-        <div class="card-title">🖼️ خروجی تصویری برنامه</div>
+      <div class="modal-head report-modal-head">
+        <div class="wr-top-right">
+          <div class="wr-logo report-modal-logo">🖼️</div>
+          <div class="min-w-0">
+            <div class="card-title mb-0">خروجی تصویری برنامه</div>
+            <div class="wr-sub">پیشنمایش و دانلود برنامه هفتگی</div>
+          </div>
+        </div>
         <button class="icon-btn" data-close>✕</button>
       </div>
       <div class="report-nav">
@@ -13002,6 +13096,7 @@ function openPlanImagePicker() {
       <button class="btn primary mt-6" id="piDownload">⬇ دانلود تصویر برنامه هفتگی</button>
       <div class="report-madeby">Made by MH.Mahdipanah</div>
     `);
+    modalContent.classList.add('report-modal', 'plan-export-modal');
     document.getElementById('piPrev').onclick = () => { anchor -= 7; render(); };
     const nextBtn = document.getElementById('piNext');
     if (nextBtn) nextBtn.onclick = () => { if (canGoNext) { anchor += 7; render(); } };
@@ -16054,21 +16149,30 @@ function renderExamCompare(){
   const firstTaraz=totalTarazs[0];const lastTaraz=totalTarazs[totalTarazs.length-1];const delta=lastTaraz-firstTaraz;
   body.innerHTML=`
     <div class="exam-compare-toolbar"><div><b>روند آزمون‌ها</b><span>تغییرات تراز کل و هر درس را کنار هم ببین</span></div><button class="btn" id="exportExamCompareImage">🖼 خروجی تصویری</button></div>
-    <div class="card exam-compare-summary">
-      <div class="exam-progress cols-3">
-        <div><span>تراز اول</span><b class="text-soft">${fa(Math.round(firstTaraz))}</b></div>
-        <div><span>تراز آخر</span><b class="text-amber">${fa(Math.round(lastTaraz))}</b></div>
-        <div><span>پیشرفت</span><b style="color:${delta>0?'#6ee7b7':delta<0?'#fda4af':'#cbd3e8'}">${delta>0?'+':''}${fa(Math.round(Math.abs(delta)))}</b></div>
+    <div class="exam-compare-layout">
+      <div class="exam-compare-main">
+        <div class="card exam-compare-summary exam-compare-stats">
+          <div class="exam-progress cols-3">
+            <div><span>تراز اول</span><b class="text-soft">${fa(Math.round(firstTaraz))}</b></div>
+            <div><span>تراز آخر</span><b class="text-amber">${fa(Math.round(lastTaraz))}</b></div>
+            <div><span>پیشرفت</span><b style="color:${delta>0?'#6ee7b7':delta<0?'#fda4af':'#cbd3e8'}">${delta>0?'+':''}${fa(Math.round(Math.abs(delta)))}</b></div>
+          </div>
+        </div>
+        <div class="exam-compare-section-title"><b>📋 جزئیات هر آزمون</b><span>درصدها و تعداد پاسخ‌ها</span></div>
+        ${renderExamDetailsHTML(exams)}
+        <div class="exam-compare-section-title"><b>📋 جدول مقایسه</b><span>درصد هر درس در آزمون‌های ثبت‌شده</span></div>
+        ${renderExamListTable(exams)}
       </div>
-      <div class="exam-charts-row">
-        <div class="exam-compare-chart"><div class="card-title">📈 تراز کل</div><div class="exam-compare-chart-frame">${renderExamTotalChartSVG(exams)}</div></div>
-        <div class="exam-compare-chart"><div class="card-title">📊 تراز دروس</div><div class="exam-compare-chart-frame">${renderExamAllSubjectsChartSVG(exams)}</div></div>
-      </div>
+      <aside class="exam-compare-side">
+        <div class="card exam-compare-summary exam-compare-charts-card">
+          <div class="card-title">📊 نمودارهای مقایسه</div>
+          <div class="exam-charts-row">
+            <div class="exam-compare-chart"><div class="card-title">📈 تراز کل</div><div class="exam-compare-chart-frame">${renderExamTotalChartSVG(exams)}</div></div>
+            <div class="exam-compare-chart"><div class="card-title">📊 تراز دروس</div><div class="exam-compare-chart-frame">${renderExamAllSubjectsChartSVG(exams)}</div></div>
+          </div>
+        </div>
+      </aside>
     </div>
-    <div class="exam-compare-section-title"><b>📋 جزئیات هر آزمون</b><span>درصدها و تعداد پاسخ‌ها</span></div>
-    ${renderExamDetailsHTML(exams)}
-    <div class="exam-compare-section-title"><b>📋 جدول مقایسه</b><span>درصد هر درس در آزمون‌های ثبت‌شده</span></div>
-    ${renderExamListTable(exams)}
   `;
   document.getElementById('exportExamCompareImage').onclick=exportExamCompareImage;
   body.querySelectorAll('[data-ex-edit]').forEach((b)=>{b.onclick=()=>openExamSettingsModal(b.dataset.exEdit);});

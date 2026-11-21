@@ -5,6 +5,7 @@
    evaluated in a small vm sandbox; no DOM or network is required. */
 
 const assert = require('assert');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
@@ -444,7 +445,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r26'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r27'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -506,16 +507,48 @@ test('REWORK: classes are merged into the renamed overview as a third segment', 
   assert.ok(!/#view-class/.test(desktop), 'old class-view selectors must be gone');
 });
 
-test('REWORK: bottom navigation uses a floating liquid-glass surface', () => {
+test('REWORK: bottom navigation is a flat minimal bar, not liquid glass', () => {
   const nav = read('css/05-overlays.css');
-  const block = nav.slice(nav.indexOf('/* NAV — floating iPhone-style liquid glass */'), nav.indexOf('/* MODAL */'));
-  assert.ok(/width:\s*calc\(100%\s*-\s*24px\)/.test(block), 'glass bar must float with side margins');
-  assert.ok(/border-radius:\s*24px/.test(block));
-  assert.ok(/backdrop-filter:blur\(26px\) saturate\(180%\)/.test(block));
-  assert.ok(/inset 0 1px 0 rgba\(255,255,255,\.18\)/.test(block), 'glossy top highlight missing');
-  assert.ok(/nav::before/.test(block), 'glass reflection layer missing');
-  assert.ok(/nav-btn\.active/.test(block) && /inset 0 1px 0 rgba\(255,255,255,\.24\)/.test(block));
+  const block = nav.slice(nav.indexOf('/* NAV — flat, minimal bottom bar */'), nav.indexOf('/* MODAL */'));
+  assert.ok(/position:fixed;bottom:0;left:50%;transform:translateX\(-50%\)/.test(block),
+    'bar must stay pinned to the bottom edge');
+  assert.ok(/width:100%;max-width:480px/.test(block), 'bar must span the supported width');
+  assert.ok(/border-top:1px solid rgba\(255,255,255,\.08\)/.test(block));
+  assert.ok(!/border-radius:\s*24px/.test(block), 'floating glass radius is gone');
+  assert.ok(!/backdrop-filter/.test(block), 'glass blur is gone');
+  assert.ok(!/box-shadow/.test(block), 'glass shadow is gone');
+  assert.ok(!/nav::before/.test(block), 'glass reflection layer is gone');
+  assert.ok(/nav-btn\.active[\s\S]*?border-bottom-color:rgba\(124,92,255,\.85\)/.test(block),
+    'active tab uses a subtle accent line, not a pill');
+  const desktop = read('css/14-desktop.css');
+  const navBtnAt = desktop.indexOf('.nav-btn {');
+  const desktopNav = desktop.slice(desktop.lastIndexOf('.nav {', navBtnAt), navBtnAt);
+  assert.ok(!/\.nav::before/.test(desktop));
+  assert.ok(!/border-radius/.test(desktopNav), 'desktop nav must stay squared off');
   assert.ok(read('css/02-typography.css').includes('[hidden]{display:none!important}'));
+});
+
+test('ASSETS: app icons use the cropped artwork with no white margin', () => {
+  const expected = {
+    'apple-touch-icon.png': [180, 'c3e970cd0098f4d847445cbf25e15bf1ee2447b0b66719ef35a1badc9803d8b4'],
+    'favicon-32.png': [32, '21016d4ca5b5a85d23558d3e621ed0e6530213cd8030f807daa3ecc475705068'],
+    'icon-192.png': [192, 'dcd5e5e05a07882fbfac6dd7af62c7170721d8715c4f07bac3435ab28051255a'],
+    'icon-512.png': [512, '9fe778fa8af3a9919825f49296f3a1f1a1b24bdf54911726a439e0385b227635'],
+    'icon-maskable-192.png': [192, '5f623429adac5d95e3d90c6d31ff748032f3bc715f0d05bbd48d5b2534c2a1c4'],
+    'icon-maskable-512.png': [512, '05cb7a93df099fb9195be737de424641b20d67ef7d3174d5113957be07abd013']
+  };
+  const manifest = JSON.parse(read('manifest.json'));
+  for (const [name, [size, hash]] of Object.entries(expected)) {
+    const buf = fs.readFileSync(path.join(ROOT, 'icons', name));
+    assert.strictEqual(buf.subarray(1, 4).toString('ascii'), 'PNG', `${name} is not a PNG`);
+    assert.strictEqual(buf.readUInt32BE(16), size, `${name} has the wrong width`);
+    assert.strictEqual(buf.readUInt32BE(20), size, `${name} has the wrong height`);
+    assert.strictEqual(crypto.createHash('sha256').update(buf).digest('hex'), hash,
+      `${name} is not the cropped icon artwork`);
+    assert.ok(manifest.icons.some(icon => icon.src === `icons/${name}`) ||
+      ['apple-touch-icon.png', 'favicon-32.png'].includes(name),
+      `${name} must remain referenced or intentionally kept outside the manifest`);
+  }
 });
 
 console.log('TASK SPEC v1.2.0 — all phase checks');

@@ -616,14 +616,16 @@ function drawSleepPhoneStrip(x,W,pad,boxY,d){
 /* ============================================================
    TIMELINE — روز
    ============================================================ */
-/* Canvas timeline must use the same minute axis as the hour grid. The DOM
-   layout helper widens short blocks for readability, which shifts later blocks
-   away from their real times in an image; overlapping items use lanes instead. */
-function reportTimelineExactLayout(items,tlW,startMin,endMin,minWidth){
+/* Image blocks keep their start on the minute axis, but they are deliberately
+   wider than the raw duration: short items stay readable and longer items keep
+   a proportional advantage. Overlaps move to a lane so widening never shifts a
+   later item under the wrong hour label. */
+function reportTimelineImageLayout(items,tlW,startMin,endMin,minWidth,widthScale){
   const domainStart=+startMin||0,domainEnd=+endMin||domainStart+1440;
   const span=Math.max(1,domainEnd-domainStart);
   const pxPerMin=tlW/span;
   const minVisualWidth=Math.max(0,+minWidth||0);
+  const scale=Math.max(1,+widthScale||1);
   const list=(items||[]).filter(Boolean).map((item,index)=>{
     const start=+(item.startMin!=null?item.startMin:item.start)||0;
     const end=item.endMin!=null?+item.endMin:start+(+item.durMin||0);
@@ -636,10 +638,7 @@ function reportTimelineExactLayout(items,tlW,startMin,endMin,minWidth){
     const left=(start-domainStart)*pxPerMin;
     const right=(end-domainStart)*pxPerMin;
     const exactWidth=Math.max(1,right-left);
-    /* Short blocks get just enough visual width for a name. Their start stays
-       on the real minute axis and overlaps move to a lane instead of shifting
-       later blocks into the wrong hour. */
-    const visualWidth=Math.max(minVisualWidth,exactWidth);
+    const visualWidth=Math.min(Math.max(1,tlW-left),Math.max(minVisualWidth,exactWidth*scale));
     let lane=laneEnds.findIndex(laneEnd=>laneEnd<=left+.5);
     if(lane<0){lane=laneEnds.length;laneEnds.push(0);}
     laneEnds[lane]=left+visualWidth;
@@ -708,9 +707,9 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.font='500 22px Vazirmatn, Tahoma, sans-serif';
     x.fillText('مطالعه‌ای ثبت نشده',tlLeft+tlW/2,tlTop+tlH/2);
   }else{
-    /* Blocks stay on the real minute axis; overlaps use vertical lanes so a
-       later activity is never pushed under the wrong hour label. */
-    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN,28);
+    /* Starts stay on the real minute axis; wider visual blocks and vertical
+       lanes keep the image readable without moving items under a wrong hour. */
+    const layout=reportTimelineImageLayout(allTimelineItems,tlW,START_MIN,END_MIN,48,1.6);
     const by=blockY+2;
     const laneH=Math.max(12,Math.min(30,Math.floor((blockH-4)/layout.lanes)));
     const bh=Math.max(8,laneH-4);

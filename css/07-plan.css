@@ -1238,22 +1238,32 @@ body.creating-block .pool-drop-wrap {
 }
 
 .phase-pill {
-  padding: 3px 5px;
+  padding: 2px 4px;
   font-size: 8px;
   display: flex;
   align-items: center;
-  gap: 3px;
+  flex-wrap: wrap;
+  gap: 0 3px;
   min-height: 20px;
   border-radius: 5px;
   position: relative;
 }
 .phase-pill .sp-label {
   font-weight: 800;
-  flex: 1;
+  flex: 1 1 100%;
   min-width: 0;
+  line-height: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.phase-pill .sp-dur {
+  flex: 1 1 100%;
+  text-align: center;
+  font-size: 7px;
+  line-height: 8px;
+  letter-spacing: -.2px;
+  opacity: .9;
 }
 .phase-pill.activity-pill {
   border-color: rgba(52,211,153,.72);

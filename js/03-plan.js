@@ -1638,6 +1638,13 @@ function renderPhases(box) {
   if (todayBtn) todayBtn.onclick = () => gotoToday();
 }
 
+function phasePillTimeLabel(sStart, sEnd) {
+  const start = +sStart;
+  const end = +sEnd;
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return '';
+  return `${minToStr(start)}–${minToStr(end)}`;
+}
+
 function renderPhasePill(s, phaseStart, phaseEnd) {
   const isActivity = s._kind === 'activity';
   const color = subjColor(s.subject);
@@ -1653,12 +1660,14 @@ function renderPhasePill(s, phaseStart, phaseEnd) {
   if (isContStart && isContEnd) classes.push('cont-both');
   const segStart = Math.max(sStart, phaseStart);
   const segEnd = Math.min(sEnd, phaseEnd);
+  const timeLabel = phasePillTimeLabel(sStart, sEnd);
+  const segmentLabel = phasePillTimeLabel(segStart, segEnd);
   const attrs = isActivity ? `data-act-id="${s.id}"` : `data-sid="${s.id}"`;
   const name = isActivity ? (s.topic || s.subject || 'فعالیت') : s.subject;
-  const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${minToStr(segStart)} — ${minToStr(segEnd)})`;
-  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}">
-    <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${isActivity ? '✓ ' : ''}${esc(name)}</span>
-    <span class="sp-dur">${fa(Math.max(0, sEnd - sStart))}د</span>
+  const title = `${isActivity ? 'فعالیت ثبت‌شده' : 'جلسه'} — ${esc(name)}${s.topic && !isActivity ? ' — ' + esc(s.topic) : ''} (${timeLabel || segmentLabel} · ${fa(Math.max(0, sEnd - sStart))}د)`;
+  return `<div class="${classes.join(' ')}" ${attrs} style="--pill:${color}" title="${title}" aria-label="${title}">
+    <span class="sp-label" style="color:${isActivity ? '#a7f3d0' : color}">${esc(name)}</span>
+    <span class="sp-dur">${timeLabel || segmentLabel}</span>
   </div>`;
 }
 

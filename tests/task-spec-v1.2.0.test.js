@@ -262,17 +262,18 @@ test('BUGFIX: note/question/answer edits are tracked as question sync mutations'
   assert.strictEqual(questionMutation.record().value.answerText, 'جواب تازه');
 });
 
-test('BUGFIX: daily report timeline uses real minute positions with overlap lanes', () => {
-  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineExactLayout', 'reportTimelineItemName']);
+test('REWORK: image report blocks are wider and still follow the minute axis', () => {
+  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineImageLayout', 'reportTimelineItemName']);
   const items = [
     { id: 'a', startMin: 480, endMin: 540 },
     { id: 'b', startMin: 510, endMin: 570 },
     { id: 'c', startMin: 600, endMin: 615 }
   ];
-  const out = ctx.reportTimelineExactLayout(items, 960, 0, 1440);
+  const out = ctx.reportTimelineImageLayout(items, 960, 0, 1440, 48, 1.6);
   assert.strictEqual(out.blocks.length, 3);
-  assert.strictEqual(out.blocks[0].left, 320, '08:00 must sit at one third of the 24h axis');
-  assert.strictEqual(out.blocks[0].width, 40, 'a 60 minute block must be 40px wide');
+  assert.strictEqual(out.blocks[0].left, 320, '08:00 must stay at one third of the 24h axis');
+  assert.strictEqual(out.blocks[0].exactWidth, 40, 'the real duration must stay available');
+  assert.strictEqual(out.blocks[0].width, 64, 'a 60 minute block must be visibly wider than the raw duration');
   assert.strictEqual(out.blocks[1].left, 340, 'overlapping items keep their real x position');
   assert.strictEqual(out.blocks[1]._lane, 1, 'overlaps move to a lane, not a later time');
   assert.strictEqual(out.blocks[2].left, 400, 'gaps stay proportional');
@@ -282,11 +283,13 @@ test('BUGFIX: daily report timeline uses real minute positions with overlap lane
   const dashboard = read('js/02-dashboard.js');
   const section = dashboard.slice(dashboard.indexOf('function drawReportTimelineDaySection'),
     dashboard.indexOf('function drawReportTimelineWeekSection'));
-  const shortOnly = ctx.reportTimelineExactLayout([{ startMin: 600, endMin: 615 }], 960, 0, 1440, 28);
+  const shortOnly = ctx.reportTimelineImageLayout([{ startMin: 600, endMin: 615 }], 960, 0, 1440, 48, 1.6);
   assert.strictEqual(shortOnly.blocks[0].exactWidth, 10, 'the real duration must stay available');
-  assert.strictEqual(shortOnly.blocks[0].width, 28, 'short blocks need enough width for their name');
-  assert.ok(section.includes('reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN,28)'),
-    'daily image timeline must use the exact minute layout with readable short blocks');
+  assert.strictEqual(shortOnly.blocks[0].width, 48, 'short blocks need a readable minimum width');
+  const endOnly = ctx.reportTimelineImageLayout([{ startMin: 1435, endMin: 1440 }], 960, 0, 1440, 48, 1.6);
+  assert.ok(endOnly.blocks[0].left + endOnly.blocks[0].width <= 960, 'widening must stay inside the timeline');
+  assert.ok(section.includes('reportTimelineImageLayout(allTimelineItems,tlW,START_MIN,END_MIN,48,1.6)'),
+    'daily image timeline must use the wider fitted layout');
   assert.ok(section.includes('minToStr(START_MIN)') && section.includes('minToStr(m)'),
     'timeline labels must use the shared minute formatter');
   assert.ok(!section.includes('layoutTimelineBlocks('), 'daily report must not shift blocks with minWidth/minGap');
@@ -300,7 +303,7 @@ test('BUGFIX: daily report timeline uses real minute positions with overlap lane
     'the image timeline needs enough height for readable, uncluttered blocks');
 });
 
-test('FEAT: volume planning shows recorded activities without duplicating linked ones', () => {
+test('FEAT: volume planning shows activities with clear ranges and no tick marks', () => {
   const ctx = loadFunctions('js/03-plan.js', ['phaseCellItems']);
   const sessions = [
     { id: 's1', startMin: 480, durMin: 60 },
@@ -318,12 +321,29 @@ test('FEAT: volume planning shows recorded activities without duplicating linked
   assert.strictEqual(out[1]._kind, 'activity');
   assert.strictEqual(out[2]._kind, 'session');
 
+  const pillCtx = loadFunctions('js/03-plan.js', ['phasePillTimeLabel', 'renderPhasePill'], {
+    minToStr: (m) => `T${m}`
+  });
+  assert.strictEqual(pillCtx.phasePillTimeLabel(480, 540), 'T480–T540');
+  const activityPill = pillCtx.renderPhasePill(
+    { id: 'a1', _kind: 'activity', subject: 'ریاضی', topic: 'احتمال', startMin: 480, endMin: 540 },
+    480, 600
+  );
+  assert.ok(activityPill.includes('T480–T540'), 'adjacent blocks need an explicit start-end range');
+  assert.ok(activityPill.includes('data-act-id="a1"'));
+  assert.ok(!activityPill.includes('✓'), 'recorded activity pills must not show a check mark');
+
   const plan = read('js/03-plan.js');
   assert.ok(plan.includes('phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd)'),
     'volume cells must include recorded activities');
   assert.ok(plan.includes("classes.push('activity-pill', 'tl-activity')"),
     'activity pills need their own clickable style');
-  assert.ok(/\.phase-pill\.activity-pill\s*\{/.test(read('css/07-plan.css')));
+  assert.ok(plan.includes('<span class="sp-dur">${timeLabel || segmentLabel}</span>'),
+    'volume pills must display their time range');
+  const css = read('css/07-plan.css');
+  assert.ok(/\.phase-pill\.activity-pill\s*\{/.test(css));
+  assert.ok(/\.phase-pill\s*\{[^}]*flex-wrap:\s*wrap/.test(css),
+    'time ranges need their own line in narrow volume cells');
 });
 
 test('REWORK: dashboard report dialog uses the plan export design', () => {
@@ -690,7 +710,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r34'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r35'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

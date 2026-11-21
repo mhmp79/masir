@@ -16,7 +16,19 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 function extractFunction(source, name) {
   const match = new RegExp(`(?:function|const|let|var)\\s+${name}\\s*(?:=\\s*)?\\(`).exec(source);
   if (!match) throw new Error(`function ${name} not found`);
-  const open = source.indexOf('{', match.index);
+  /* Skip the parameter list so default values such as `metadata={}` are not
+     mistaken for the start of the function body. */
+  const parenStart = source.indexOf('(', match.index);
+  let parenDepth = 0;
+  let parenEnd = -1;
+  for (let i = parenStart; i < source.length; i++) {
+    if (source[i] === '(') parenDepth++;
+    else if (source[i] === ')') {
+      parenDepth--;
+      if (parenDepth === 0) { parenEnd = i; break; }
+    }
+  }
+  const open = source.indexOf('{', parenEnd + 1);
   if (open < 0) throw new Error(`body of ${name} not found`);
   let depth = 0;
   for (let i = open; i < source.length; i++) {
@@ -137,6 +149,155 @@ test('BUGFIX-1: timeline and week renderers feed painted heights into lane packi
   assert.ok(/_laneEnd: visualLaneEnd\(it\)/.test(plan), 'assignLanes ignores painted heights');
   assert.ok(/_minH: 6, _inset: 3/.test(plan), 'day sessions need their painted height');
   assert.ok(/_minH: 4, _inset: 2/.test(plan), 'week sessions need their painted height');
+});
+
+test('BUGFIX: exam topic edits relabel exam-linked sessions without losing them', () => {
+  const state = {
+    exams: [{ id: 'e1', topics: { ریاضی: ['جبر'] } }],
+    sessions: [
+      { id: 's1', examId: 'e1', subject: 'ریاضی', topic: 'احتمال', date: '1400/01/01', startMin: 480, durMin: 60, done: true },
+      { id: 's2', examId: 'other', subject: 'ریاضی', topic: 'احتمال', date: '1400/01/02', startMin: 540, durMin: 30, done: false }
+    ]
+  };
+  let reloads = 0;
+  const ctx = loadFunctions('js/03-plan.js', ['syncExamSessionsTopics'], {
+    state, examSelectedId: 'e1', loadExamTopics: () => { reloads++; }
+  });
+  assert.strictEqual(ctx.syncExamSessionsTopics('e1'), 1);
+  assert.strictEqual(state.sessions[0].topic, 'جبر');
+  assert.strictEqual(state.sessions[0].date, '1400/01/01');
+  assert.strictEqual(state.sessions[0].startMin, 480);
+  assert.strictEqual(state.sessions[0].done, true);
+  assert.strictEqual(state.sessions[1].topic, 'احتمال', 'other exams must stay untouched');
+  assert.strictEqual(reloads, 1, 'the active exam setup must reload');
+
+  state.exams[0].topics.ریاضی = ['جبر', 'احتمال'];
+  state.sessions[0].topic = 'هندسه';
+  ctx.syncExamSessionsTopics('e1');
+  assert.strictEqual(state.sessions[0].topic, '', 'ambiguous topics clear the stale label instead of deleting the session');
+  assert.strictEqual(state.sessions[0].date, '1400/01/01');
+});
+
+test('BUGFIX: exam settings save refreshes exam-linked timeline topics', () => {
+  const exam = read('js/05-exam.js');
+  const start = exam.indexOf("document.getElementById('esSave').onclick");
+  const end = exam.indexOf("document.getElementById('esDeleteExam').onclick");
+  const save = exam.slice(start, end);
+  assert.ok(/exam\.topics=tp/.test(save), 'exam topics save missing');
+  assert.ok(/syncExamSessionsTopics\(id\)/.test(save), 'exam-linked sessions must be relabelled on save');
+  assert.ok(/renderPlan\(\)/.test(save), 'timeline must re-render after exam topic changes');
+});
+
+test('BUGFIX: daily timeline draws three quarter-hour guides per hour', () => {
+  const plan = read('js/03-plan.js');
+  const css = read('css/07-plan.css');
+  assert.ok(plan.includes('<i class="tl-quarter q1"></i><i class="tl-quarter q2"></i><i class="tl-quarter q3"></i>'),
+    'daily hour rows need 15/30/45 minute guides');
+  assert.ok(/\.tl-quarter\{[\s\S]*?pointer-events:none/.test(css), 'guides must not capture pointer events');
+  assert.ok(/\.tl-quarter\.q1\{top:calc\(var\(--row-h,58px\)\*\.25/.test(css));
+  assert.ok(/\.tl-quarter\.q2\{top:calc\(var\(--row-h,58px\)\*\.50/.test(css));
+  assert.ok(/\.tl-quarter\.q3\{top:calc\(var\(--row-h,58px\)\*\.75/.test(css));
+  assert.ok(/const SNAP=15/.test(read('js/01-core.js')), 'snapping must stay on the 15-minute grid');
+});
+
+test('BUGFIX: question notes/questions/answers survive sync store rebuilds', () => {
+  const core = loadFunctions('js/01-core.js', ['stateFromNormalizedRecords'], {
+    DB_STATE_ID: 'main',
+    migrateLegacyRecordsToSessions: () => []
+  });
+  const rebuilt = core.stateFromNormalizedRecords({
+    'app-meta': [{ id: 'main', value: {} }],
+    exams: [{ id: 'e1', value: { id: 'e1', name: 'آزمون' }, order: 0 }],
+    questions: [{
+      id: 'e1::q1',
+      value: { id: 'q1', note: 'نکته', questionText: 'صورت', answerText: 'جواب' },
+      order: 0
+    }]
+  });
+  assert.strictEqual(rebuilt.exams[0].questions.length, 1, 'a question without examId must not be dropped');
+  assert.strictEqual(rebuilt.exams[0].questions[0].note, 'نکته');
+  assert.strictEqual(rebuilt.exams[0].questions[0].questionText, 'صورت');
+  assert.strictEqual(rebuilt.exams[0].questions[0].answerText, 'جواب');
+
+  const coreSource = read('js/01-core.js');
+  const pb = read('js/12-pocketbase.js');
+  assert.ok(/const NORMALIZED_STORES=.*'questions'\]/.test(coreSource), 'questions must be a normalized store');
+  assert.ok(/questions: 'questions'/.test(pb), 'questions must map to the remote questions collection');
+  assert.ok(/const PB_UPLOAD_STORES = \[[^\]]*'questions'\]/.test(pb), 'auto upload must include questions');
+  assert.ok(/if \(record\.examId\) data\.examId = record\.examId/.test(pb), 'question rows must carry examId');
+});
+
+test('BUGFIX: note/question/answer edits are tracked as question sync mutations', () => {
+  const core = loadFunctions('js/01-core.js', [
+    'rawStorageValue', 'unwrapStorageValue', 'storageFieldSignature', 'changedFieldNames',
+    'mergeMutationFields', 'markStorageMutation', 'markStorageDeletion', 'entityIdFor',
+    'markArrayReplacement', 'markStorageCollection', 'storageContextForChild',
+    'storageMutationRecord', 'trackStorageState', 'takeStorageMutations'
+  ], {
+    DB_STATE_ID: 'main',
+    STORAGE_COLLECTIONS: {
+      subjects: 'subjects', activities: 'activities', classes: 'classes',
+      sessions: 'sessions', sleeps: 'sleeps', phones: 'phones', exams: 'exams'
+    },
+    pendingStorageMutations: new Map(),
+    storageProxyTargets: new WeakMap()
+  });
+  const tracked = core.trackStorageState({
+    exams: [{ id: 'e1', questions: [{ id: 'q1', note: 'قدیمی', questionText: '', answerText: '' }] }]
+  });
+  const question = tracked.exams[0].questions[0];
+  question.note = 'نکته تازه';
+  question.questionText = 'صورت تازه';
+  question.answerText = 'جواب تازه';
+  const mutations = core.takeStorageMutations();
+  const questionMutation = mutations.find((mutation) => mutation.store === 'questions');
+  assert.ok(questionMutation, 'editing a question must queue a questions mutation');
+  assert.strictEqual(questionMutation.id, 'e1::q1');
+  assert.strictEqual(questionMutation.examId, 'e1');
+  for (const field of ['note', 'questionText', 'answerText']) {
+    assert.ok(questionMutation.fields.includes(field), `${field} must be reported as changed`);
+  }
+  assert.strictEqual(questionMutation.record().value.note, 'نکته تازه');
+  assert.strictEqual(questionMutation.record().value.questionText, 'صورت تازه');
+  assert.strictEqual(questionMutation.record().value.answerText, 'جواب تازه');
+});
+
+test('BUGFIX: daily report timeline uses real minute positions with overlap lanes', () => {
+  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineExactLayout']);
+  const items = [
+    { id: 'a', startMin: 480, endMin: 540 },
+    { id: 'b', startMin: 510, endMin: 570 },
+    { id: 'c', startMin: 600, endMin: 615 }
+  ];
+  const out = ctx.reportTimelineExactLayout(items, 960, 0, 1440);
+  assert.strictEqual(out.blocks.length, 3);
+  assert.strictEqual(out.blocks[0].left, 320, '08:00 must sit at one third of the 24h axis');
+  assert.strictEqual(out.blocks[0].width, 40, 'a 60 minute block must be 40px wide');
+  assert.strictEqual(out.blocks[1].left, 340, 'overlapping items keep their real x position');
+  assert.strictEqual(out.blocks[1]._lane, 1, 'overlaps move to a lane, not a later time');
+  assert.strictEqual(out.blocks[2].left, 400, 'gaps stay proportional');
+  assert.strictEqual(out.blocks[2]._lane, 0, 'a later non-overlapping item reuses the first lane');
+  assert.strictEqual(out.lanes, 2);
+
+  const dashboard = read('js/02-dashboard.js');
+  const section = dashboard.slice(dashboard.indexOf('function drawReportTimelineDaySection'),
+    dashboard.indexOf('function drawReportTimelineWeekSection'));
+  assert.ok(section.includes('reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN)'),
+    'daily image timeline must use the exact minute layout');
+  assert.ok(section.includes('minToStr(START_MIN)') && section.includes('minToStr(m)'),
+    'timeline labels must use the shared minute formatter');
+  assert.ok(!section.includes('layoutTimelineBlocks('), 'daily report must not shift blocks with minWidth/minGap');
+});
+
+test('REWORK: dashboard report dialog uses the plan export design', () => {
+  const dashboard = read('js/02-dashboard.js');
+  const css = read('css/13-reports.css');
+  assert.ok(dashboard.includes('class="modal-head report-modal-head"'), 'report needs the app-style header');
+  assert.ok(dashboard.includes('class="wr-logo report-modal-logo"'), 'report needs the app-style logo');
+  assert.ok(dashboard.includes("classList.add('report-modal', 'plan-export-modal')"), 'report must share the export shell');
+  assert.ok(dashboard.includes('class="cwr-preview plan-preview"'), 'report preview must reuse the plan preview card');
+  assert.ok(/\.plan-export-modal #dlReport\{\n?\s*position:sticky/.test(css), 'report download must stay fixed on mobile');
+  assert.ok(/\.plan-export-modal #dlReport\{position:static;box-shadow:none\}/.test(css), 'report download returns to normal flow on desktop');
 });
 
 /* ---------- FEAT-1: analyzed state ---------- */
@@ -492,7 +653,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r32'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r33'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -553,6 +714,26 @@ test('REWORK: exam compare uses the app shell and a desktop chart side column', 
   assert.ok(/#examCompareOverlay \.exam-compare-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 340px/.test(desktop),
     'desktop must place charts beside the details');
   assert.ok(/#examCompareOverlay \.exam-compare-side \{ position: sticky/.test(desktop), 'desktop chart column must stay in view');
+});
+
+test('REWORK: exam compare top section matches the app topbar dimensions', () => {
+  const overlays = read('css/05-overlays.css');
+  const desktop = read('css/14-desktop.css');
+  const header = overlays.slice(overlays.indexOf('#examCompareOverlay .wr-top{'), overlays.indexOf('#examCompareOverlay .wr-logo{'));
+  assert.ok(/rgba\(11,16,34,\.76\)/.test(header), 'compare header must use the app topbar glass base');
+  assert.ok(/top:10px/.test(header), 'compare header sticky offset must match the app topbar');
+  assert.ok(/#examCompareOverlay \.wr-close\{width:38px;height:38px;border-radius:14px\}/.test(overlays),
+    'compare close button must match the app icon button size');
+  assert.ok(/#examCompareOverlay \.wr-shell \{ padding: 16px 24px 80px; \}/.test(desktop),
+    'tablet compare shell must match the app side padding');
+  assert.ok(/#examCompareOverlay \.wr-top \{ margin: 0 0 14px; padding: 13px 16px; \}/.test(desktop),
+    'tablet compare header padding/margin must match the app topbar');
+  assert.ok(/#examCompareOverlay \.wr-shell \{ max-width: 100%; padding: 8px 14px 60px; \}/.test(desktop),
+    'desktop compare header must span the same full-width inset as the app topbar');
+  assert.ok(/#examCompareOverlay \.wr-top \{ margin: 0 0 14px; padding: 12px 18px; position: relative; top: auto; \}/.test(desktop),
+    'desktop compare header must use the app topbar padding and flow');
+  assert.ok(/#examCompareOverlay \.wr-logo \{ width: 38px; height: 38px; border-radius: 12px; font-size: 16px; \}/.test(desktop),
+    'desktop compare logo must shrink like the app logo');
 });
 
 test('REWORK: classes are merged into the renamed overview as a third segment', () => {

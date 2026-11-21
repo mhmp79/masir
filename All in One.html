@@ -950,12 +950,14 @@ select option{background:#0d1524;color:var(--txt)}
 #examCompareOverlay .wr-top{
   margin:0 0 12px;padding:12px 14px;border-radius:18px;
   border:1px solid rgba(255,255,255,.10);
-  background:linear-gradient(135deg,rgba(234,179,8,.14),rgba(124,92,255,.08)),rgba(18,25,51,.82);
+  background:linear-gradient(135deg,rgba(234,179,8,.10),rgba(124,92,255,.06)),rgba(11,16,34,.76);
   backdrop-filter:blur(18px) saturate(150%);
   -webkit-backdrop-filter:blur(18px) saturate(150%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 12px 30px -26px #000;
+  box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
+  top:10px;
 }
 #examCompareOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(234,179,8,.5)}
+#examCompareOverlay .wr-close{width:38px;height:38px;border-radius:14px}
 #examCompareOverlay .wr-title{color:#fff}
 
 /* SETTINGS — lives inside the app shell: topbar and bottom tabs stay visible */
@@ -1985,6 +1987,18 @@ body.creating-block .pool-drop-wrap {
   z-index: 2;
   line-height: 1.2;
 }
+
+/* Daily timeline is split into four 15-minute quarters per hour. */
+.tl-quarter{
+  position:absolute;
+  left:10px;right:52px;
+  height:0;border-top:1px dotted rgba(255,255,255,.055);
+  pointer-events:none;
+  z-index:1;
+}
+.tl-quarter.q1{top:calc(var(--row-h,58px)*.25 - 1px)}
+.tl-quarter.q2{top:calc(var(--row-h,58px)*.50 - 1px);border-top-style:dashed;border-top-color:rgba(255,255,255,.085)}
+.tl-quarter.q3{top:calc(var(--row-h,58px)*.75 - 1px)}
 
 .tl-block {
   position: absolute;
@@ -6017,12 +6031,21 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   border:1px solid rgba(255,255,255,.14);
   box-shadow:0 12px 28px -16px #7c5cff;
 }
+/* Dashboard report uses the same export shell as the plan dialog. */
+.plan-export-modal #reportBody{margin-top:10px}
+.plan-export-modal #reportBody .plan-preview{padding:8px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.07)}
+.plan-export-modal #dlReport{
+  position:sticky;bottom:0;z-index:5;margin-top:10px;
+  border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 12px 28px -16px #7c5cff;
+}
 .plan-export-modal .report-madeby{margin-top:8px}
 @media (min-width:768px){
   .plan-export-modal .report-modal-head{margin:-24px -24px 14px;padding:14px 24px;border-radius:24px 24px 14px 14px}
   .plan-export-modal .plan-preview{max-height:38vh}
   .plan-export-modal .plan-preview img{max-height:36vh}
   .plan-export-modal #piDownload{position:static;box-shadow:none}
+  .plan-export-modal #dlReport{position:static;box-shadow:none}
 }
 
 
@@ -6044,6 +6067,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .topbar { margin: 0 0 14px; padding: 13px 16px; }
   .nav { max-width: 100%; }
   #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
+  #examCompareOverlay .wr-shell { padding: 16px 24px 80px; }
+  #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 13px 16px; }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -6547,12 +6572,16 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
   .wr-shell { max-width: 1240px; padding: 20px 24px 60px; }
   #settingsOverlay .wr-shell { max-width: 1120px; }
-  #examCompareOverlay .wr-shell { max-width: 1240px; }
+  #examCompareOverlay .wr-shell { max-width: 100%; padding: 8px 14px 60px; }
+  #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 12px 18px; position: relative; top: auto; }
+  #examCompareOverlay .wr-logo { width: 38px; height: 38px; border-radius: 12px; font-size: 16px; }
+  #examCompareBody > .exam-compare-toolbar,
+  #examCompareOverlay .exam-compare-layout { max-width: 1240px; margin-inline: auto; }
   #examCompareOverlay .exam-compare-layout {
     display: grid; grid-template-columns: minmax(0, 1fr) 340px;
     gap: 14px; align-items: start;
   }
-  #examCompareOverlay .exam-compare-side { position: sticky; top: 96px; }
+  #examCompareOverlay .exam-compare-side { position: sticky; top: 84px; }
   #examCompareOverlay .exam-compare-charts-card .exam-charts-row { grid-template-columns: 1fr; }
   #examOverlay .exam-overlay-inner { max-width: 1000px; padding: 20px 24px 80px; }
 
@@ -8544,7 +8573,15 @@ function stateFromNormalizedRecords(records){
   });
   const examsById=new Map(stateData.exams.map(exam=>[String(exam.id),exam]));
   ordered('questions').forEach(record=>{
-    const exam=examsById.get(String(record.examId));
+    /* Old synced rows may have been written before examId was added. The
+       local key is still `examId::questionId`, so recover the link instead of
+       dropping the question, note or answer when rebuilding state. */
+    let examId=String(record.examId||'');
+    if(!examsById.has(examId)){
+      const inlineId=String(record.id||'').split('::')[0];
+      if(inlineId&&examsById.has(inlineId))examId=inlineId;
+    }
+    const exam=examsById.get(examId);
     if(exam)exam.questions.push(record.value);
   });
   if(sessionsMigrated)stateData._sessionsMigrated=true;
@@ -10224,8 +10261,14 @@ function openReport(kind){
   reportKind=kind||'day';
   reportAnchor=TODAY_JDN;
   openModal(`
-    <div class="modal-head">
-      <div class="card-title">گزارش تصویری</div>
+    <div class="modal-head report-modal-head">
+      <div class="wr-top-right">
+        <div class="wr-logo report-modal-logo">📊</div>
+        <div class="min-w-0">
+          <div class="card-title mb-0">گزارش تصویری</div>
+          <div class="wr-sub">پیشنمایش و دانلود خروجی روزانه / هفتگی</div>
+        </div>
+      </div>
       <button class="icon-btn" data-close>✕</button>
     </div>
     <div class="seg" id="reportSeg">
@@ -10246,7 +10289,7 @@ function openReport(kind){
     <button class="btn primary mt-6" id="dlReport">⬇ دانلود تصویر گزارش روز</button>
     <div class="report-madeby">Made by MH.Mahdipanah</div>
   `);
-  document.getElementById('modalContent').classList.add('report-modal');
+  document.getElementById('modalContent').classList.add('report-modal', 'plan-export-modal');
   document.querySelectorAll('#reportSeg .seg-btn').forEach((b)=>{b.onclick=()=>{reportKind=b.dataset.kind;updateReportView();};});
   document.getElementById('rPrev').onclick=()=>{reportAnchor-=(reportKind==='day'?1:7);updateReportView();};
   document.getElementById('rNext').onclick=()=>{const step=(reportKind==='day'?1:7);if(reportAnchor+step>TODAY_JDN)return;reportAnchor+=step;updateReportView();};
@@ -10263,7 +10306,7 @@ function renderDayReportPreview(){
     if(bodyEl._reportToken!==token) return;
     try{
       const url=cv.toDataURL('image/png');
-      bodyEl.innerHTML=`<div class="cwr-preview"><img src="${url}" alt="پیش‌نمایش گزارش روزانه"></div>`;
+      bodyEl.innerHTML=`<div class="cwr-preview plan-preview"><img src="${url}" alt="پیش‌نمایش گزارش روزانه"></div>`;
     }catch(e){
       bodyEl.innerHTML='<div class="muted report-empty">خطا در نمایش پیش‌نمایش</div>';
     }
@@ -10294,7 +10337,7 @@ function updateReportView(){
           if(bodyEl._reportToken!==token) return;
           try{
             const url=cv.toDataURL('image/png');
-            bodyEl.innerHTML=`<div class="cwr-preview"><img src="${url}" alt="پیش‌نمایش گزارش هفتگی"></div>`;
+            bodyEl.innerHTML=`<div class="cwr-preview plan-preview"><img src="${url}" alt="پیش‌نمایش گزارش هفتگی"></div>`;
           }catch(e){
             bodyEl.innerHTML='<div class="muted report-empty">خطا در نمایش پیش‌نمایش</div>';
           }
@@ -10546,6 +10589,33 @@ function drawSleepPhoneStrip(x,W,pad,boxY,d){
 /* ============================================================
    TIMELINE — روز
    ============================================================ */
+/* Canvas timeline must use the same minute axis as the hour grid. The DOM
+   layout helper widens short blocks for readability, which shifts later blocks
+   away from their real times in an image; overlapping items use lanes instead. */
+function reportTimelineExactLayout(items,tlW,startMin,endMin){
+  const domainStart=+startMin||0,domainEnd=+endMin||domainStart+1440;
+  const span=Math.max(1,domainEnd-domainStart);
+  const pxPerMin=tlW/span;
+  const list=(items||[]).filter(Boolean).map((item,index)=>{
+    const start=+(item.startMin!=null?item.startMin:item.start)||0;
+    const end=item.endMin!=null?+item.endMin:start+(+item.durMin||0);
+    return {...item,index,start,end:Math.max(start,end)};
+  }).filter(item=>item.end>domainStart&&item.start<domainEnd)
+    .sort((a,b)=>a.start-b.start||a.end-b.end||a.index-b.index);
+  const laneEnds=[];
+  list.forEach(item=>{
+    const start=Math.max(domainStart,item.start),end=Math.min(domainEnd,item.end);
+    const left=(start-domainStart)*pxPerMin;
+    const right=(end-domainStart)*pxPerMin;
+    let lane=laneEnds.findIndex(laneEnd=>laneEnd<=left+.5);
+    if(lane<0){lane=laneEnds.length;laneEnds.push(0);}
+    laneEnds[lane]=right;
+    item._layoutStart=start;item._layoutEnd=end;
+    item.left=left;item.width=Math.max(1,right-left);item._lane=lane;
+  });
+  return {blocks:list,lanes:Math.max(1,laneEnds.length),pxPerMin};
+}
+
 function drawReportTimelineDaySection(x,W,pad,y0,d){
   const R=W-pad;
   x.textAlign='right';
@@ -10555,12 +10625,12 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
   x.textAlign='left';
   x.fillStyle='rgba(255,255,255,.4)';
   x.font='500 20px Vazirmatn, Tahoma, sans-serif';
-  x.fillText(`${fa(START_HOUR)}:۰۰ تا ${fa(END_HOUR)}:۰۰`,pad+10,y0+28);
+  x.fillText(`${minToStr(START_MIN)} تا ${minToStr(END_MIN)}`,pad+10,y0+28);
 
   const tlLeft=pad+10,tlRight=W-pad-10;
   const tlW=tlRight-tlLeft;
   const tlTop=y0+60,tlH=130;
-  const totalRange=END_MIN-START_MIN;
+  const totalRange=Math.max(1,END_MIN-START_MIN);
 
   rr(x,tlLeft,tlTop,tlW,tlH,22);
   const trackGrad=x.createLinearGradient(tlLeft,tlTop,tlLeft,tlTop+tlH);
@@ -10570,15 +10640,16 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
   x.fillStyle=trackGrad;x.fill();
   x.strokeStyle='rgba(255,255,255,.18)';x.lineWidth=2;x.stroke();
 
-  for(let h=START_HOUR;h<=END_HOUR;h+=3){
-    const hx=tlLeft+(h*60-START_MIN)/totalRange*tlW;
+  const tickStep=180;
+  for(let m=Math.ceil(START_MIN/tickStep)*tickStep;m<=END_MIN;m+=tickStep){
+    const hx=tlLeft+(m-START_MIN)/totalRange*tlW;
     x.beginPath();x.moveTo(hx,tlTop+10);x.lineTo(hx,tlTop+tlH-10);
     x.strokeStyle='rgba(255,255,255,.08)';x.lineWidth=1;x.stroke();
     const clampedHx=Math.max(tlLeft+24,Math.min(tlRight-24,hx));
     x.textAlign='center';x.textBaseline='top';
     x.fillStyle='rgba(255,255,255,.42)';
     x.font='500 17px Vazirmatn, Tahoma, sans-serif';
-    x.fillText(fa(h)+':۰۰',clampedHx,tlTop+tlH+12);
+    x.fillText(minToStr(m),clampedHx,tlTop+tlH+12);
   }
 
   const blockY=tlTop+24,blockH=tlH-48;
@@ -10594,35 +10665,44 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.font='500 22px Vazirmatn, Tahoma, sans-serif';
     x.fillText('مطالعه‌ای ثبت نشده',tlLeft+tlW/2,tlTop+tlH/2);
   }else{
-    /* BUGFIX-1: sorted, non-overlapping horizontal chain. Touching blocks
-       share an edge; real gaps stay proportional; short blocks stay readable. */
-    const layout=layoutTimelineBlocks(allTimelineItems,tlW,{
-      startMin:START_MIN,endMin:END_MIN,minWidth:32,minGap:4
-    });
+    /* Blocks stay on the real minute axis; overlaps use vertical lanes so a
+       later activity is never pushed under the wrong hour label. */
+    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN);
     const by=blockY+2;
-    const bh=blockH-4;
-    const rad=Math.min(10,bh/2);
+    const laneH=Math.max(8,Math.min(26,Math.floor((blockH-4)/layout.lanes)));
+    const bh=Math.max(6,laneH-4);
+    const rad=Math.min(8,bh/2);
 
     layout.blocks.forEach(a=>{
       const bx=tlLeft+a.left;
       const bw=Math.max(1,Math.min(a.width,tlLeft+tlW-bx));
-      if(bw<=0)return;
+      const byLane=by+a._lane*laneH;
+      if(bw<=0||byLane+bh>tlTop+tlH-4)return;
+      const timeLabel=`${minToStr(a._layoutStart)}–${minToStr(a._layoutEnd)}`;
 
       if(a._kind==='sleep'){
         x.save();
-        rr(x,bx+1,by,bw-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         x.fillStyle='rgba(99,102,241,.28)';x.fill();
         x.clip();
         x.strokeStyle='rgba(99,102,241,.70)';x.lineWidth=2;
-        for(let i=-bh;i<bw+bh;i+=8){x.beginPath();x.moveTo(bx+i,by);x.lineTo(bx+i+bh,by+bh);x.stroke();}
+        for(let i=-bh;i<bw+bh;i+=8){x.beginPath();x.moveTo(bx+i,byLane);x.lineTo(bx+i+bh,byLane+bh);x.stroke();}
         x.restore();
-        rr(x,bx+1,by,bw-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         x.strokeStyle='rgba(99,102,241,.88)';x.lineWidth=2;x.stroke();
-        if(bw>55&&bh>16){
+        if(bw>55&&bh>18){
           x.fillStyle='#c7d2fe';
           x.font='700 11px Vazirmatn, Tahoma, sans-serif';
           x.textAlign='center';x.textBaseline='middle';
-          x.fillText('🌙 خواب',bx+bw/2,by+bh/2);
+          x.fillText('🌙 خواب',bx+bw/2,byLane+bh/2-6);
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.fillStyle='rgba(199,210,254,.8)';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
+        }else if(bw>34&&bh>12){
+          x.fillStyle='#c7d2fe';
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
         }
       }else{
         const c=subjColor(a.subject);
@@ -10630,27 +10710,42 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
         x.save();
         x.shadowColor=c+'aa';
         x.shadowBlur=18;x.shadowOffsetY=2;
-        rr(x,bx+1,by,bw-2,bh,rad);
-        const grad=x.createLinearGradient(bx,by,bx,by+bh);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
+        const grad=x.createLinearGradient(bx,byLane,bx,byLane+bh);
         grad.addColorStop(0,c+'ee');
         grad.addColorStop(.5,c+'bb');
         grad.addColorStop(1,c+'88');
         x.fillStyle=grad;x.fill();
         x.restore();
-        rr(x,bx+1,by,bw-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         if(isOther){
           x.strokeStyle='rgba(255,255,255,.7)';x.lineWidth=1.8;
           x.setLineDash([4,3]);x.stroke();x.setLineDash([]);
         }else{
           x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.5;x.stroke();
         }
-        if(bw>40&&bh>14){
-          x.fillStyle='#fff';
-          x.font='700 10px Vazirmatn, Tahoma, sans-serif';
-          x.textAlign='center';x.textBaseline='middle';
+        if(bw>58&&bh>18){
           let name=isOther&&a.topic?a.topic:a.subject;
           while(x.measureText(name).width>bw-10&&name.length>2)name=name.slice(0,-1);
-          x.fillText(name,bx+bw/2,by+bh/2);
+          x.fillStyle='#fff';
+          x.textAlign='center';x.textBaseline='middle';
+          x.font='700 10px Vazirmatn, Tahoma, sans-serif';
+          x.fillText(name,bx+bw/2,byLane+bh/2-6);
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.fillStyle='rgba(255,255,255,.78)';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
+        }else if(bw>34&&bh>12){
+          x.fillStyle='#fff';
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
+        }else if(bw>24&&bh>12){
+          let name=isOther&&a.topic?a.topic:a.subject;
+          while(x.measureText(name).width>bw-8&&name.length>2)name=name.slice(0,-1);
+          x.fillStyle='#fff';
+          x.font='700 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(name,bx+bw/2,byLane+bh/2);
         }
       }
     });
@@ -11506,6 +11601,27 @@ function loadExamTopics() {
       examTopicSetup[subject][topic] = { count: existing.length, durMin: existing[0]?.durMin || 120 };
     });
   });
+}
+
+/* When exam topics are edited, exam-linked sessions keep their old topic label.
+   Relabel only sessions whose topic is no longer valid, never removing or
+   rescheduling them, so no study time or history is lost. */
+function syncExamSessionsTopics(examId) {
+  const exam = state.exams.find(e => e.id === examId);
+  if (!exam || !exam.topics) return 0;
+  let changed = 0;
+  state.sessions.forEach(s => {
+    if (s.examId !== examId) return;
+    const val = exam.topics[s.subject];
+    let topics = [];
+    if (Array.isArray(val)) topics = val;
+    else if (val && typeof val === 'object') Object.values(val).forEach(v => { if (Array.isArray(v)) topics.push(...v); });
+    if (topics.includes(s.topic)) return;
+    const next = topics.length === 1 ? topics[0] : '';
+    if (s.topic !== next) { s.topic = next; changed++; }
+  });
+  if (examSelectedId === examId) loadExamTopics();
+  return changed;
 }
 
 function renderTopicSetup() {
@@ -12437,7 +12553,7 @@ function visualLaneEnd(item) {
 }
 
 if (typeof globalThis !== 'undefined') {
-  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes };
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes, syncExamSessionsTopics };
 }
 
 function assignLanes(items) {
@@ -12523,7 +12639,7 @@ function renderTimelineDay(dayKey) {
   });
 
   let html = '';
-  HOURS.forEach(h => { html += `<div class="tl-row"><span class="tl-hour">${fa(h)}:۰۰</span></div>`; });
+  HOURS.forEach(h => { html += `<div class="tl-row"><span class="tl-hour">${fa(h)}:۰۰</span><i class="tl-quarter q1"></i><i class="tl-quarter q2"></i><i class="tl-quarter q3"></i></div>`; });
 
   merged.forEach(g => {
     const it = idx.sess[g._ids[0]];
@@ -14848,9 +14964,11 @@ function openExamSettingsModal(id){
     Object.entries(examTopics).forEach(([k,v])=>{if(Array.isArray(v)&&v.length)tp[k]=v.slice();});
     exam.topics=tp;
     applyExamTopicsToQuestions(exam);
+    if(typeof syncExamSessionsTopics==='function')syncExamSessionsTopics(id);
     save();closeModal();
     if(currentExamId===id)renderExamOverlay();
     renderExamSection();renderDashboard();
+    if(typeof renderPlan==='function')renderPlan();
     toast('تنظیمات ذخیره شد ✓');
   };
   document.getElementById('esDeleteExam').onclick=()=>{

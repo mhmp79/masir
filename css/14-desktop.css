@@ -15,6 +15,8 @@
   .topbar { margin: 0 0 14px; padding: 13px 16px; }
   .nav { max-width: 100%; }
   #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
+  #examCompareOverlay .wr-shell { padding: 16px 24px 80px; }
+  #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 13px 16px; }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -518,12 +520,16 @@
 
   .wr-shell { max-width: 1240px; padding: 20px 24px 60px; }
   #settingsOverlay .wr-shell { max-width: 1120px; }
-  #examCompareOverlay .wr-shell { max-width: 1240px; }
+  #examCompareOverlay .wr-shell { max-width: 100%; padding: 8px 14px 60px; }
+  #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 12px 18px; position: relative; top: auto; }
+  #examCompareOverlay .wr-logo { width: 38px; height: 38px; border-radius: 12px; font-size: 16px; }
+  #examCompareBody > .exam-compare-toolbar,
+  #examCompareOverlay .exam-compare-layout { max-width: 1240px; margin-inline: auto; }
   #examCompareOverlay .exam-compare-layout {
     display: grid; grid-template-columns: minmax(0, 1fr) 340px;
     gap: 14px; align-items: start;
   }
-  #examCompareOverlay .exam-compare-side { position: sticky; top: 96px; }
+  #examCompareOverlay .exam-compare-side { position: sticky; top: 84px; }
   #examCompareOverlay .exam-compare-charts-card .exam-charts-row { grid-template-columns: 1fr; }
   #examOverlay .exam-overlay-inner { max-width: 1000px; padding: 20px 24px 80px; }
 

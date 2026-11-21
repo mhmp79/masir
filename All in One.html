@@ -6572,7 +6572,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
       </div>
 
       <div class="card exam-insights-card hidden" id="examInsightsCard">
-        <div class="card-title text-amber">🏷️ پراکندگی تگهای اشتباهات</div>
+        <div class="card-title text-amber">🏷️ پراکندگی تگهای عمومی اشتباهات</div>
         <div id="examInsightsBody"></div>
       </div>
     </section>
@@ -6860,7 +6860,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
                 <div class="card-title mb-0">🔍 تحلیل سوالات آزمون</div>
                 <select class="input" id="analysisExamSelect" aria-label="انتخاب آزمون"></select>
               </div>
-              <div class="muted mt-8" id="analysisExamHint">سوال غلط یا نزده را از لیست اصلی انتخاب کن؛ تگهای آن در ساید چپ نمایش داده می\u200cشوند.</div>
+              <div class="muted mt-8" id="analysisExamHint">سوال غلط یا نزده را از لیست اصلی انتخاب کن؛ تگهای آن در ساید چپ نمایش داده می&#8204;شوند.</div>
             </div>
             <div id="examNotesBody"></div>
             <details class="card exam-global-analysis-fold">
@@ -14308,7 +14308,7 @@ function renderExamInsights(){
       `<b>${fa(t.count)}</b></div>`;
   }).join('');
   box.innerHTML=rows
-    ?`<div class="ei-section mt-0"><div class="ei-title">پراکندگی تگهای عمومی اشتباهات</div>${rows}</div>`
+    ?`<div class="ei-section mt-0">${rows}</div>`
     :'<div class="muted fs-11">هنوز تگ عمومی روی سوالات غلط و نزده ثبت نشده</div>';
 }
 

@@ -542,7 +542,7 @@ function renderExamInsights(){
       `<b>${fa(t.count)}</b></div>`;
   }).join('');
   box.innerHTML=rows
-    ?`<div class="ei-section mt-0"><div class="ei-title">پراکندگی تگهای عمومی اشتباهات</div>${rows}</div>`
+    ?`<div class="ei-section mt-0">${rows}</div>`
     :'<div class="muted fs-11">هنوز تگ عمومی روی سوالات غلط و نزده ثبت نشده</div>';
 }
 

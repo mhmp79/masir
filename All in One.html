@@ -4075,6 +4075,21 @@ body.creating-block .pool-drop-wrap {
   border-color: rgba(234,179,8,.6);
   background: rgba(234,179,8,.10);
 }
+.nc-qpaper-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nc-case-stepper{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;color:#cbd3e8}
+.nc-case-stepper button{
+  width:22px;height:22px;border-radius:6px;padding:0;
+  border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.05);
+  color:#e8ecf7;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;
+}
+.nc-option-number{flex:1;font-size:10.5px;color:#cbd3e8}
+.nc-q-delete{
+  align-self:flex-end;padding:5px 8px;border-radius:7px;
+  border:1px solid rgba(244,63,94,.3);background:rgba(244,63,94,.08);
+  color:#fda4af;font-family:inherit;font-size:9.5px;font-weight:800;cursor:pointer;
+}
+.nc-qpaper-launch{margin:8px 0;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.nc-qpaper-launch .aq-mode-picker{width:100%;margin:0}
 .nc-edit-section {
   margin: 8px 0; padding: 8px 10px;
   background: rgba(0,0,0,.18);
@@ -4205,7 +4220,7 @@ body.creating-block .pool-drop-wrap {
     top: auto;
   }
   .exam-side > .card,
-  .exam-analysis-side > .card { margin-bottom: 0; }
+  .ga-filter-details > .card { margin-bottom: 0; }
   .exam-main {
     grid-column: 1;
     grid-row: 2;
@@ -4330,6 +4345,12 @@ input.ex-subj{
 .ga-filter-sidebar .flt-card{margin:0}
 .ga-filter-title{font-size:12px;font-weight:800;color:#fcd34d;margin-bottom:5px}
 .ga-filter-hint{font-size:9px;color:#8b94ad;line-height:1.7;margin:0 0 11px}
+.ga-filter-summary{display:none}
+.ga-filter-chevron{font-size:10px;transition:transform .2s}
+.ga-filter-details[open] .ga-filter-chevron{transform:rotate(180deg)}
+@media (min-width:768px){
+  .ga-filter-details > .ga-filter-sidebar{display:block}
+}
 @media (min-width:1024px){
   .exam-analysis-side .ga-filter-sidebar{
     position:sticky;top:16px;
@@ -4345,52 +4366,31 @@ input.ex-subj{
   }
 }
 @media (max-width:767px){
-  .exam-sidebar-fab{
-    position:fixed;right:16px;
-    bottom:calc(84px + env(safe-area-inset-bottom,0px));
-    z-index:405;display:flex;align-items:center;justify-content:center;
-    width:50px;height:50px;border-radius:50%;
-    border:1px solid rgba(234,179,8,.55);
-    background:linear-gradient(155deg,rgba(234,179,8,.95),rgba(245,158,11,.85));
-    color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
-    font-family:inherit;cursor:pointer;
-  }
-  .exam-sidebar-fab[hidden]{display:none}
-  .exam-sidebar-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
-  .exam-sidebar-backdrop[hidden]{display:none}
-  #view-exam .exam-side{
-    position:fixed;right:0;bottom:0;z-index:407;
-    width:min(88vw,380px);max-height:86vh;overflow-y:auto;
-    padding:12px 12px calc(18px + env(safe-area-inset-bottom,0px));
-    border-radius:18px 18px 0 0;
-    background:#111522;border:1px solid rgba(255,255,255,.12);
-    box-shadow:0 -14px 40px rgba(0,0,0,.5);
-    transform:translateY(105%);transition:transform .24s ease;
-  }
-  #view-exam.sidebar-open .exam-side{transform:none}
-  .ga-filter-fab{
-    position:fixed;right:16px;
-    bottom:calc(18px + env(safe-area-inset-bottom,0px));
-    z-index:405;display:flex;align-items:center;justify-content:center;
-    width:50px;height:50px;border-radius:50%;
-    border:1px solid rgba(251,146,60,.6);
-    background:linear-gradient(155deg,rgba(251,146,60,.95),rgba(234,179,8,.85));
-    color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
-    font-family:inherit;cursor:pointer;
-  }
-  .ga-filter-fab[hidden]{display:none}
-  .ga-filter-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
-  .ga-filter-backdrop[hidden]{display:none}
+  .exam-sidebar-fab,.exam-sidebar-backdrop,
+  .ga-filter-fab,.ga-filter-backdrop{display:none !important}
+  #view-exam .exam-side,
   #view-exam .exam-analysis-side{
-    position:fixed;right:0;bottom:0;z-index:407;
-    width:min(90vw,400px);max-height:86vh;overflow-y:auto;
-    padding:14px 12px calc(20px + env(safe-area-inset-bottom,0px));
-    border-radius:18px 18px 0 0;
-    background:#111522;border:1px solid rgba(255,255,255,.12);
-    box-shadow:0 -14px 40px rgba(0,0,0,.5);
-    transform:translateY(105%);transition:transform .24s ease;
+    position:static;inset:auto;z-index:auto;
+    width:100%;max-height:none;overflow:visible;
+    padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;
+    transform:none;transition:none;
   }
+  #view-exam.sidebar-open .exam-side,
   #view-exam.filters-open .exam-analysis-side{transform:none}
+  .exam-calendar-summary{display:flex}
+  .exam-calendar-details:not([open]) > .card{display:none}
+  .ga-filter-summary{
+    display:flex;align-items:center;justify-content:space-between;
+    list-style:none;cursor:pointer;padding:10px 14px;
+    background:linear-gradient(155deg,rgba(251,146,60,.14),rgba(234,179,8,.05));
+    border:1px solid rgba(251,146,60,.32);border-radius:14px;
+    color:#fdba74;font-size:12px;font-weight:800;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .ga-filter-summary::-webkit-details-marker{display:none}
+  .ga-filter-summary::-moz-list-bullet{list-style:none}
+  .ga-filter-details:not([open]) > .ga-filter-sidebar{display:none}
+  .ga-filter-details[open] > .ga-filter-sidebar{margin-top:6px}
 }
 
 /* Question-type search / creation inside the tag sidebar. */
@@ -6855,7 +6855,13 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           </details>
         </aside>
         <aside class="exam-analysis-side" id="examAnalysisSide" hidden>
-          <div class="card ga-filter-sidebar" id="analysisFilterBox"></div>
+          <details class="ga-filter-details" id="gaFilterDetails" open>
+            <summary class="ga-filter-summary">
+              <span>🏷️ فیلترهای تحلیل</span>
+              <span class="ga-filter-chevron">▼</span>
+            </summary>
+            <div class="card ga-filter-sidebar" id="analysisFilterBox"></div>
+          </details>
         </aside>
         <div class="exam-main">
           <div id="examListPane">
@@ -8070,6 +8076,7 @@ function normalizeQuestion(q){
     questionTypes: Array.isArray(q.questionTypes) ? q.questionTypes.filter(t => typeof t === 'string') : [],
     options,
     correctOptions,
+    questionKind: q.questionKind === 'case' ? 'case' : (q.questionKind === 'mcq' ? 'mcq' : ''),
     legacyCorrectOptions: Array.isArray(q.legacyCorrectOptions)
       ? q.legacyCorrectOptions.map(i => +i || 0)
       : [],
@@ -13803,15 +13810,18 @@ function isQuestionAnalyzed(question){
   return false;
 }
 
-/* Completion is about tagging mistakes, not reading correct answers: only
-   wrong/blank questions are in the denominator, and only a selected tag
-   (topic / error / special / user-created question type) marks one as done. */
+/* Exam analysis percentage is driven strictly by general mistake tags.
+   Wrong/blank questions are the denominator; a question counts as analysed
+   only after it has received a tag from the shared general-tag list. Topics,
+   special tags, question types, notes and solvability do not complete it. */
 function isQuestionTagAnalyzed(question){
   if(!question)return false;
   const status=qStatus(question);
   if(status!=='wrong'&&status!=='blank')return false;
-  return ['topics','errorTypes','specialTags','questionTypes'].some(key=>
-    Array.isArray(question[key])&&question[key].length>0);
+  const general=typeof state!=='undefined'&&state&&Array.isArray(state.commonErrors)
+    ?state.commonErrors:[];
+  const ids=new Set(general.map(tag=>tag&&tag.id));
+  return Array.isArray(question.errorTypes)&&question.errorTypes.some(id=>ids.has(id));
 }
 
 function subjectAnalysisStats(questions){
@@ -13875,6 +13885,8 @@ function applyExamViewMode(){
   analysisPane.classList.toggle('hidden',!isAnalysis);
   if(calendarSide)calendarSide.hidden=isAnalysis;
   if(filterSide)filterSide.hidden=!isAnalysis;
+  const filterDetails=document.getElementById('gaFilterDetails');
+  if(filterDetails&&isAnalysis)filterDetails.open=true;
 
   document.querySelectorAll('#examModeSeg .seg-btn').forEach(b=>{
     b.classList.toggle('active',b.dataset.emode===examViewMode);
@@ -14675,8 +14687,8 @@ function subjectQuestionTypes(subjectName){
 function typesForQuestion(q){
   const all=subjectQuestionTypes(q.subject);
   const topics=Array.isArray(q.topics)?q.topics:[];
-  if(!topics.length)return all;
-  return all.filter(type=>!type.topics.length||type.topics.some(t=>topics.includes(t)));
+  if(!topics.length)return [];
+  return all.filter(type=>Array.isArray(type.topics)&&type.topics.some(t=>topics.includes(t)));
 }
 
 function questionTypeLabel(typeId,subjectName){
@@ -14737,27 +14749,25 @@ function renderQuestionTypeSuggestions(q,panel,onPick){
       subject.questionTypes.push(type);
       onPick(type,true);
     };
-    if(topics.length<=1){make(topics.slice());return;}
+    if(!topics.length){toast('ابتدا مبحث سوال را مشخص کن');return;}
+    if(topics.length===1){make(topics.slice());return;}
     const chosen=new Set();
     topicPick.hidden=false;
-    topicPick.innerHTML='<div class="qt-search-empty">زیرمجموعهٔ کدام مبحث؟ (چند مورد قابل انتخاب است)</div>'+
+    topicPick.innerHTML='<div class="qt-search-empty">تیپ به کدام مبحث وابسته است؟ (چند مورد قابل انتخاب است)</div>'+
       topics.map(t=>`<button type="button" class="qt-search-item" data-qt-topic="${esc(t)}">${esc(t)}</button>`).join('')+
-      '<button type="button" class="qt-search-item" data-qt-topic="">همهٔ مباحث</button>'+
       '<button type="button" class="qt-search-item is-new" data-qt-topic-confirm>تایید</button>';
     topicPick.querySelectorAll('[data-qt-topic]').forEach(button=>{
       button.onclick=()=>{
         const topic=button.dataset.qtTopic;
-        if(!topic){
-          chosen.clear();
-          topicPick.querySelectorAll('[data-qt-topic]').forEach(b=>b.classList.remove('on'));
-          return;
-        }
         if(chosen.has(topic))chosen.delete(topic);else chosen.add(topic);
         button.classList.toggle('on',chosen.has(topic));
       };
     });
     const confirm=topicPick.querySelector('[data-qt-topic-confirm]');
-    if(confirm)confirm.onclick=()=>make(chosen.size?[...chosen]:[]);
+    if(confirm)confirm.onclick=()=>{
+      if(!chosen.size){toast('حداقل یک مبحث را انتخاب کن');return;}
+      make([...chosen]);
+    };
   };
 }
 
@@ -14837,44 +14847,141 @@ function noteErrorDetailsHTML(q){
   return displayChips.length?`<div class="nc-subtags-show">${displayChips.join('')}</div>`:'';
 }
 
-/* Every editor shows exactly four option slots. Older records may contain
-   more stored options, so we pad for display but never truncate stored data. */
-function ensureFourOptionDraft(q){
+/* A question can be a classic four-option item or a case-based item. Case
+   options are numbered automatically; the count is adjustable. Older records
+   are inferred from their stored options, and legacy text is never deleted. */
+function questionPaperExists(q){
+  if(!q)return false;
+  const options=Array.isArray(q.options)?q.options.filter(text=>String(text||'').trim()):[];
+  return q.questionKind==='mcq'||q.questionKind==='case'||
+    options.length>0||(Array.isArray(q.correctOptions)&&q.correctOptions.length>0);
+}
+
+function inferQuestionKind(q){
+  if(q.questionKind)return q.questionKind;
+  if(!questionPaperExists(q))return '';
+  const options=Array.isArray(q.options)?q.options:[];
+  const numeric=options.length>0&&options.every(text=>/^[0-9۰-۹]+$/.test(String(text||'').trim()));
+  q.questionKind=(numeric||options.length>4)?'case':'mcq';
+  return q.questionKind;
+}
+
+function ensureQuestionPaperDraft(q){
   if(!Array.isArray(q.options))q.options=[];
-  while(q.options.length<4)q.options.push('');
   if(!Array.isArray(q.correctOptions))q.correctOptions=[];
+  inferQuestionKind(q);
+  if(q.questionKind==='case'){
+    const count=Math.max(2,Math.min(10,q.options.length||4));
+    q.options=Array.from({length:count},(_,i)=>fa(i+1));
+    q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<count);
+  }else if(q.questionKind==='mcq'){
+    while(q.options.length<4)q.options.push('');
+  }
   return q;
 }
 
 function questionPaperHTML(q,ownerId){
-  ensureFourOptionDraft(q);
   const id=(ownerId==null?q.id:ownerId);
+  if(!q.questionKind&&questionPaperExists(q))inferQuestionKind(q);
+  if(!q.questionKind){
+    return `<div class="nc-qpaper nc-qpaper-choose" data-qpaper="${id}">
+      <div class="nc-qpaper-title">📋 سوال و پاسخ</div>
+      <div class="aq-mode-picker" data-q-kind-picker>
+        <button type="button" data-q-kind="mcq">چهار گزینه ای</button>
+        <button type="button" data-q-kind="case">موردی (پیش فرض ۴)</button>
+      </div>
+    </div>`;
+  }
+  ensureQuestionPaperDraft(q);
+  const isCase=q.questionKind==='case';
   const correct=q.correctOptions[0];
-  const options=q.options.slice(0,4).map((text,i)=>`<div class="nc-option-edit-row">
-    <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" data-qid="${id}" title="جواب صحیح">${String.fromCharCode(65+i)}</button>
-    <input class="input nc-option-input" data-option-index="${i}" data-qid="${id}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
-  </div>`).join('');
+  const stepper=isCase?`<div class="nc-case-stepper">
+    <button type="button" data-case-step="-1" title="کم کردن مورد">−</button>
+    <span>${fa(q.options.length)} مورد</span>
+    <button type="button" data-case-step="1" title="اضافه کردن مورد">＋</button>
+  </div>`:'';
+  const options=q.options.map((text,i)=>isCase
+    ?`<div class="nc-option-edit-row">
+        <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="مورد درست">${fa(i+1)}</button>
+        <span class="nc-option-number">گزینه ${fa(i+1)}</span>
+      </div>`
+    :`<div class="nc-option-edit-row">
+        <button type="button" class="nc-option-correct ${correct===i?'on':''}" data-correct-option="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
+        <input class="input nc-option-input" data-option-index="${i}" value="${esc(text||'')}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
+      </div>`).join('');
   return `<div class="nc-qpaper" data-qpaper="${id}">
-    <div class="nc-qpaper-title">📋 صورت سوال، گزینهها و جواب صحیح</div>
+    <div class="nc-qpaper-head">
+      <div class="nc-qpaper-title">📋 ${isCase?'سوال موردی':'سوال چهار گزینه ای'} + جواب درست</div>
+      ${stepper}
+    </div>
     <textarea class="nc-qa-input nc-question-input" data-q-text="${id}" placeholder="متن سوال (اختیاری)...">${esc(q.questionText||'')}</textarea>
     <div class="nc-option-edit-list">${options}</div>
     <textarea class="nc-qa-input nc-answer-input" data-a-text="${id}" placeholder="توضیح جواب (اختیاری)...">${esc(q.answerText||'')}</textarea>
+    <button type="button" class="nc-q-delete" data-q-delete="${id}">🗑 حذف سوال و جواب</button>
   </div>`;
 }
 
-/* Shared by the note card and the full editor: option text, the question
-   statement, the answer explanation and the single correct choice. */
+function questionPaperLauncherHTML(q){
+  if(questionPaperExists(q))return questionPaperHTML(q);
+  return `<div class="nc-qpaper-launch" data-qpaper-launch="${q.id}">
+    <button type="button" class="mini-btn nc-qpaper-add" data-qpaper-add>＋ افزودن سوال و پاسخ</button>
+    <div class="aq-mode-picker" data-q-kind-picker hidden>
+      <button type="button" data-q-kind="mcq">چهار گزینه ای</button>
+      <button type="button" data-q-kind="case">موردی (پیش فرض ۴)</button>
+    </div>
+  </div>`;
+}
+
+/* Shared by the note card, the full editor and the add-question modal. */
 function bindQuestionPaper(scope,q,handlers){
+  if(!scope)return;
   const h=handlers||{};
+  const rerender=()=>{
+    if(h.onRender)h.onRender();
+    else if(h.onCommit)h.onCommit();
+  };
+  scope.querySelectorAll('[data-q-kind]').forEach(button=>{
+    button.onclick=(e)=>{
+      e.stopPropagation();
+      if(q.correctOptions.length>1&&!Array.isArray(q.legacyCorrectOptions)){
+        q.legacyCorrectOptions=q.correctOptions.slice();
+      }
+      q.questionKind=button.dataset.qKind;
+      ensureQuestionPaperDraft(q);
+      rerender();
+    };
+  });
   scope.querySelectorAll('[data-correct-option]').forEach(button=>{
     button.onclick=(e)=>{
       e.stopPropagation();
-      if(q.correctOptions.length>1)q.legacyCorrectOptions=q.correctOptions.slice();
-      q.correctOptions=[+button.dataset.correctOption];
+      const index=+button.dataset.correctOption;
+      if(q.correctOptions.length>1&&!Array.isArray(q.legacyCorrectOptions)){
+        q.legacyCorrectOptions=q.correctOptions.slice();
+      }
+      q.correctOptions=q.correctOptions[0]===index?[]:[index];
       if(h.onCorrect)h.onCorrect();
-      else if(h.onCommit)h.onCommit();
+      else rerender();
     };
   });
+  scope.querySelectorAll('[data-case-step]').forEach(button=>{
+    button.onclick=(e)=>{
+      e.stopPropagation();
+      const next=Math.max(2,Math.min(10,q.options.length+(+button.dataset.caseStep)));
+      q.options=Array.from({length:next},(_,i)=>fa(i+1));
+      q.correctOptions=q.correctOptions.filter(i=>Number.isInteger(i)&&i>=0&&i<next);
+      rerender();
+    };
+  });
+  const del=scope.querySelector('[data-q-delete]');
+  if(del)del.onclick=(e)=>{
+    e.stopPropagation();
+    if(q.correctOptions.length>1&&!Array.isArray(q.legacyCorrectOptions)){
+      q.legacyCorrectOptions=q.correctOptions.slice();
+    }
+    q.questionText='';q.answerText='';q.options=[];q.correctOptions=[];q.questionKind='';
+    if(h.onDelete)h.onDelete();
+    else rerender();
+  };
   const track=(input,apply)=>{
     let timer;
     input.oninput=()=>{
@@ -14891,10 +14998,20 @@ function bindQuestionPaper(scope,q,handlers){
   scope.querySelectorAll('[data-option-index]').forEach(input=>{
     track(input,el=>{
       const index=+el.dataset.optionIndex;
-      ensureFourOptionDraft(q);
+      ensureQuestionPaperDraft(q);
       q.options[index]=el.value;
     });
   });
+}
+
+function bindQuestionPaperLauncher(scope,q,handlers){
+  if(!scope)return;
+  const launch=scope.querySelector('[data-qpaper-launch]');
+  if(!launch)return;
+  const add=launch.querySelector('[data-qpaper-add]');
+  const picker=launch.querySelector('[data-q-kind-picker]');
+  if(add)add.onclick=(e)=>{e.stopPropagation();if(picker)picker.hidden=false;};
+  bindQuestionPaper(picker,q,handlers);
 }
 
 function noteEmphasis(subject){
@@ -14906,9 +15023,9 @@ function noteEmphasis(subject){
 
 function noteSectionOrder(subject){
   const emphasis=noteEmphasis(subject);
-  if(emphasis==='question-type')return['topics','types','solvable','general','note','question'];
-  if(emphasis==='both')return['topics','note','types','solvable','general','question'];
-  return['topics','solvable','note','types','general','question'];
+  if(emphasis==='question-type')return['topics','types','solvable','general','note'];
+  if(emphasis==='both')return['topics','note','types','solvable','general'];
+  return['topics','solvable','note','types','general'];
 }
 
 /* FEAT-2/3: one card is one independently refreshable unit. Auto-save never
@@ -14937,8 +15054,7 @@ function noteQuestionCardHTML(exam,q){
     types:noteChipSectionsHTML(exam,q,color,['types']),
     general:noteChipSectionsHTML(exam,q,color,['general']),
     solvable:solvableHtml,
-    note:noteHtml,
-    question:questionPaperHTML(q)
+    note:noteHtml
   };
   const orderedMain=noteSectionOrder(q.subject).map(key=>sections[key]||'').join('');
   const starClass=q.starred?'on':'';
@@ -14957,6 +15073,7 @@ function noteQuestionCardHTML(exam,q){
     <div class="note-analysis-main">
       ${orderedMain}
       ${errorDetails}
+      ${questionPaperLauncherHTML(q)}
     </div>
   </div>`;
 }
@@ -15066,15 +15183,19 @@ function bindNoteItemHandlers(exam,box,item){
       },350);
     };
   }
-  bindQuestionPaper(item,q,{
+  const paperHandlers={
     onInput:()=>showQuestionSaving(exam,box,q),
     onCommit:()=>{
       q.ts=Date.now();
       save();
       showQuestionSaved(exam,box,q);
     },
-    onCorrect:()=>saveQuestionEdit(exam,q,box,{refresh:true,saved:true})
-  });
+    onCorrect:()=>saveQuestionEdit(exam,q,box,{refresh:true,saved:true}),
+    onRender:()=>saveQuestionEdit(exam,q,box,{refresh:true,saved:true}),
+    onDelete:()=>saveQuestionEdit(exam,q,box,{refresh:true,saved:true})
+  };
+  if(item.querySelector('[data-qpaper-launch]'))bindQuestionPaperLauncher(item,q,paperHandlers);
+  else bindQuestionPaper(item,q,paperHandlers);
 }
 
 function renderExamNotesTab(exam,box){
@@ -15169,7 +15290,7 @@ function openQuestionNoteEditor(examId,qId){
     ?allowedGrades[0]
     :(allowedGrades.includes(q.grade)?q.grade:'');
   const initialTopics=q.topics.filter(topic=>getTopics(q.subject,initialGrade).includes(topic));
-  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,options:Array.isArray(q.options)?q.options.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
+  const s={status:qStatus(q),grade:initialGrade,topics:initialTopics,errorTypes:[...(q.errorTypes||[])],errorDetails:JSON.parse(JSON.stringify(q.errorDetails||{})),specialTags:[...(q.specialTags||[])],questionTypes:[...(q.questionTypes||[])],starred:!!q.starred,questionKind:q.questionKind||'',options:Array.isArray(q.options)?q.options.slice():[],correctOptions:Array.isArray(q.correctOptions)?q.correctOptions.slice():[],legacyCorrectOptions:Array.isArray(q.legacyCorrectOptions)?q.legacyCorrectOptions.slice():[],questionText:q.questionText||'',answerText:q.answerText||'',reviewSolvable:q.reviewSolvable,figureRef:q.figureRef,note:q.note};
   const color=subjColor(q.subject);
   const specialTagsForSubject = getSpecialTagsForSubject(q.subject);
 
@@ -15289,12 +15410,16 @@ function openQuestionNoteEditor(examId,qId){
     document.querySelectorAll('#modalContent [data-tag-sub]').forEach(b=>b.onclick=()=>{const tagId=b.dataset.tagSub;const subId=b.dataset.subId;if(!s.errorDetails[tagId])s.errorDetails[tagId]=[];if(s.errorDetails[tagId].includes(subId))s.errorDetails[tagId]=s.errorDetails[tagId].filter(x=>x!==subId);else s.errorDetails[tagId].push(subId);render();});
     document.querySelectorAll('#modalContent [data-special-tag]').forEach(b=>b.onclick=()=>{const id=b.dataset.specialTag;if(s.specialTags.includes(id))s.specialTags=s.specialTags.filter(x=>x!==id);else s.specialTags.push(id);render();});
     const noteEl=document.getElementById('qNote');if(noteEl)noteEl.oninput=()=>{s.note=noteEl.value;};
-    bindQuestionPaper(document.getElementById('modalContent'),s,{onCorrect:()=>render()});
+    bindQuestionPaper(document.getElementById('modalContent'),s,{
+      onCorrect:()=>render(),
+      onRender:()=>render(),
+      onDelete:()=>render()
+    });
     document.getElementById('qSave').onclick=()=>{
       const noteEl2=document.getElementById('qNote');if(noteEl2)s.note=noteEl2.value;
-      ensureFourOptionDraft(s);
+      ensureQuestionPaperDraft(s);
       if(s.status==='correct'){s.errorTypes=[];s.errorDetails={};s.reviewSolvable=null;}
-      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.options=s.options.slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
+      q.status=s.status;q.grade=s.grade;q.topics=s.topics;q.errorTypes=s.errorTypes;q.errorDetails=s.errorDetails;q.specialTags=s.specialTags;q.questionTypes=s.questionTypes;q.starred=s.starred;q.questionKind=s.questionKind||'';q.options=s.options.slice();q.correctOptions=s.correctOptions.slice();q.legacyCorrectOptions=(s.legacyCorrectOptions||[]).slice();q.questionText=s.questionText;q.answerText=s.answerText;q.reviewSolvable=s.reviewSolvable;q.note=s.note;q.noteHidden=false;q.ts=Date.now();
       syncExamResultsFromAnswers(exam);
       autoStarCorrectQuestion(q);
       save();closeModal();
@@ -15369,54 +15494,49 @@ function openExamResultsModal(id){
   };
 }
 
-/* One unified form creates the question statement, exactly four options and
-   one correct choice. Legacy text fields stay intact on existing questions. */
+/* New questions choose between a four-option item and a case-based item.
+   Both use the same paper component, so correct-answer toggling and deletion
+   behave exactly like the inline note editor. */
 function openAddQuestionsModal(id){
   const exam=state.exams.find(e=>e.id===id);if(!exam)return;
   const examSubjects=state.subjects.filter(s=>s.type==='specialized');
   if(!examSubjects.length){toast('هیچ درس تخصصی تعریف نشده');return;}
-  const options=['','','',''];
-  let correct=0;
+  const draft={questionKind:'',options:[],correctOptions:[],questionText:'',answerText:''};
 
   openModal(`<div class="modal-head"><div class="card-title">➕ افزودن سوال</div><button class="icon-btn" data-close>✕</button></div>
     <label class="lbl mt-0">درس</label>
     <select class="input" id="aqSubject">${examSubjects.map(s=>`<option value="${esc(s.name)}" style="color:${s.color}">${esc(s.name)}</option>`).join('')}</select>
-    <label class="lbl">صورت سوال</label>
-    <textarea class="input q-field" id="aqQuestionText" placeholder="متن سوال را بنویس..."></textarea>
-    <label class="lbl">چهار گزینه ثابت + جواب درست (پیشنهادی)</label>
-    <div id="aqOptions" class="wr-scroll" style="max-height:42vh"></div>
+    <div id="aqPaper" class="wr-scroll mt-12" style="max-height:46vh"></div>
     <div class="row mt-16"><button class="btn ghost" data-close>انصراف</button><button class="btn primary" id="aqSave">افزودن سوال</button></div>`);
 
-  const optionsBox=document.getElementById('aqOptions');
-  const renderOptions=()=>{
-    optionsBox.innerHTML=options.map((text,i)=>`<div class="aq-option-row">
-      <button type="button" class="aq-option-mark ${correct===i?'on':''}" data-aq-correct="${i}" title="جواب درست">${String.fromCharCode(65+i)}</button>
-      <input class="input aq-option-text" data-aq-option="${i}" value="${esc(text)}" placeholder="گزینه ${fa(i+1)}" maxlength="300">
-    </div>`).join('');
-    optionsBox.querySelectorAll('[data-aq-correct]').forEach(button=>button.onclick=()=>{
-      correct=+button.dataset.aqCorrect;renderOptions();
-    });
-    optionsBox.querySelectorAll('[data-aq-option]').forEach(input=>{
-      input.oninput=()=>{options[+input.dataset.aqOption]=input.value;};
-    });
+  const paperBox=document.getElementById('aqPaper');
+  const renderPaper=()=>{
+    paperBox.innerHTML=questionPaperHTML(draft,'aq');
+    bindQuestionPaper(paperBox,draft,{onRender:renderPaper,onCorrect:renderPaper,onDelete:renderPaper});
   };
-  renderOptions();
+  renderPaper();
 
   document.getElementById('aqSave').onclick=()=>{
-    const subject=document.getElementById('aqSubject').value;
-    const questionText=document.getElementById('aqQuestionText').value.trim();
+    if(!draft.questionKind){toast('نوع سوال را مشخص کن');return;}
+    ensureQuestionPaperDraft(draft);
+    const questionText=String(draft.questionText||'').trim();
     if(!questionText){toast('صورت سوال را بنویس');return;}
-    if(options.some(text=>!text.trim())){toast('چهار گزینه را پر کن');return;}
-    const clean=options.map(text=>text.trim());
+    if(draft.questionKind==='mcq'&&draft.options.slice(0,4).some(text=>!String(text||'').trim())){
+      toast('چهار گزینه را پر کن');return;
+    }
+    const correct=draft.correctOptions[0];
+    if(correct==null){toast('جواب درست را مشخص کن');return;}
+    const subject=document.getElementById('aqSubject').value;
     const examTopics=(exam.topics&&exam.topics[subject])||[];
     const grade=examTopics.length===1?topicGrade(subject,examTopics[0]):'';
     exam.questions.push({
       id:uid(),subject,number:Math.max(0,...exam.questions.map(q=>q.number))+1,
       grade,topics:examTopics.slice(),status:'pending',
       errorTypes:[],errorDetails:{},specialTags:[],questionTypes:[],
-      options:clean,correctOptions:[correct],legacyCorrectOptions:[],
-      starred:false,questionText,answerText:clean[correct],
-      reviewSolvable:null,figureRef:'',note:'',noteHidden:false,ts:Date.now()
+      questionKind:draft.questionKind,options:draft.options.slice(),correctOptions:[correct],
+      legacyCorrectOptions:[],starred:false,questionText,
+      answerText:String(draft.answerText||'').trim(),reviewSolvable:null,
+      figureRef:'',note:'',noteHidden:false,ts:Date.now()
     });
     exam.includedSubjects=Array.isArray(exam.includedSubjects)?exam.includedSubjects:[];
     if(!exam.includedSubjects.includes(subject))exam.includedSubjects.push(subject);
@@ -15457,16 +15577,18 @@ function renderGlobalAnalysis(){
   if(!body||!filterBox)return;
   const spec=specializedSubjectNames();
   const allQs=[];
+  const examsWithContent=new Map();
   state.exams.forEach(exam=>{
     if(!Array.isArray(exam.questions))return;
     exam.questions.forEach(q=>{
       if(!spec.includes(q.subject))return;
       /* Placeholder questions stay hidden; tagged or fully written ones show. */
       if(!qHasAnalysisContent(q))return;
+      examsWithContent.set(exam.id,{id:exam.id,name:exam.name});
       allQs.push({...q,_examId:exam.id,_examName:exam.name,_examDate:exam.date});
     });
   });
-  document.getElementById('gaSub').textContent=`${fa(state.exams.length)} آزمون • ${fa(allQs.length)} سوال تحلیل‌شده`;
+  document.getElementById('gaSub').textContent=`${fa(examsWithContent.size)} آزمون • ${fa(allQs.length)} سوال تحلیل‌شده`;
   const f=window._gaFilter||(window._gaFilter={exam:'',subject:'',grade:'',topic:'',questionType:'',statuses:new Set(),error:'',subErrors:new Set(),specialTag:'',showStarred:false,showHasNote:false,showHasQuestion:false});
   if(!f.subErrors)f.subErrors=new Set();
   if(!allQs.length){
@@ -15474,11 +15596,16 @@ function renderGlobalAnalysis(){
     body.innerHTML='<div class="empty-state ga-empty-state"><b>هنوز سوالی تحلیل نشده</b><span>برای هر سوال نکته متنی بنویس یا تیپ سوال انتخاب کن تا نمایش یابد.</span></div>';
     return;
   }
+  if(f.exam&&!examsWithContent.has(f.exam))f.exam='';
   if(f.subject&&!allQs.some(q=>q.subject===f.subject)){f.subject='';}
   const subjectQs=f.subject?allQs.filter(q=>q.subject===f.subject):allQs;
   const availableTopics=[...new Set(subjectQs.flatMap(q=>Array.isArray(q.topics)?q.topics:[]))].filter(Boolean);
   if(f.topic&&!availableTopics.includes(f.topic))f.topic='';
-  const availableTypes=f.subject?subjectQuestionTypes(f.subject):[];
+  /* A question type is a child of a topic, so it only appears after a topic
+     is selected. This keeps the filter from showing unrelated types. */
+  const availableTypes=f.subject&&f.topic
+    ?subjectQuestionTypes(f.subject).filter(t=>Array.isArray(t.topics)&&t.topics.includes(f.topic))
+    :[];
   if(f.questionType&&!availableTypes.some(t=>t.id===f.questionType))f.questionType='';
   let qs=allQs;
   if(f.exam)qs=qs.filter(q=>q._examId===f.exam);
@@ -15488,7 +15615,7 @@ function renderGlobalAnalysis(){
   if(f.statuses.size)qs=qs.filter(q=>f.statuses.has(qStatus(q)));
   if(f.showStarred) qs=qs.filter(q=>q.starred);
   if(f.showHasNote) qs=qs.filter(q=>q.note && q.note.trim());
-  if(f.showHasQuestion) qs=qs.filter(q=>(q.questionText&&q.questionText.trim())||(Array.isArray(q.options)&&q.options.some(text=>String(text).trim())));
+  if(f.showHasQuestion) qs=qs.filter(q=>(q.questionText&&q.questionText.trim())||(q.answerText&&q.answerText.trim())||(Array.isArray(q.options)&&q.options.some(text=>String(text).trim())));
   if(f.error==='none'){qs=qs.filter(q=>(!q.errorTypes||!q.errorTypes.length)&&(!q.specialTags||!q.specialTags.length));}
   else if(f.error){qs=qs.filter(q=>q.errorTypes&&q.errorTypes.includes(f.error));}
   if(f.subErrors.size){
@@ -15501,7 +15628,7 @@ function renderGlobalAnalysis(){
 
   const filterHtml=[];
   filterHtml.push('<div class="ga-filter-title">🏷️ فیلترهای تحلیل</div><div class="ga-filter-hint">همه آزمونها، دروس، مبحثها، تگها و ویژگیها قابل فیلترند.</div>');
-  filterHtml.push(`<div class="flt-section"><div class="flt-label">آزمون</div><div class="flt-chips wrap"><div class="flt-chip ${!f.exam?'active':''}" data-f="exam" data-v="">همه</div>${state.exams.map(e=>`<div class="flt-chip ${f.exam===e.id?'active':''}" data-f="exam" data-v="${e.id}">${esc(e.name)}</div>`).join('')}</div></div>`);
+  filterHtml.push(`<div class="flt-section"><div class="flt-label">آزمون</div><div class="flt-chips wrap"><div class="flt-chip ${!f.exam?'active':''}" data-f="exam" data-v="">همه</div>${[...examsWithContent.values()].map(e=>`<div class="flt-chip ${f.exam===e.id?'active':''}" data-f="exam" data-v="${e.id}">${esc(e.name)}</div>`).join('')}</div></div>`);
   const allSubs=[...new Set(allQs.map(q=>q.subject))];
   filterHtml.push(`<div class="flt-section"><div class="flt-label">درس</div><div class="flt-chips wrap"><div class="flt-chip ${!f.subject?'active':''}" data-f="subject" data-v="">همه</div>${allSubs.map(s=>`<div class="flt-chip ${f.subject===s?'active':''}" data-f="subject" data-v="${esc(s)}"><span class="dot" style="background:${subjColor(s)}"></span>${esc(s)}</div>`).join('')}</div></div>`);
   const gradeQs=f.subject?subjectQs:allQs;
@@ -15514,6 +15641,8 @@ function renderGlobalAnalysis(){
   }
   if(f.subject&&availableTypes.length){
     filterHtml.push(`<div class="flt-section"><div class="flt-label">تیپ بندی</div><div class="flt-chips wrap"><div class="flt-chip ${!f.questionType?'active':''}" data-f="questionType" data-v="">همه</div>${availableTypes.map(t=>`<div class="flt-chip ${f.questionType===t.id?'active':''}" data-f="questionType" data-v="${esc(t.id)}">🎯 ${esc(t.label)}</div>`).join('')}</div></div>`);
+  }else if(f.subject){
+    filterHtml.push('<div class="ga-filter-hint">برای فیلتر تیپ بندی، ابتدا مبحث را انتخاب کن.</div>');
   }
   filterHtml.push(`<div class="flt-section"><div class="flt-label">وضعیت</div><div class="flt-chips">${['wrong','blank','correct','pending'].map(s=>`<div class="flt-chip ${f.statuses.has(s)?'active':''}" data-st="${s}">${STATUS_LABEL[s]}</div>`).join('')}</div></div>`);
   filterHtml.push(`<div class="flt-section"><div class="flt-label">ویژگی سوال</div><div class="flt-chips wrap"><div class="flt-chip ${f.showStarred?'active':''}" data-quick="starred">⭐ ستاره\u200cدار</div><div class="flt-chip ${f.showHasNote?'active':''}" data-quick="hasNote">💡 نکته\u200cدار</div><div class="flt-chip ${f.showHasQuestion?'active':''}" data-quick="hasQuestion">📋 سوال\u200cدار</div></div></div>`);
@@ -15574,9 +15703,10 @@ function renderGlobalAnalysis(){
       let qaBlock = '';
       if(hasQ){qaBlock += `<div class="ac-question-block"><div class="ac-q-label">📋 سوال</div><div class="ac-q-text">${esc(q.questionText)}</div></div>`;}
       if(options.length){
-        qaBlock+=`<div class="ac-options">${options.map((text,i)=>
-          `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${String.fromCharCode(65+i)}. ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`
-        ).join('')}</div>`;
+        qaBlock+=`<div class="ac-options">${options.map((text,i)=>{
+          const mark=q.questionKind==='case'?fa(i+1):String.fromCharCode(65+i);
+          return `<div class="ac-option-line ${correct.includes(i)?'correct':''}">${mark}. ${esc(text||'—')}${correct.includes(i)?' ✓':''}</div>`;
+        }).join('')}</div>`;
       }
       if(hasA){qaBlock += `<button type="button" class="ac-show-answer" data-show-answer="${q.id}">👁️ نمایش پاسخ</button><div class="ac-answer-content hidden" data-answer-for="${q.id}">${esc(q.answerText)}</div>`;}
       return`<div class="analysis-card" data-qid="${q.id}" data-exam-id="${q._examId}">

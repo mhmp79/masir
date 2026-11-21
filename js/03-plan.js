@@ -1212,8 +1212,22 @@ function timelineChainHTML(blocks, containerWidth, options) {
   return `<div class="tl-chain-scroll" style="overflow-x:${layout.scrollable ? 'auto' : 'hidden'}"><div class="tl-chain" style="width:${Math.ceil(layout.contentWidth)}px">${inner}</div></div>`;
 }
 
+/* A short block is painted taller than its real time range so its label stays
+   readable. Lane packing must use that painted end, otherwise two tiny blocks
+   that merely touch in time are drawn on top of each other. */
+function visualLaneEnd(item) {
+  const start = +item.startMin || 0;
+  const end = item._end != null ? +item._end : start + (+item.durMin || 0);
+  const minH = Math.max(0, +item._minH || 0);
+  const inset = Math.max(0, +item._inset || 0);
+  if (!minH) return Math.max(start, end);
+  const realH = Math.max(0, (Math.max(start, end) - start) * PX_PER_MIN - inset);
+  if (realH >= minH) return Math.max(start, end);
+  return end + (minH - realH) / Math.max(PX_PER_MIN, 0.0001);
+}
+
 if (typeof globalThis !== 'undefined') {
-  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, assignLanes };
+  globalThis.__masirTimeline = { timelineBlockRange, layoutTimelineBlocks, timelineChainHTML, mergeSessions, visualLaneEnd, assignLanes };
 }
 
 function assignLanes(items) {
@@ -1221,7 +1235,7 @@ function assignLanes(items) {
   const withEnd = items.map((it, i) => ({
     ...it, _idx: i,
     _laneStart: +it.startMin || 0,
-    _laneEnd: it._end != null ? +it._end : (+it.startMin || 0) + 60
+    _laneEnd: visualLaneEnd(it)
   }));
   const sorted = [...withEnd].sort((a, b) => a._laneStart - b._laneStart);
   const laneEnds = [];
@@ -1283,7 +1297,12 @@ function renderTimelineDay(dayKey) {
       if (vis) sleeps.push({ ...s, _type: 'sleep', startMin: vis.top, _end: vis.bottom, _vis: vis });
     });
 
-  const allItems = [...merged.map(g => ({ ...g, _type: 'sess' })), ...acts, ...exams, ...sleeps];
+  const allItems = [
+    ...merged.map(g => ({ ...g, _type: 'sess', _minH: 6, _inset: 3 })),
+    ...acts.map(a => ({ ...a, _type: 'act', _minH: 8, _inset: 3 })),
+    ...exams.map(e => ({ ...e, _type: 'exam', _minH: 10, _inset: 3 })),
+    ...sleeps.map(s => ({ ...s, _type: 'sleep', _minH: 8, _inset: 3 }))
+  ];
   const { items: laned, laneCount } = assignLanes(allItems);
   const idx = { sess: {}, act: {}, exam: {}, sleep: {} };
   laned.forEach(it => {
@@ -1405,7 +1424,12 @@ function renderTimelineMulti(keys) {
         const vis = sleepVisibleRange(s, k);
         if (vis) sleeps.push({ ...s, _type: 'sleep', startMin: vis.top, _end: vis.bottom, _vis: vis });
       });
-    const allItems = [...merged.map(g => ({ ...g, _type: 'sess' })), ...acts, ...exams, ...sleeps];
+    const allItems = [
+      ...merged.map(g => ({ ...g, _type: 'sess', _minH: 4, _inset: 2 })),
+      ...acts.map(a => ({ ...a, _type: 'act', _minH: 6, _inset: 2 })),
+      ...exams.map(e => ({ ...e, _type: 'exam', _minH: 8, _inset: 2 })),
+      ...sleeps.map(s => ({ ...s, _type: 'sleep', _minH: 6, _inset: 2 }))
+    ];
     const { items: laned, laneCount } = assignLanes(allItems);
     const idx = { sess: {}, act: {}, exam: {}, sleep: {} };
     laned.forEach(it => {
@@ -1839,8 +1863,14 @@ function openPlanImagePicker() {
     const canGoNext = ws < weekStartJdn(TODAY_JDN);
     const isCurrentWeek = ws === weekStartJdn(TODAY_JDN);
     openModal(`
-      <div class="modal-head">
-        <div class="card-title">🖼️ خروجی تصویری برنامه</div>
+      <div class="modal-head report-modal-head">
+        <div class="wr-top-right">
+          <div class="wr-logo report-modal-logo">🖼️</div>
+          <div class="min-w-0">
+            <div class="card-title mb-0">خروجی تصویری برنامه</div>
+            <div class="wr-sub">پیشنمایش و دانلود برنامه هفتگی</div>
+          </div>
+        </div>
         <button class="icon-btn" data-close>✕</button>
       </div>
       <div class="report-nav">
@@ -1856,6 +1886,7 @@ function openPlanImagePicker() {
       <button class="btn primary mt-6" id="piDownload">⬇ دانلود تصویر برنامه هفتگی</button>
       <div class="report-madeby">Made by MH.Mahdipanah</div>
     `);
+    modalContent.classList.add('report-modal', 'plan-export-modal');
     document.getElementById('piPrev').onclick = () => { anchor -= 7; render(); };
     const nextBtn = document.getElementById('piNext');
     if (nextBtn) nextBtn.onclick = () => { if (canGoNext) { anchor += 7; render(); } };

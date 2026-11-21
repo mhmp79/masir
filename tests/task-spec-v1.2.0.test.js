@@ -117,6 +117,28 @@ test('BUGFIX-1: overflowing chain is marked scrollable and never overlaps', () =
   }
 });
 
+const paintedLanes = loadFunctions('js/03-plan.js', ['visualLaneEnd', 'assignLanes'], { PX_PER_MIN: 0.5 });
+
+test('BUGFIX-1: short adjacent blocks use separate lanes instead of overlapping', () => {
+  const items = [
+    { id: 'a', startMin: 600, endMin: 605, _minH: 8, _inset: 3 },
+    { id: 'b', startMin: 605, endMin: 610, _minH: 8, _inset: 3 }
+  ];
+  assert.ok(paintedLanes.visualLaneEnd(items[0]) > items[0].endMin,
+    'a painted short block must extend its lane range');
+  const out = paintedLanes.assignLanes(items);
+  assert.strictEqual(out.laneCount, 2, 'visually touching short blocks need two lanes');
+  assert.notStrictEqual(out.items[0]._lane, out.items[1]._lane);
+});
+
+test('BUGFIX-1: timeline and week renderers feed painted heights into lane packing', () => {
+  const plan = read('js/03-plan.js');
+  assert.ok(/function visualLaneEnd\(item\)/.test(plan), 'painted lane range helper missing');
+  assert.ok(/_laneEnd: visualLaneEnd\(it\)/.test(plan), 'assignLanes ignores painted heights');
+  assert.ok(/_minH: 6, _inset: 3/.test(plan), 'day sessions need their painted height');
+  assert.ok(/_minH: 4, _inset: 2/.test(plan), 'week sessions need their painted height');
+});
+
 /* ---------- FEAT-1: analyzed state ---------- */
 const examCore = loadFunctions('js/05-exam.js', ['isQuestionAnalyzed']);
 const { isQuestionAnalyzed } = examCore;
@@ -470,7 +492,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r31'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r32'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -511,6 +533,26 @@ test('REWORK: exam comparison text stays above the image-export button', () => {
   assert.ok(/flex-direction:\s*column/.test(block), 'toolbar must stack its text above the button');
   assert.ok(!/justify-content:\s*space-between/.test(block), 'side-by-side layout is gone');
   assert.ok(/align-self:\s*flex-start/.test(block), 'button must not stretch on desktop');
+});
+
+test('REWORK: exam compare uses the app shell and a desktop chart side column', () => {
+  const exam = read('js/05-exam.js');
+  const overlays = read('css/05-overlays.css');
+  const reports = read('css/13-reports.css');
+  const desktop = read('css/14-desktop.css');
+  assert.ok(exam.includes('class="exam-compare-layout"'), 'compare body lacks the app layout grid');
+  assert.ok(exam.includes('class="exam-compare-main"'), 'compare details must live in the main column');
+  assert.ok(exam.includes('<aside class="exam-compare-side">'), 'charts must live in a side column');
+  assert.ok(exam.includes('exam-compare-charts-card'), 'charts need an app-style card');
+  assert.ok(!/class="card exam-compare-summary">[\s\S]*?exam-charts-row/.test(exam),
+    'charts must leave the old summary card');
+  assert.ok(/#examCompareOverlay \.wr-top\{/.test(overlays), 'compare header must match the app topbar');
+  assert.ok(/backdrop-filter:blur\(18px\) saturate\(150%\)/.test(overlays.slice(overlays.indexOf('#examCompareOverlay .wr-top{'), overlays.indexOf('#examCompareOverlay .wr-logo{'))),
+    'compare header needs the app glass treatment');
+  assert.ok(/\.exam-compare-layout\{display:flex;flex-direction:column/.test(reports), 'compare layout stacks on mobile');
+  assert.ok(/#examCompareOverlay \.exam-compare-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 340px/.test(desktop),
+    'desktop must place charts beside the details');
+  assert.ok(/#examCompareOverlay \.exam-compare-side \{ position: sticky/.test(desktop), 'desktop chart column must stay in view');
 });
 
 test('REWORK: classes are merged into the renamed overview as a third segment', () => {
@@ -669,6 +711,12 @@ test('REWORK: weekly totals show correct/wrong/blank and plan images have a prev
   assert.ok(plan.includes('id="piPreview"'), 'plan picker renders a preview');
   assert.ok(plan.includes("generatePlanWeekCanvas(ws).then((cv)"), 'preview is generated for the selected week');
   assert.ok(/\.plan-preview img\{/.test(reportsCss), 'preview has sizing rules');
+  assert.ok(plan.includes('class="modal-head report-modal-head"'), 'plan overlay needs the app-style header');
+  assert.ok(plan.includes('class="wr-logo report-modal-logo"'), 'plan overlay needs the app-style logo');
+  assert.ok(plan.includes("classList.add('report-modal', 'plan-export-modal')"), 'plan overlay uses the app report shell');
+  assert.ok(/\.plan-export-modal \.report-modal-head\{/.test(reportsCss), 'plan header needs glass styling');
+  assert.ok(/\.plan-export-modal \.plan-preview\{\n?\s*max-height:26vh/.test(reportsCss), 'mobile preview must stay compact');
+  assert.ok(/\.plan-export-modal #piDownload\{\n?\s*position:sticky/.test(reportsCss), 'download button must stay fixed');
 });
 
 test('REWORK: app version is 0.9.5 everywhere', () => {

@@ -519,6 +519,12 @@
   .wr-shell { max-width: 1240px; padding: 20px 24px 60px; }
   #settingsOverlay .wr-shell { max-width: 1120px; }
   #examCompareOverlay .wr-shell { max-width: 1240px; }
+  #examCompareOverlay .exam-compare-layout {
+    display: grid; grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 14px; align-items: start;
+  }
+  #examCompareOverlay .exam-compare-side { position: sticky; top: 96px; }
+  #examCompareOverlay .exam-compare-charts-card .exam-charts-row { grid-template-columns: 1fr; }
   #examOverlay .exam-overlay-inner { max-width: 1000px; padding: 20px 24px 80px; }
 
   .toast { bottom: 40px; }

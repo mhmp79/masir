@@ -2025,21 +2025,30 @@ function renderExamCompare(){
   const firstTaraz=totalTarazs[0];const lastTaraz=totalTarazs[totalTarazs.length-1];const delta=lastTaraz-firstTaraz;
   body.innerHTML=`
     <div class="exam-compare-toolbar"><div><b>روند آزمون‌ها</b><span>تغییرات تراز کل و هر درس را کنار هم ببین</span></div><button class="btn" id="exportExamCompareImage">🖼 خروجی تصویری</button></div>
-    <div class="card exam-compare-summary">
-      <div class="exam-progress cols-3">
-        <div><span>تراز اول</span><b class="text-soft">${fa(Math.round(firstTaraz))}</b></div>
-        <div><span>تراز آخر</span><b class="text-amber">${fa(Math.round(lastTaraz))}</b></div>
-        <div><span>پیشرفت</span><b style="color:${delta>0?'#6ee7b7':delta<0?'#fda4af':'#cbd3e8'}">${delta>0?'+':''}${fa(Math.round(Math.abs(delta)))}</b></div>
+    <div class="exam-compare-layout">
+      <div class="exam-compare-main">
+        <div class="card exam-compare-summary exam-compare-stats">
+          <div class="exam-progress cols-3">
+            <div><span>تراز اول</span><b class="text-soft">${fa(Math.round(firstTaraz))}</b></div>
+            <div><span>تراز آخر</span><b class="text-amber">${fa(Math.round(lastTaraz))}</b></div>
+            <div><span>پیشرفت</span><b style="color:${delta>0?'#6ee7b7':delta<0?'#fda4af':'#cbd3e8'}">${delta>0?'+':''}${fa(Math.round(Math.abs(delta)))}</b></div>
+          </div>
+        </div>
+        <div class="exam-compare-section-title"><b>📋 جزئیات هر آزمون</b><span>درصدها و تعداد پاسخ‌ها</span></div>
+        ${renderExamDetailsHTML(exams)}
+        <div class="exam-compare-section-title"><b>📋 جدول مقایسه</b><span>درصد هر درس در آزمون‌های ثبت‌شده</span></div>
+        ${renderExamListTable(exams)}
       </div>
-      <div class="exam-charts-row">
-        <div class="exam-compare-chart"><div class="card-title">📈 تراز کل</div><div class="exam-compare-chart-frame">${renderExamTotalChartSVG(exams)}</div></div>
-        <div class="exam-compare-chart"><div class="card-title">📊 تراز دروس</div><div class="exam-compare-chart-frame">${renderExamAllSubjectsChartSVG(exams)}</div></div>
-      </div>
+      <aside class="exam-compare-side">
+        <div class="card exam-compare-summary exam-compare-charts-card">
+          <div class="card-title">📊 نمودارهای مقایسه</div>
+          <div class="exam-charts-row">
+            <div class="exam-compare-chart"><div class="card-title">📈 تراز کل</div><div class="exam-compare-chart-frame">${renderExamTotalChartSVG(exams)}</div></div>
+            <div class="exam-compare-chart"><div class="card-title">📊 تراز دروس</div><div class="exam-compare-chart-frame">${renderExamAllSubjectsChartSVG(exams)}</div></div>
+          </div>
+        </div>
+      </aside>
     </div>
-    <div class="exam-compare-section-title"><b>📋 جزئیات هر آزمون</b><span>درصدها و تعداد پاسخ‌ها</span></div>
-    ${renderExamDetailsHTML(exams)}
-    <div class="exam-compare-section-title"><b>📋 جدول مقایسه</b><span>درصد هر درس در آزمون‌های ثبت‌شده</span></div>
-    ${renderExamListTable(exams)}
   `;
   document.getElementById('exportExamCompareImage').onclick=exportExamCompareImage;
   body.querySelectorAll('[data-ex-edit]').forEach((b)=>{b.onclick=()=>openExamSettingsModal(b.dataset.exEdit);});

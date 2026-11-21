@@ -119,7 +119,7 @@
       </div>
 
       <div class="card exam-insights-card hidden" id="examInsightsCard">
-        <div class="card-title text-amber">📊 خلاصه تحلیل آزمون‌ها</div>
+        <div class="card-title text-amber">🏷️ پراکندگی تگهای اشتباهات</div>
         <div id="examInsightsBody"></div>
       </div>
     </section>
@@ -358,30 +358,28 @@
         <button class="seg-btn" data-emode="analysis">🔍 تحلیل آزمون</button>
       </div>
       <div class="exam-layout" id="examLayout">
-        <aside class="exam-side" id="examSide">
-          <details class="exam-calendar-details" id="examCalendarDetails" open>
-            <summary class="exam-calendar-summary">
-              <span class="pcs-icon">📅</span>
-              <span class="pcs-title">تقویم</span>
-              <span class="pcs-date" id="examCalendarSummaryDate">—</span>
-              <span class="pcs-chevron">▼</span>
-            </summary>
-            <div class="card cal-head">
-              <div class="cal-head-nav">
-                <button id="examCalPrev">‹</button>
-                <div id="examCalTitle">—</div>
-                <button id="examCalNext">›</button>
-              </div>
-              <button class="cal-today-icon" id="examCalToday">◉</button>
-            </div>
-            <div class="card">
-              <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
-              <div class="cal-grid" id="examCalGrid"></div>
-            </div>
-          </details>
-        </aside>
         <div class="exam-main">
           <div id="examListPane">
+            <details class="exam-calendar-details" id="examCalendarDetails" open>
+              <summary class="exam-calendar-summary">
+                <span class="pcs-icon">📅</span>
+                <span class="pcs-title">تقویم</span>
+                <span class="pcs-date" id="examCalendarSummaryDate">—</span>
+                <span class="pcs-chevron">▼</span>
+              </summary>
+              <div class="card cal-head">
+                <div class="cal-head-nav">
+                  <button id="examCalPrev">‹</button>
+                  <div id="examCalTitle">—</div>
+                  <button id="examCalNext">›</button>
+                </div>
+                <button class="cal-today-icon" id="examCalToday">◉</button>
+              </div>
+              <div class="card">
+                <div class="cal-dow"><div>ش</div><div>ی</div><div>د</div><div>س</div><div>چ</div><div>پ</div><div>ج</div></div>
+                <div class="cal-grid" id="examCalGrid"></div>
+              </div>
+            </details>
             <div class="card">
               <div class="d-flex items-center justify-between mb-14 gap-6 flex-wrap">
                 <div class="card-title mb-0">📝 آزمون‌ها</div>
@@ -403,8 +401,6 @@
           </div>
         </div>
       </div>
-      <button type="button" id="examSidebarToggle" class="exam-sidebar-fab" aria-label="نمایش تقویم آزمون" aria-expanded="false">📅</button>
-      <div class="exam-sidebar-backdrop" id="examSidebarBackdrop" hidden></div>
     </section>
 
     <!-- ===== OVERVIEW ===== -->
@@ -461,6 +457,8 @@
     </header>
     <main id="examOverlayBody"></main>
   </div>
+  <button type="button" id="noteTagToggle" class="note-tag-fab" aria-label="نمایش تگ‌های سوال" aria-expanded="false" hidden>🏷️</button>
+  <div id="noteTagBackdrop" class="note-tag-backdrop" hidden></div>
 </div>
 
 <!-- ===== EXAM COMPARE OVERLAY ===== -->

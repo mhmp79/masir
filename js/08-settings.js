@@ -385,7 +385,11 @@ function openSubjectAdvancedModal(name){
 
   /* FEAT-6/7: question types live with the subject. Similarity suggestions
      are never applied automatically — the user must confirm every merge. */
-  let draftTypes=(s.questionTypes||[]).map(t=>({id:String(t.id||uid()),label:String(t.label||'')})).filter(t=>t.label);
+  let draftTypes=(s.questionTypes||[]).map(t=>({
+    id:String(t.id||uid()),
+    label:String(t.label||''),
+    topics:Array.isArray(t.topics)?t.topics.filter(x=>typeof x==='string'):[]
+  })).filter(t=>t.label);
   let draftEmphasis=['note','question-type','both'].includes(s.emphasis)?s.emphasis:'note';
   let draftGroup=s.group||'';
 
@@ -406,6 +410,7 @@ function openSubjectAdvancedModal(name){
   const renderSpecModal=()=>{
     const typeRows=draftTypes.map((t,i)=>`<div class="qt-row">
       <input class="input qt-label" value="${esc(t.label)}" data-qt-input="${i}" placeholder="نام تیپ سوال" maxlength="60">
+      <input class="input qt-topics" value="${esc(t.topics.join('، '))}" data-qt-topics="${i}" placeholder="مباحث (با کاما جدا کن)" title="زیرمجموعهٔ کدام مبحث؟ خالی = همهٔ مباحث">
       <span class="qt-usage" title="تعداد سوال\u200cهای استفاده\u200cکننده">${fa(typeUsage(t.id))}</span>
       <button type="button" class="qt-del" data-qt-del="${i}" aria-label="حذف تیپ">×</button>
     </div>`).join('');
@@ -452,6 +457,10 @@ function openSubjectAdvancedModal(name){
         const idx=+inp.dataset.qtInput;
         if(draftTypes[idx])draftTypes[idx].label=inp.value.trim();
       });
+      document.querySelectorAll('[data-qt-topics]').forEach(inp=>{
+        const idx=+inp.dataset.qtTopics;
+        if(draftTypes[idx])draftTypes[idx].topics=inp.value.split(/[،,]/).map(t=>t.trim()).filter(Boolean);
+      });
       const groupEl=document.getElementById('advGroup');
       const emphasisEl=document.getElementById('advEmphasis');
       if(groupEl)draftGroup=groupEl.value.trim();
@@ -475,7 +484,7 @@ function openSubjectAdvancedModal(name){
       const label=(input&&input.value||'').trim();
       if(!label)return;
       if(draftTypes.some(t=>t.label===label)){toast('تکراری است');return;}
-      draftTypes.push({id:'qt_'+uid(),label});
+      draftTypes.push({id:'qt_'+uid(),label,topics:[]});
       renderSpecModal();
     };
 

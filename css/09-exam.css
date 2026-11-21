@@ -59,25 +59,12 @@
   gap: 14px;
 }
 
-/* Mobile default: تقویم بالا، محتوا پایین */
-.exam-side {
-  order: 1;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 .exam-main {
-  order: 2;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.exam-side .cal-head { padding: 10px 12px; }
-.exam-side .cal-cell { font-size: 12px; border-radius: 10px; }
-.exam-side .cal-dow { font-size: 10px; margin-bottom: 6px; }
-.exam-side .cal-grid { gap: 4px; }
 
 /* ============ SEG (now on top of .exam-layout) ============ */
 #examModeSeg {
@@ -121,25 +108,6 @@
   .exam-calendar-summary { display: none; }
   .exam-calendar-details .card { margin-bottom: 10px; }
   .exam-calendar-details .card:last-child { margin-bottom: 0; }
-}
-
-/* ============ ANALYSIS MODE - hide calendar, single-column ============ */
-.exam-layout.analysis-mode {
-  grid-template-columns: 1fr;
-}
-.exam-layout.analysis-mode .exam-side {
-  display: none;
-}
-@media (min-width: 1024px) {
-  #view-exam.analysis-mode {
-    grid-template-columns: 1fr;
-  }
-  #view-exam.analysis-mode .exam-side {
-    display: none;
-  }
-  #view-exam.analysis-mode #examModeSeg {
-    grid-column: 1;
-  }
 }
 
 /* ============ PANES ============ */
@@ -562,6 +530,11 @@
   font-weight: 700; border: 1px solid rgba(34,211,238,.24);
 }
 .ac-topic { font-size: 11px; color: #cbd3e8; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ac-type{
+  font-size:9px;font-weight:800;color:#fdba74;white-space:nowrap;
+  background:rgba(251,146,60,.12);border:1px solid rgba(251,146,60,.38);
+  border-radius:5px;padding:2px 5px;
+}
 .ac-errs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .ac-err { font-size: 10px; padding: 2px 7px; border-radius: 5px; font-weight: 700; border: 1px solid; }
 .ac-err-group {
@@ -814,6 +787,9 @@
 .nc-fold > textarea { display: block; width: calc(100% - 14px); margin: 0 7px 7px; }
 .nc-note-fold { margin-top: 6px; }
 .nc-note-fold .note-ta { min-height: 54px; }
+.nc-note-fold.nc-static-note > .nc-fold-title{
+  padding:7px 9px 2px;color:#aeb8d0;font-size:10px;font-weight:800;
+}
 .nc-qa-input {
   width: 100%; min-height: 42px; padding: 7px 10px;
   border-radius: 8px; border: 1px solid rgba(255,255,255,.10);
@@ -883,54 +859,26 @@
   .nc-edit-label { font-size: 9px; }
 }
 
-/* ============ TABLET (768–1023px) ============ */
+/* ============ TABLET (768–1023px) — calendar inline ============ */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .exam-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(230px, 32%);
-    gap: 14px;
-    align-items: start;
-  }
-  .exam-main {
-    grid-column: 1;
-    grid-row: 1;
-    order: initial;
-    width: auto;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  .exam-side {
-    grid-column: 2;
-    grid-row: 1;
-    order: initial;
-    width: auto;
-    position: sticky;
-    top: 16px;
-  }
   #examListPane { display: flex; flex-direction: column; gap: 14px; }
   #examListPane > .card { margin: 0; }
   #examAnalysisPane { display: flex; flex-direction: column; gap: 14px; }
   #examAnalysisPane > .card { margin: 0; }
 }
 
-/* ============ DESKTOP (≥1024px) ============ */
+/* ============ DESKTOP (≥1024px) — one exam column ============ */
 @media (min-width: 1024px) {
   #view-exam.active {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 0 var(--gap);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     overflow: hidden;
   }
   #view-exam > #examModeSeg {
-    grid-column: 1;
-    grid-row: 1;
     display: inline-flex;
     width: auto;
-    justify-self: center;
-    align-self: start;
+    align-self: center;
     margin: 0 0 8px;
     padding: 5px;
     gap: 4px;
@@ -945,36 +893,14 @@
     border-radius: 8px;
     white-space: nowrap;
   }
-  .exam-layout {
-    display: contents;
-  }
-  .exam-side {
-    grid-column: 2;
-    grid-row: 1 / -1;
-    order: initial;
-    width: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    overflow-y: auto;
-    min-height: 0;
-    max-height: 100%;
-    padding-bottom: 4px;
-    position: relative;
-    top: auto;
-  }
-  .exam-side > .card { margin-bottom: 0; }
+  .exam-layout { display: block; width: 100%; }
   .exam-main {
-    grid-column: 1;
-    grid-row: 2;
-    order: initial;
     display: flex;
     flex-direction: column;
     gap: var(--gap);
     min-height: 0;
     overflow: hidden;
   }
-  /* حذف اولویت display تا .hidden کار کند */
   #examListPane {
     flex: 1;
     min-height: 0;
@@ -1081,59 +1007,109 @@ input.ex-subj{
 .chart-legend-line{width:12px;height:3px;border-radius:2px}
 
 
-/* ============ TASK SPEC v1.2.0 — FEAT-4 RESPONSIVE LAYOUT ============ */
-.exam-sidebar-fab,.exam-sidebar-backdrop{display:none}
+/* ============ EXAM ANALYSIS — TAG SELECTION SIDEBAR ============
+   The calendar lives inside the exam list again. Only the tag-selection
+   block of per-question analysis gets a sidebar on wide screens and a
+   bottom drawer on touch screens. */
+.exam-layout{display:block;width:100%}
+.note-tag-fab,.note-tag-backdrop{display:none}
+.note-tag-sidebar{min-width:0}
+.note-tag-sidebar .card{margin:0}
+.note-tag-sidebar-title{font-size:11px;font-weight:800;color:#fcd34d;margin-bottom:8px}
+.note-tag-sidebar-hint{font-size:9px;color:#8b94ad;line-height:1.7;margin:-2px 0 10px}
 @media (min-width:1024px){
-  .exam-layout{
+  .note-analysis-layout{
     display:grid;
-    grid-template-columns:280px minmax(0,1fr);
+    grid-template-columns:minmax(0,1fr) 280px;
     gap:14px;align-items:start;
   }
-  .exam-side{
+  .note-tag-sidebar{
     position:sticky;top:16px;
     max-height:90vh;overflow-y:auto;min-height:0;
   }
-  .exam-main{min-width:0}
-  #view-exam.analysis-mode .exam-layout{grid-template-columns:minmax(0,1fr)}
-  #view-exam.analysis-mode .exam-side{display:none}
+  .note-analysis-main{min-width:0}
 }
 @media (min-width:768px) and (max-width:1023px){
-  .exam-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
   .exam-calendar-summary{display:flex}
   .exam-calendar-details:not([open]) > .card{display:none}
-  .exam-side{
-    position:sticky;top:16px;max-height:90vh;
+  .note-analysis-layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;align-items:start}
+  .note-tag-sidebar{
+    position:sticky;top:16px;max-height:88vh;
     overflow-y:auto;min-height:0;
   }
-  .exam-main{min-width:0}
+  .note-analysis-main{min-width:0}
 }
 @media (max-width:767px){
-  .exam-sidebar-fab{
+  .note-tag-fab{
     position:fixed;right:16px;
-    bottom:calc(84px + env(safe-area-inset-bottom,0px));
-    z-index:65;display:flex;align-items:center;justify-content:center;
+    bottom:calc(18px + env(safe-area-inset-bottom,0px));
+    z-index:405;display:flex;align-items:center;justify-content:center;
     width:50px;height:50px;border-radius:50%;
-    border:1px solid rgba(234,179,8,.55);
-    background:linear-gradient(155deg,rgba(234,179,8,.95),rgba(245,158,11,.85));
+    border:1px solid rgba(251,146,60,.6);
+    background:linear-gradient(155deg,rgba(251,146,60,.95),rgba(234,179,8,.85));
     color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
     font-family:inherit;cursor:pointer;
   }
-  .exam-sidebar-backdrop{
-    position:fixed;inset:0;z-index:70;
-    background:rgba(0,0,0,.58);display:block;
-  }
-  .exam-sidebar-backdrop[hidden]{display:none}
-  #view-exam .exam-side{
-    position:fixed;right:0;bottom:0;z-index:75;
-    width:min(88vw,380px);max-height:86vh;overflow-y:auto;
-    padding:12px 12px calc(18px + env(safe-area-inset-bottom,0px));
+  .note-tag-fab[hidden]{display:none}
+  .note-tag-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
+  .note-tag-backdrop[hidden]{display:none}
+  #examOverlay .note-tag-sidebar{
+    position:fixed;right:0;bottom:0;z-index:407;
+    width:min(90vw,400px);max-height:86vh;overflow-y:auto;
+    padding:14px 12px calc(20px + env(safe-area-inset-bottom,0px));
     border-radius:18px 18px 0 0;
     background:#111522;border:1px solid rgba(255,255,255,.12);
     box-shadow:0 -14px 40px rgba(0,0,0,.5);
     transform:translateY(105%);transition:transform .24s ease;
   }
-  #view-exam.sidebar-open .exam-side{transform:none}
-  #view-exam.analysis-mode .exam-sidebar-fab{display:none}
+  #examOverlay.tags-open .note-tag-sidebar{transform:none}
+}
+
+/* Question-type search / creation inside the tag sidebar. */
+.qt-search-panel{
+  border:1px solid rgba(251,146,60,.32);border-radius:8px;
+  background:rgba(251,146,60,.05);padding:7px;margin-top:6px;
+}
+.qt-search-input{width:100%;box-sizing:border-box;margin:0}
+.qt-search-list{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.qt-search-item{
+  border:1px solid rgba(255,255,255,.16);border-radius:6px;
+  background:rgba(255,255,255,.05);color:#dbe3f5;
+  font-family:inherit;font-size:9px;font-weight:700;
+  padding:4px 7px;cursor:pointer;
+}
+.qt-search-item.is-new{border-color:rgba(251,146,60,.55);color:#fdba74;background:rgba(251,146,60,.12)}
+.qt-search-empty{font-size:9px;color:#8b94ad;padding:3px 0}
+.qt-topic-pick{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.qt-topic-pick .qt-search-item.on{border-color:#fb923c;color:#fff;background:rgba(251,146,60,.28)}
+
+/* Analysis completion: a finished subject shows a badge, not a progress bar. */
+.nsp-done{
+  font-size:9px;font-weight:800;color:#6ee7b7;
+  background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);
+  border-radius:5px;padding:2px 5px;white-space:nowrap;
+}
+
+/* Unified add-question modal (question + options + correct answer in one form). */
+.aq-mode-picker{display:flex;gap:6px;margin:6px 0 10px}
+.aq-mode-picker button{
+  flex:1;padding:7px 8px;border-radius:7px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);
+  color:#cbd3e8;font-family:inherit;font-size:10px;font-weight:800;
+}
+.aq-mode-picker button.active{border-color:#4de2f5;color:#fff;background:rgba(77,226,245,.16)}
+.aq-option-row{display:flex;align-items:center;gap:6px;margin:6px 0}
+.aq-option-mark{
+  flex:0 0 28px;height:28px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.04);
+  color:#cbd3e8;font-family:inherit;font-size:12px;font-weight:800;cursor:pointer;
+}
+.aq-option-mark.on{border-color:#10b981;background:rgba(16,185,129,.28);color:#fff}
+.aq-option-text{flex:1;min-width:0;padding:6px 9px;font-size:11px}
+.aq-option-remove{
+  flex:0 0 26px;height:26px;border-radius:6px;
+  border:1px solid rgba(244,63,94,.28);background:rgba(244,63,94,.08);
+  color:#fda4af;cursor:pointer;font-family:inherit;
 }
 
 

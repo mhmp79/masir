@@ -59,12 +59,31 @@
   gap: 14px;
 }
 
-.exam-main {
+/* The exams tab keeps its original left calendar sidebar. The analysis tab
+   uses the same column for the per-question tag selector. */
+.exam-side,
+.exam-analysis-side {
+  order: 1;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.exam-analysis-side[hidden],
+.exam-side[hidden] { display: none !important; }
+
+.exam-main {
+  order: 2;
+  width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+.exam-side .cal-head { padding: 10px 12px; }
+.exam-side .cal-cell { font-size: 12px; border-radius: 10px; }
+.exam-side .cal-dow { font-size: 10px; margin-bottom: 6px; }
+.exam-side .cal-grid { gap: 4px; }
 
 /* ============ SEG (now on top of .exam-layout) ============ */
 #examModeSeg {
@@ -859,26 +878,58 @@
   .nc-edit-label { font-size: 9px; }
 }
 
-/* ============ TABLET (768–1023px) — calendar inline ============ */
+/* ============ TABLET (768–1023px) ============ */
 @media (min-width: 768px) and (max-width: 1023px) {
+  .exam-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 32%);
+    gap: 14px;
+    align-items: start;
+  }
+  .exam-main {
+    grid-column: 1;
+    grid-row: 1;
+    order: initial;
+    width: auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .exam-side,
+  .exam-analysis-side {
+    grid-column: 2;
+    grid-row: 1;
+    order: initial;
+    width: auto;
+    position: sticky;
+    top: 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+    min-height: 0;
+  }
   #examListPane { display: flex; flex-direction: column; gap: 14px; }
   #examListPane > .card { margin: 0; }
   #examAnalysisPane { display: flex; flex-direction: column; gap: 14px; }
   #examAnalysisPane > .card { margin: 0; }
 }
 
-/* ============ DESKTOP (≥1024px) — one exam column ============ */
+/* ============ DESKTOP (≥1024px) ============ */
 @media (min-width: 1024px) {
   #view-exam.active {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0 var(--gap);
     overflow: hidden;
   }
   #view-exam > #examModeSeg {
+    grid-column: 1;
+    grid-row: 1;
     display: inline-flex;
     width: auto;
-    align-self: center;
+    justify-self: center;
+    align-self: start;
     margin: 0 0 8px;
     padding: 5px;
     gap: 4px;
@@ -893,8 +944,29 @@
     border-radius: 8px;
     white-space: nowrap;
   }
-  .exam-layout { display: block; width: 100%; }
+  .exam-layout { display: contents; }
+  .exam-side,
+  .exam-analysis-side {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    order: initial;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: 100%;
+    padding-bottom: 4px;
+    position: relative;
+    top: auto;
+  }
+  .exam-side > .card,
+  .exam-analysis-side > .card { margin-bottom: 0; }
   .exam-main {
+    grid-column: 1;
+    grid-row: 2;
+    order: initial;
     display: flex;
     flex-direction: column;
     gap: var(--gap);
@@ -1007,39 +1079,62 @@ input.ex-subj{
 .chart-legend-line{width:12px;height:3px;border-radius:2px}
 
 
-/* ============ EXAM ANALYSIS — TAG SELECTION SIDEBAR ============
-   The calendar lives inside the exam list again. Only the tag-selection
-   block of per-question analysis gets a sidebar on wide screens and a
-   bottom drawer on touch screens. */
-.exam-layout{display:block;width:100%}
-.note-tag-fab,.note-tag-backdrop{display:none}
+/* ============ EXAM SIDE FAB / DRAWERS ============
+   Exams: the original calendar sidebar. Analysis: the same column becomes
+   the per-question tag selector. Neither sits inside the main content. */
+.exam-sidebar-fab,.exam-sidebar-backdrop,.note-tag-fab,.note-tag-backdrop{display:none}
 .note-tag-sidebar{min-width:0}
 .note-tag-sidebar .card{margin:0}
 .note-tag-sidebar-title{font-size:11px;font-weight:800;color:#fcd34d;margin-bottom:8px}
 .note-tag-sidebar-hint{font-size:9px;color:#8b94ad;line-height:1.7;margin:-2px 0 10px}
+.analysis-exam-picker-card .card-title{font-size:13px}
+.analysis-exam-picker-card select{max-width:230px}
+.exam-global-analysis-fold > summary{
+  cursor:pointer;list-style:none;font-size:12px;font-weight:800;color:#c7bfff;
+  padding:4px 0;
+}
+.exam-global-analysis-fold > summary::-webkit-details-marker{display:none}
+.exam-global-analysis-fold[open] > summary{margin-bottom:4px}
 @media (min-width:1024px){
-  .note-analysis-layout{
-    display:grid;
-    grid-template-columns:minmax(0,1fr) 280px;
-    gap:14px;align-items:start;
-  }
-  .note-tag-sidebar{
+  .exam-analysis-side .note-tag-sidebar{
     position:sticky;top:16px;
     max-height:90vh;overflow-y:auto;min-height:0;
   }
-  .note-analysis-main{min-width:0}
+  .exam-analysis-main{min-width:0}
 }
 @media (min-width:768px) and (max-width:1023px){
   .exam-calendar-summary{display:flex}
   .exam-calendar-details:not([open]) > .card{display:none}
-  .note-analysis-layout{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;align-items:start}
-  .note-tag-sidebar{
+  .exam-analysis-side .note-tag-sidebar{
     position:sticky;top:16px;max-height:88vh;
     overflow-y:auto;min-height:0;
   }
-  .note-analysis-main{min-width:0}
+  .exam-analysis-main{min-width:0}
 }
 @media (max-width:767px){
+  .exam-sidebar-fab{
+    position:fixed;right:16px;
+    bottom:calc(84px + env(safe-area-inset-bottom,0px));
+    z-index:405;display:flex;align-items:center;justify-content:center;
+    width:50px;height:50px;border-radius:50%;
+    border:1px solid rgba(234,179,8,.55);
+    background:linear-gradient(155deg,rgba(234,179,8,.95),rgba(245,158,11,.85));
+    color:#1b1405;font-size:21px;box-shadow:0 10px 24px rgba(0,0,0,.45);
+    font-family:inherit;cursor:pointer;
+  }
+  .exam-sidebar-fab[hidden]{display:none}
+  .exam-sidebar-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
+  .exam-sidebar-backdrop[hidden]{display:none}
+  #view-exam .exam-side{
+    position:fixed;right:0;bottom:0;z-index:407;
+    width:min(88vw,380px);max-height:86vh;overflow-y:auto;
+    padding:12px 12px calc(18px + env(safe-area-inset-bottom,0px));
+    border-radius:18px 18px 0 0;
+    background:#111522;border:1px solid rgba(255,255,255,.12);
+    box-shadow:0 -14px 40px rgba(0,0,0,.5);
+    transform:translateY(105%);transition:transform .24s ease;
+  }
+  #view-exam.sidebar-open .exam-side{transform:none}
   .note-tag-fab{
     position:fixed;right:16px;
     bottom:calc(18px + env(safe-area-inset-bottom,0px));
@@ -1053,7 +1148,7 @@ input.ex-subj{
   .note-tag-fab[hidden]{display:none}
   .note-tag-backdrop{position:fixed;inset:0;z-index:406;background:rgba(0,0,0,.58);display:block}
   .note-tag-backdrop[hidden]{display:none}
-  #examOverlay .note-tag-sidebar{
+  #view-exam .exam-analysis-side{
     position:fixed;right:0;bottom:0;z-index:407;
     width:min(90vw,400px);max-height:86vh;overflow-y:auto;
     padding:14px 12px calc(20px + env(safe-area-inset-bottom,0px));
@@ -1062,7 +1157,7 @@ input.ex-subj{
     box-shadow:0 -14px 40px rgba(0,0,0,.5);
     transform:translateY(105%);transition:transform .24s ease;
   }
-  #examOverlay.tags-open .note-tag-sidebar{transform:none}
+  #view-exam.tags-open .exam-analysis-side{transform:none}
 }
 
 /* Question-type search / creation inside the tag sidebar. */

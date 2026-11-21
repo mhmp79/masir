@@ -84,6 +84,9 @@
 .exam-side .cal-cell { font-size: 12px; border-radius: 10px; }
 .exam-side .cal-dow { font-size: 10px; margin-bottom: 6px; }
 .exam-side .cal-grid { gap: 4px; }
+.exam-tag-stats-card { padding: 12px; }
+.exam-tag-stats-card .card-title { font-size: 12px; margin-bottom: 8px; }
+.exam-analysis-sub { padding: 2px 2px 0; font-size: 11px; }
 
 /* ============ SEG (now on top of .exam-layout) ============ */
 #examModeSeg {

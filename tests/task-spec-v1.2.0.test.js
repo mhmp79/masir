@@ -444,7 +444,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r25'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-4-r26'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -463,6 +463,59 @@ test('FEAT-8: dashboard exam insights card is rendered', () => {
   assert.ok(html.includes('examInsightsCard'));
   assert.ok(dashboard.includes('renderExamInsights()'));
   assert.ok(/function renderExamInsights\(/.test(exam));
+});
+
+/* ---------- REWORK: exam side stats, comparison toolbar and overview merge ---------- */
+test('REWORK: analysis heading is gone and general-tag stats live under the calendar', () => {
+  const html = read('index.html');
+  const examSection = html.slice(html.indexOf('<section class="view" id="view-exam">'), html.indexOf('<!-- ===== OVERVIEW / SUBJECT PROGRESS ===== -->'));
+  assert.ok(!examSection.includes('تحلیل جامع آزمونها'), 'obsolete analysis heading still present');
+  assert.ok(examSection.includes('id="gaSub"'), 'analysis count must stay visible without the heading');
+  const sidebar = examSection.slice(examSection.indexOf('id="examSide"'), examSection.indexOf('</aside>', examSection.indexOf('id="examSide"')));
+  const listPane = examSection.slice(examSection.indexOf('id="examListPane"'), examSection.indexOf('id="examAnalysisPane"'));
+  assert.ok(sidebar.includes('id="examTagStats"'), 'tag distribution must be inside the sidebar');
+  assert.ok(sidebar.indexOf('id="examCalendarDetails"') < sidebar.indexOf('id="examTagStats"'),
+    'tag distribution must come after the calendar');
+  assert.ok(!listPane.includes('id="examTagStats"'), 'tag distribution must leave the exam list');
+});
+
+test('REWORK: exam comparison text stays above the image-export button', () => {
+  const css = read('css/13-reports.css');
+  const block = css.slice(css.indexOf('.exam-compare-toolbar{'), css.indexOf('.exam-compare-summary{'));
+  assert.ok(/flex-direction:\s*column/.test(block), 'toolbar must stack its text above the button');
+  assert.ok(!/justify-content:\s*space-between/.test(block), 'side-by-side layout is gone');
+  assert.ok(/align-self:\s*flex-start/.test(block), 'button must not stretch on desktop');
+});
+
+test('REWORK: classes are merged into the renamed overview as a third segment', () => {
+  const html = read('index.html');
+  const core = read('js/01-core.js');
+  const overview = read('js/06-overview.js');
+  const desktop = read('css/14-desktop.css');
+  assert.ok(html.includes('data-view="overview"') && html.includes('پیشرفت دروس'));
+  assert.ok(html.includes('data-view="activity"') && html.includes('ثبت فعالیت'));
+  assert.ok(!html.includes('data-view="class"'), 'standalone class tab must be removed');
+  assert.ok(!html.includes('id="view-class"'), 'standalone class view must be removed');
+  assert.ok(html.includes('id="ovClassTab"') && html.includes('data-ovt="class"'));
+  assert.ok(html.includes('id="overviewClassPane"') && html.includes('id="clsSessions"'));
+  assert.ok(/function setOverviewTab\(/.test(overview));
+  assert.ok(/const classTab=ovTab==='class'/.test(overview));
+  assert.ok(/if\(classTab\)\{[\s\S]*?renderClass\(\)/.test(overview));
+  assert.ok(/getElementById\('ovClassTab'\)/.test(core), 'hide-classes setting must target the segment');
+  assert.ok(/#overviewClassPane/.test(desktop), 'class pane needs the desktop layout rules');
+  assert.ok(!/#view-class/.test(desktop), 'old class-view selectors must be gone');
+});
+
+test('REWORK: bottom navigation uses a floating liquid-glass surface', () => {
+  const nav = read('css/05-overlays.css');
+  const block = nav.slice(nav.indexOf('/* NAV — floating iPhone-style liquid glass */'), nav.indexOf('/* MODAL */'));
+  assert.ok(/width:\s*calc\(100%\s*-\s*24px\)/.test(block), 'glass bar must float with side margins');
+  assert.ok(/border-radius:\s*24px/.test(block));
+  assert.ok(/backdrop-filter:blur\(26px\) saturate\(180%\)/.test(block));
+  assert.ok(/inset 0 1px 0 rgba\(255,255,255,\.18\)/.test(block), 'glossy top highlight missing');
+  assert.ok(/nav::before/.test(block), 'glass reflection layer missing');
+  assert.ok(/nav-btn\.active/.test(block) && /inset 0 1px 0 rgba\(255,255,255,\.24\)/.test(block));
+  assert.ok(read('css/02-typography.css').includes('[hidden]{display:none!important}'));
 });
 
 console.log('TASK SPEC v1.2.0 — all phase checks');

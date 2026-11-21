@@ -65,12 +65,20 @@ function bindOverviewTabs(){
   wrap._ovTabsBound=true;
   wrap.addEventListener('click',e=>{
     const btn=e.target.closest('[data-ovt]');
-    if(!btn)return;
-    ovTab=btn.dataset.ovt;
-    wrap.querySelectorAll('[data-ovt]').forEach(b=>b.classList.toggle('active',b===btn));
-    renderOverview();
+    if(!btn||btn.hidden)return;
+    setOverviewTab(btn.dataset.ovt);
   });
 }
+
+function setOverviewTab(tab){
+  if(!['specialized','general','class'].includes(tab))return;
+  const btn=document.querySelector('.overview-tabs [data-ovt="'+tab+'"]');
+  if(!btn||btn.hidden)return;
+  ovTab=tab;
+  document.querySelectorAll('.overview-tabs [data-ovt]').forEach(b=>b.classList.toggle('active',b.dataset.ovt===tab));
+  renderOverview();
+}
+
 bindOverviewTabs();
 
 function renderOverview(){
@@ -78,6 +86,16 @@ function renderOverview(){
   bindOverviewTabs();
   const body=document.getElementById('overviewBody');
   if(!body)return;
+  const classPane=document.getElementById('overviewClassPane');
+  const classBtn=document.getElementById('ovClassTab');
+  const classTab=ovTab==='class'&&classPane&&!(classBtn&&classBtn.hidden);
+  if(classPane)classPane.hidden=!classTab;
+  body.hidden=classTab;
+  if(classTab){
+    if(ovFitRO){ovFitRO.disconnect();ovFitRO=null;}
+    renderClass();
+    return;
+  }
   try{
     if(ovTab==='specialized')renderSpecializedOverview(body);
     else renderGeneralOverview(body);

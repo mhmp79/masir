@@ -1142,13 +1142,58 @@ body.creating-block .pool-drop-wrap {
 .week-view.narrow .wv-block span,
 .week-view.narrow .wv-act span,
 .week-view.narrow .wv-exam span { font-size: 6.5px; }
-.week-view.month-view .wv-scroll > * { min-width: 1280px; }
-.week-view.month-view .wv-day { padding: 5px 0; font-size: 8px; }
-.week-view.month-view .wv-day b { font-size: 10px; }
-.week-view.month-view .wv-block span,
-.week-view.month-view .wv-act span,
-.week-view.month-view .wv-exam span { font-size: 6px; }
 .wv-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ============ MONTH CALENDAR ============ */
+.month-cal { padding: 2px 2px 6px; }
+.mc-weekdays,
+.mc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.mc-weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,.42);
+  padding: 3px 0 5px;
+}
+.mc-cell {
+  min-height: 78px;
+  padding: 6px 5px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background .15s ease, border-color .15s ease;
+}
+.mc-cell:hover { background: rgba(255,255,255,.06); }
+.mc-cell.adjacent { opacity: .32; }
+.mc-cell.today { border-color: rgba(34,211,238,.7); }
+.mc-cell.sel { background: linear-gradient(135deg, rgba(124,92,255,.5), rgba(34,211,238,.35)); border-color: transparent; }
+.mc-day { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.mc-day b { font-size: 12px; }
+.mc-exam-dot { width: 5px; height: 5px; border-radius: 50%; background: #eab308; }
+.mc-events { display: flex; flex-direction: column; gap: 3px; }
+.mc-chip {
+  display: block;
+  border-right: 2px solid var(--chip, #7c5cff);
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: rgba(255,255,255,.07);
+  font-size: 9px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mc-more { font-size: 9px; color: rgba(255,255,255,.45); }
+.mc-hint { margin-top: 8px; text-align: center; font-size: 10px; color: rgba(255,255,255,.34); }
+@media (max-width: 560px) {
+  .mc-grid { gap: 3px; }
+  .mc-cell { min-height: 62px; padding: 4px 3px; border-radius: 8px; }
+  .mc-day { margin-bottom: 3px; }
+  .mc-day b { font-size: 10px; }
+  .mc-chip { font-size: 8px; padding: 1px 3px; }
+}
 
 /* ============ GRID VIEWS ============ */
 .grid-card { display: flex; flex-direction: column; gap: 8px; }

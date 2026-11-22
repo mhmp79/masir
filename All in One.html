@@ -2485,13 +2485,58 @@ body.creating-block .pool-drop-wrap {
 .week-view.narrow .wv-block span,
 .week-view.narrow .wv-act span,
 .week-view.narrow .wv-exam span { font-size: 6.5px; }
-.week-view.month-view .wv-scroll > * { min-width: 1280px; }
-.week-view.month-view .wv-day { padding: 5px 0; font-size: 8px; }
-.week-view.month-view .wv-day b { font-size: 10px; }
-.week-view.month-view .wv-block span,
-.week-view.month-view .wv-act span,
-.week-view.month-view .wv-exam span { font-size: 6px; }
 .wv-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ============ MONTH CALENDAR ============ */
+.month-cal { padding: 2px 2px 6px; }
+.mc-weekdays,
+.mc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.mc-weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,.42);
+  padding: 3px 0 5px;
+}
+.mc-cell {
+  min-height: 78px;
+  padding: 6px 5px;
+  border-radius: 11px;
+  border: 1px solid rgba(255,255,255,.07);
+  background: rgba(255,255,255,.025);
+  cursor: pointer;
+  overflow: hidden;
+  transition: background .15s ease, border-color .15s ease;
+}
+.mc-cell:hover { background: rgba(255,255,255,.06); }
+.mc-cell.adjacent { opacity: .32; }
+.mc-cell.today { border-color: rgba(34,211,238,.7); }
+.mc-cell.sel { background: linear-gradient(135deg, rgba(124,92,255,.5), rgba(34,211,238,.35)); border-color: transparent; }
+.mc-day { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.mc-day b { font-size: 12px; }
+.mc-exam-dot { width: 5px; height: 5px; border-radius: 50%; background: #eab308; }
+.mc-events { display: flex; flex-direction: column; gap: 3px; }
+.mc-chip {
+  display: block;
+  border-right: 2px solid var(--chip, #7c5cff);
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: rgba(255,255,255,.07);
+  font-size: 9px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mc-more { font-size: 9px; color: rgba(255,255,255,.45); }
+.mc-hint { margin-top: 8px; text-align: center; font-size: 10px; color: rgba(255,255,255,.34); }
+@media (max-width: 560px) {
+  .mc-grid { gap: 3px; }
+  .mc-cell { min-height: 62px; padding: 4px 3px; border-radius: 8px; }
+  .mc-day { margin-bottom: 3px; }
+  .mc-day b { font-size: 10px; }
+  .mc-chip { font-size: 8px; padding: 1px 3px; }
+}
 
 /* ============ GRID VIEWS ============ */
 .grid-card { display: flex; flex-direction: column; gap: 8px; }
@@ -10612,16 +10657,12 @@ function drawSleepPhoneStrip(x,W,pad,boxY,d){
 /* ============================================================
    TIMELINE — روز
    ============================================================ */
-/* The image timeline follows the same vertical time rail as the app's day
-   plan. Every strip keeps its exact minute position and duration; overlaps use
-   side-by-side lanes instead of stretching or shifting blocks. */
-const REPORT_TIMELINE_HOUR_H = 18;
-const REPORT_TIMELINE_DAY_HEIGHT = 64 + 24 * REPORT_TIMELINE_HOUR_H + 56;
-
-function reportTimelineVerticalLayout(items,startMin,endMin,hourH){
+/* The image timeline keeps the compact frame from before the block-width
+   changes. Every block sits on the exact minute axis; overlaps use lanes. */
+function reportTimelineExactLayout(items,tlW,startMin,endMin){
   const domainStart=+startMin||0,domainEnd=+endMin||domainStart+1440;
   const span=Math.max(1,domainEnd-domainStart);
-  const pxPerMin=(+hourH||REPORT_TIMELINE_HOUR_H)/60;
+  const pxPerMin=tlW/span;
   const list=(items||[]).filter(Boolean).map((item,index)=>{
     const start=+(item.startMin!=null?item.startMin:item.start)||0;
     const end=item.endMin!=null?+item.endMin:start+(+item.durMin||0);
@@ -10631,18 +10672,17 @@ function reportTimelineVerticalLayout(items,startMin,endMin,hourH){
   const laneEnds=[];
   list.forEach(item=>{
     const start=Math.max(domainStart,item.start),end=Math.min(domainEnd,item.end);
-    const top=(start-domainStart)*pxPerMin;
-    const height=Math.max(1,(end-start)*pxPerMin);
-    let lane=laneEnds.findIndex(laneEnd=>laneEnd<=top+.5);
+    const left=(start-domainStart)*pxPerMin;
+    const right=(end-domainStart)*pxPerMin;
+    let lane=laneEnds.findIndex(laneEnd=>laneEnd<=left+.5);
     if(lane<0){lane=laneEnds.length;laneEnds.push(0);}
-    laneEnds[lane]=top+height;
+    laneEnds[lane]=right;
     item._layoutStart=start;item._layoutEnd=end;
-    item.top=top;item.height=height;item._lane=lane;
+    item.left=left;item.width=Math.max(1,right-left);item._lane=lane;
   });
   return {blocks:list,lanes:Math.max(1,laneEnds.length),pxPerMin};
 }
 
-/* Only the item name is drawn inside a strip; the hour rail is the clock. */
 function reportTimelineItemName(item){
   if(!item)return '';
   if(item._kind==='sleep')return '🌙 خواب';
@@ -10655,48 +10695,38 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
   x.textAlign='right';
   x.fillStyle='#fff';
   x.font='700 34px Vazirmatn, Tahoma, sans-serif';
-  x.fillText('تایم لاین روز',R,y0+28);
+  x.fillText('تایم لاین فعالیت ها',R,y0+28);
   x.textAlign='left';
   x.fillStyle='rgba(255,255,255,.4)';
   x.font='500 20px Vazirmatn, Tahoma, sans-serif';
   x.fillText(`${minToStr(START_MIN)} تا ${minToStr(END_MIN)}`,pad+10,y0+28);
 
-  const railW=118,railGap=14;
-  const axisLeft=pad+16,axisRight=R-railW-railGap;
-  const axisW=Math.max(120,axisRight-axisLeft);
-  const top=y0+64,hourH=REPORT_TIMELINE_HOUR_H;
-  const pxPerMin=hourH/60;
-  const totalH=Math.max(1,END_MIN-START_MIN)*pxPerMin;
+  const tlLeft=pad+10,tlRight=W-pad-10;
+  const tlW=tlRight-tlLeft;
+  const tlTop=y0+60,tlH=130;
+  const totalRange=Math.max(1,END_MIN-START_MIN);
 
-  rr(x,pad+8,top-10,W-2*pad-16,totalH+20,22);
-  const trackGrad=x.createLinearGradient(pad+8,top-10,pad+8,top+totalH+10);
+  rr(x,tlLeft,tlTop,tlW,tlH,22);
+  const trackGrad=x.createLinearGradient(tlLeft,tlTop,tlLeft,tlTop+tlH);
   trackGrad.addColorStop(0,'rgba(255,255,255,.10)');
   trackGrad.addColorStop(.5,'rgba(255,255,255,.05)');
   trackGrad.addColorStop(1,'rgba(255,255,255,.02)');
   x.fillStyle=trackGrad;x.fill();
   x.strokeStyle='rgba(255,255,255,.18)';x.lineWidth=2;x.stroke();
 
-  /* Hour rail: one row per hour, with a stronger line every three hours. */
-  for(let m=START_MIN;m<=END_MIN;m+=60){
-    const gy=top+(m-START_MIN)*pxPerMin;
-    const major=m%180===0;
-    x.beginPath();x.moveTo(axisLeft,gy);x.lineTo(axisRight,gy);
-    x.strokeStyle=major?'rgba(255,255,255,.16)':'rgba(255,255,255,.07)';
-    x.lineWidth=major?1.5:1;x.stroke();
-    x.textAlign='right';x.textBaseline='middle';
-    x.fillStyle=major?'rgba(255,255,255,.65)':'rgba(255,255,255,.36)';
-    x.font=(major?'700 ':'500 ')+'15px Vazirmatn, Tahoma, sans-serif';
-    x.fillText(minToStr(m),R,gy);
+  const tickStep=180;
+  for(let m=Math.ceil(START_MIN/tickStep)*tickStep;m<=END_MIN;m+=tickStep){
+    const hx=tlLeft+(m-START_MIN)/totalRange*tlW;
+    x.beginPath();x.moveTo(hx,tlTop+10);x.lineTo(hx,tlTop+tlH-10);
+    x.strokeStyle='rgba(255,255,255,.08)';x.lineWidth=1;x.stroke();
+    const clampedHx=Math.max(tlLeft+24,Math.min(tlRight-24,hx));
+    x.textAlign='center';x.textBaseline='top';
+    x.fillStyle='rgba(255,255,255,.42)';
+    x.font='500 17px Vazirmatn, Tahoma, sans-serif';
+    x.fillText(minToStr(m),clampedHx,tlTop+tlH+12);
   }
-  x.save();
-  x.setLineDash([3,4]);
-  for(let m=START_MIN+30;m<END_MIN;m+=60){
-    const gy=top+(m-START_MIN)*pxPerMin;
-    x.beginPath();x.moveTo(axisLeft,gy);x.lineTo(axisRight,gy);
-    x.strokeStyle='rgba(255,255,255,.05)';x.lineWidth=1;x.stroke();
-  }
-  x.restore();
 
+  const blockY=tlTop+24,blockH=tlH-48;
   const allTimelineItems=[
     ...d.acts.map(a=>({...a,_kind:'study'})),
     ...(d.timelineOtherActs||[]).map(a=>({...a,_kind:'other'})),
@@ -10707,74 +10737,95 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     x.textAlign='center';x.textBaseline='middle';
     x.fillStyle='rgba(255,255,255,.35)';
     x.font='500 22px Vazirmatn, Tahoma, sans-serif';
-    x.fillText('مطالعه‌ای ثبت نشده',axisLeft+axisW/2,top+totalH/2);
+    x.fillText('مطالعه‌ای ثبت نشده',tlLeft+tlW/2,tlTop+tlH/2);
   }else{
-    const layout=reportTimelineVerticalLayout(allTimelineItems,START_MIN,END_MIN,hourH);
-    const laneCount=Math.max(1,layout.lanes);
-    const laneGap=8;
-    const laneW=Math.max(18,(axisW-(laneCount-1)*laneGap)/laneCount);
+    /* No minimum width or scaling: the painted width is the real duration. */
+    const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN);
+    const by=blockY+2;
+    const laneH=Math.max(8,Math.min(26,Math.floor((blockH-4)/layout.lanes)));
+    const bh=Math.max(6,laneH-4);
+    const rad=Math.min(8,bh/2);
 
     layout.blocks.forEach(a=>{
-      const bx=axisLeft+a._lane*(laneW+laneGap);
-      const by=top+a.top;
-      const bh=Math.max(1.5,a.height);
-      if(bx+2>=axisRight||by+bh>top+totalH+1)return;
-      const rad=Math.min(7,bh/2);
+      const bx=tlLeft+a.left;
+      const bw=Math.max(1,Math.min(a.width,tlLeft+tlW-bx));
+      const byLane=by+a._lane*laneH;
+      if(bw<=0||byLane+bh>tlTop+tlH-4)return;
       const label=reportTimelineItemName(a);
+      const timeLabel=`${minToStr(a._layoutStart)}–${minToStr(a._layoutEnd)}`;
 
       if(a._kind==='sleep'){
         x.save();
-        rr(x,bx+1,by,laneW-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         x.fillStyle='rgba(99,102,241,.28)';x.fill();
         x.clip();
         x.strokeStyle='rgba(99,102,241,.70)';x.lineWidth=2;
-        for(let i=-bh;i<laneW+bh;i+=8){x.beginPath();x.moveTo(bx+i,by);x.lineTo(bx+i+bh,by+bh);x.stroke();}
+        for(let i=-bh;i<bw+bh;i+=8){x.beginPath();x.moveTo(bx+i,byLane);x.lineTo(bx+i+bh,byLane+bh);x.stroke();}
         x.restore();
-        rr(x,bx+1,by,laneW-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         x.strokeStyle='rgba(99,102,241,.88)';x.lineWidth=2;x.stroke();
+        if(bw>55&&bh>18){
+          x.fillStyle='#c7d2fe';
+          x.font='700 11px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(label,bx+bw/2,byLane+bh/2-6);
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.fillStyle='rgba(199,210,254,.8)';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
+        }else if(bw>34&&bh>12){
+          x.fillStyle='#c7d2fe';
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
+        }
       }else{
         const c=subjColor(a.subject);
         const isOther=a._kind==='other';
         x.save();
         x.shadowColor=c+'aa';
-        x.shadowBlur=12;x.shadowOffsetY=1;
-        rr(x,bx+1,by,laneW-2,bh,rad);
-        const grad=x.createLinearGradient(bx,by,bx+laneW,by+bh);
+        x.shadowBlur=18;x.shadowOffsetY=2;
+        rr(x,bx+1,byLane,bw-2,bh,rad);
+        const grad=x.createLinearGradient(bx,byLane,bx,byLane+bh);
         grad.addColorStop(0,c+'ee');
         grad.addColorStop(.5,c+'bb');
         grad.addColorStop(1,c+'88');
         x.fillStyle=grad;x.fill();
         x.restore();
-        rr(x,bx+1,by,laneW-2,bh,rad);
+        rr(x,bx+1,byLane,bw-2,bh,rad);
         if(isOther){
-          x.strokeStyle='rgba(255,255,255,.7)';x.lineWidth=1.6;
+          x.strokeStyle='rgba(255,255,255,.7)';x.lineWidth=1.8;
           x.setLineDash([4,3]);x.stroke();x.setLineDash([]);
         }else{
-          x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.4;x.stroke();
+          x.strokeStyle='rgba(255,255,255,.4)';x.lineWidth=1.5;x.stroke();
         }
-      }
-
-      if(bh>=12&&laneW>34){
-        x.save();
-        rr(x,bx+1,by,laneW-2,bh,rad);x.clip();
-        let name=label;
-        x.font='700 11px Vazirmatn, Tahoma, sans-serif';
-        while(name.length>1&&x.measureText(name).width>laneW-12)name=name.slice(0,-1);
-        if(name!==label&&name.length>1)name+='…';
-        x.fillStyle=a._kind==='sleep'?'#c7d2fe':'#fff';
-        x.textAlign='center';x.textBaseline='middle';
-        x.fillText(name,bx+laneW/2,by+bh/2);
-        x.restore();
+        if(bw>58&&bh>18){
+          let name=label;
+          while(x.measureText(name).width>bw-10&&name.length>2)name=name.slice(0,-1);
+          x.fillStyle='#fff';
+          x.textAlign='center';x.textBaseline='middle';
+          x.font='700 10px Vazirmatn, Tahoma, sans-serif';
+          x.fillText(name,bx+bw/2,byLane+bh/2-6);
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.fillStyle='rgba(255,255,255,.78)';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2+7);
+        }else if(bw>34&&bh>12){
+          x.fillStyle='#fff';
+          x.font='600 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(timeLabel,bx+bw/2,byLane+bh/2);
+        }else if(bw>24&&bh>12){
+          let name=label;
+          while(x.measureText(name).width>bw-8&&name.length>2)name=name.slice(0,-1);
+          x.fillStyle='#fff';
+          x.font='700 9px Vazirmatn, Tahoma, sans-serif';
+          x.textAlign='center';x.textBaseline='middle';
+          x.fillText(name,bx+bw/2,byLane+bh/2);
+        }
       }
     });
   }
 
-  x.textAlign='left';x.textBaseline='middle';
-  x.fillStyle='rgba(255,255,255,.32)';
-  x.font='500 14px Vazirmatn, Tahoma, sans-serif';
-  x.fillText('هر نوار دقیقاً بر اساس ساعت شروع و پایان خود قرار می گیرد',pad+10,top+totalH+30);
-
-  return y0+REPORT_TIMELINE_DAY_HEIGHT;
+  return y0+260;
 }
 
 /* ============================================================
@@ -11261,7 +11312,7 @@ async function generateDailyReportCanvas(kind,anchor,options){
   const heights={
     title:350,
     stats:opts.stats?measureStatsHeight(opts):0,
-    timeline:opts.timeline?(isDay?REPORT_TIMELINE_DAY_HEIGHT:(56+32+7*52+70)):0,
+    timeline:opts.timeline?(isDay?260:(56+32+7*52+70)):0,
     charts:opts.charts?measureChartsHeight(d):0,
     details:opts.details?measureDetailsHeight(d):0,
     footer:180
@@ -12247,9 +12298,6 @@ function applyDrop(st, target) {
 function onTimelineSwipeStart(e) {
   if (e.pointerType !== 'touch') return;
   if (!e.target.closest('#tlBody')) return;
-  /* The month grid is wider than the screen and scrolls sideways itself. Keep
-     touch gestures native there so swiping does not change the whole month. */
-  if (tlMode === 'month' && e.target.closest('.wv-scroll')) return;
   if (e.target.closest('.tl-block, .tl-activity, .tl-exam, .tl-sleep, .reserved-bar, [data-sid], button, input, .tl-hour, .resize-handle, .grid-header, .tl-mode-row')) return;
   if (dragState || createDragState) return;
   if (document.getElementById('modalBackdrop')?.classList.contains('show')) return;
@@ -12425,7 +12473,7 @@ function renderAdjacentTimelineHTML(targetDir) {
   try {
     if (savedMode === 'month') {
       shiftTimelineAnchor(targetDir);
-      html = renderTimelineMulti(monthKeysOf(calYear, calMonth));
+      html = renderTimelineMonth();
     } else {
       const step = timelineStepDays();
       const targetJdn = jdnFromKey(calSelected) + targetDir * step;
@@ -12521,7 +12569,7 @@ function renderTimelineBody() {
   if (tlMode === 'day') {
     body.innerHTML = renderTimelineDay(calSelected);
   } else if (tlMode === 'month') {
-    body.innerHTML = renderTimelineMulti(monthKeysOf(calYear, calMonth));
+    body.innerHTML = renderTimelineMonth();
   } else {
     const keys = tlMode === '3day'
       ? Array.from({ length: 3 }, (_, i) => jKey(d2j(jdnFromKey(calSelected) + i)))
@@ -12529,6 +12577,18 @@ function renderTimelineBody() {
     body.innerHTML = renderTimelineMulti(keys);
   }
   bindCardsInContainer(body);
+  body.querySelectorAll('.mc-cell[data-key]').forEach(cell => {
+    cell.onclick = () => {
+      calSelected = cell.dataset.key;
+      const j = parseKey(calSelected);
+      calYear = j.jy;
+      calMonth = j.jm;
+      tlMode = 'day';
+      syncCompat();
+      renderCalendar();
+      renderViewContent();
+    };
+  });
   body.querySelectorAll('[data-drop-timeline]').forEach(tl => {
     tl.addEventListener('pointerdown', onTimelinePointerDown);
   });
@@ -12792,9 +12852,69 @@ function renderTimelineDay(dayKey) {
   return reservedBar + `<div class="timeline" data-drop-timeline="${dayKey}">${html}</div>`;
 }
 
+function monthDayItems(dayKey) {
+  const timed = timedOfDay(dayKey);
+  const linkedIds = new Set(timed.map(s => s.activityId).filter(Boolean));
+  const recorded = state.activities.filter(a =>
+    a.date === dayKey && a.startMin != null && a.endMin != null && !linkedIds.has(a.id)
+  );
+  const exams = state.settings.examsEnabled
+    ? state.exams.filter(e => e.date === dayKey && e.startMin != null)
+    : [];
+  return [
+    ...timed.map(s => ({ ...s, _monthKind: 'session' })),
+    ...recorded.map(a => ({ ...a, _monthKind: 'activity' })),
+    ...exams.map(e => ({ ...e, _monthKind: 'exam' }))
+  ].sort((a, b) => (+a.startMin || 0) - (+b.startMin || 0));
+}
+
+function renderTimelineMonth() {
+  const firstJdn = j2d(calYear, calMonth, 1);
+  const startCol = dowIndex(firstJdn);
+  const len = jMonthLength(calYear, calMonth);
+  const cellCount = Math.ceil((startCol + len) / 7) * 7;
+  let html = `<div class="month-cal" role="grid" aria-label="${MONTHS[calMonth - 1]} ${fa(calYear)}">
+    <div class="mc-weekdays">${DOW_SHORT.map(d => `<span>${d}</span>`).join('')}</div>
+    <div class="mc-grid">`;
+
+  for (let i = 0; i < cellCount; i++) {
+    const jdn = firstJdn - startCol + i;
+    const j = d2j(jdn);
+    const k = jKey(j);
+    const adjacent = i < startCol || j.jm !== calMonth || j.jy !== calYear;
+    const items = adjacent ? [] : monthDayItems(k);
+    const hasExam = !adjacent && state.settings.examsEnabled && state.exams.some(e => e.date === k);
+    const cls = ['mc-cell'];
+    if (adjacent) cls.push('adjacent');
+    if (k === TODAY_KEY) cls.push('today');
+    if (k === calSelected) cls.push('sel');
+
+    const chips = items.slice(0, 2).map(item => {
+      const label = item._monthKind === 'exam'
+        ? `📝 ${item.name || 'امتحان'}`
+        : item._monthKind === 'activity'
+          ? (item.topic || item.subject || 'فعالیت')
+          : (item.subject || 'مطالعه');
+      const range = itemTimeRange(item);
+      const time = range ? ` · ${minToStr(range.start)}–${minToStr(range.end)}` : '';
+      const color = item._monthKind === 'exam' ? '#eab308' : subjColor(item.subject);
+      return `<span class="mc-chip" style="--chip:${color}" title="${esc(label + time)}">${esc(label)}</span>`;
+    }).join('');
+    const more = items.length > 2 ? `<span class="mc-more">+${fa(items.length - 2)}</span>` : '';
+
+    html += `<div class="${cls.join(' ')}" data-key="${k}" role="gridcell" aria-label="${fa(j.jd)} ${MONTHS[j.jm - 1]}">
+      <div class="mc-day"><b>${fa(j.jd)}</b>${hasExam ? '<i class="mc-exam-dot"></i>' : ''}</div>
+      <div class="mc-events">${chips}${more}</div>
+    </div>`;
+  }
+
+  html += `</div><div class="mc-hint">برای دیدن تایم لاین روز، روی یک تاریخ کلیک کنید</div></div>`;
+  return html;
+}
+
 function renderTimelineMulti(keys) {
   const cols = keys.length;
-  const wrapper = cols > 14 ? 'week-view narrow month-view' : cols >= 7 ? 'week-view narrow' : 'week-view';
+  const wrapper = cols >= 7 ? 'week-view narrow' : 'week-view';
   const head = `<div class="wv-head" style="--cols:${cols}"><div></div>${keys.map(k => {
     const j = parseKey(k);
     const kd = j2d(j.jy, j.jm, j.jd);

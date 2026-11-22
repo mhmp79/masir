@@ -300,7 +300,15 @@
 #activityTimerPane #trkPct.negative { color: #fda4af; }
 #activityTimerPane #trkPct.positive { color: #6ee7b7; }
 #activityTimerPane .trk-coef-row { display: flex; gap: 8px; align-items: stretch; }
-#activityTimerPane .trk-coef-row select { flex: 1; min-width: 0; }
+#activityTimerPane .trk-fixed-coef {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 11px;
+  background: rgba(0,0,0,.22);
+  color: #8b94ad; font-size: 12px; font-weight: 700;
+  padding: 8px 12px;
+}
 #activityTimerPane .trk-clear-sm {
   flex: 0 0 44px; width: 44px; min-height: 42px;
   border-radius: 11px;
@@ -380,7 +388,7 @@
   #activityTimerPane .trk-summary span { font-size: 9.5px; }
   #activityTimerPane .trk-summary b { font-size: 15px; }
   #activityTimerPane .trk-coef-row { gap: 4px; }
-  #activityTimerPane .trk-coef-row select { font-size: 11px; padding: 6px 8px; }
+  #activityTimerPane .trk-fixed-coef { font-size: 11px; padding: 6px 8px; }
   #activityTimerPane .trk-clear-sm { flex: 0 0 38px; width: 38px; min-height: 36px; font-size: 15px; }
   #activityTimerPane .tools-divider { margin: 10px 0; }
   #activityTimerPane .section-label { font-size: 11.5px; margin-bottom: 6px; }

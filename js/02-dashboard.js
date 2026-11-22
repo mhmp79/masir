@@ -701,7 +701,7 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     /* No minimum width or scaling: the painted width is the real duration. */
     const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN);
     const by=blockY+2;
-    const laneH=Math.max(8,Math.min(26,Math.floor((blockH-4)/layout.lanes)));
+    const laneH=Math.max(8,Math.floor((blockH-4)/layout.lanes));
     const bh=Math.max(6,laneH-4);
     const rad=Math.min(8,bh/2);
 

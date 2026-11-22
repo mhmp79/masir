@@ -587,7 +587,7 @@ function currentTrackerPayload() {
       wrong: Math.max(0, +trkCounts.wrong || 0),
       blank: Math.max(0, +trkCounts.blank || 0)
     },
-    coef: (typeof trkCoef !== 'undefined' && isFinite(+trkCoef)) ? +trkCoef : 0
+    coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)
   };
 }
 function trackerSignatureOf(payload) {
@@ -601,7 +601,7 @@ function applyRemoteTracker(remoteTracker) {
     wrong: Math.max(0, +counts.wrong || 0),
     blank: Math.max(0, +counts.blank || 0)
   };
-  if (typeof trkCoef !== 'undefined' && isFinite(+remoteTracker.coef)) trkCoef = +remoteTracker.coef;
+  trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
   try { saveTracker(); } catch (e) { console.warn('[PB] saving tracker failed:', e); }
 }
 
@@ -692,7 +692,7 @@ function buildUploadRecords() {
             wrong: Math.max(0, +trkCounts.wrong || 0),
             blank: Math.max(0, +trkCounts.blank || 0)
           },
-          coef: (typeof trkCoef !== 'undefined' && isFinite(+trkCoef)) ? +trkCoef : 0
+          coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)
         }
       }
     });

@@ -290,6 +290,10 @@ test('RESTORED: image report keeps the compact frame with exact minute blocks', 
     'daily image timeline must use the exact horizontal layout');
   assert.ok(section.includes('tlTop=y0+60,tlH=130') && section.includes('const tickStep=180'),
     'the original compact frame geometry must be restored');
+  assert.ok(section.includes('const laneH=Math.max(8,Math.floor((blockH-4)/layout.lanes));'),
+    'blocks must fill their lane at normal height');
+  assert.ok(!section.includes('Math.min(26') && !section.includes('Math.min(30'),
+    'the short compact block-height cap must be gone');
   assert.ok(section.includes('timeLabel') && section.includes('x.fillText(timeLabel'),
     'original blocks show their real start-end range');
   assert.ok(!section.includes('widthScale') && !section.includes('minVisualWidth'),
@@ -303,6 +307,45 @@ test('RESTORED: image report keeps the compact frame with exact minute blocks', 
   assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'other', subject: 'دیگر', topic: 'سایر' }), 'سایر');
   assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'sleep' }), '🌙 خواب');
   assert.ok(section.includes('reportTimelineItemName(a)'), 'original name labels must be restored');
+});
+
+test('REWORK: activity heading is gone and test penalty is fixed at 1/3', () => {
+  const html = read('index.html');
+  assert.ok(!html.includes('میخوام بخونم — تایمر + شمارنده تست'),
+    'the timer/test-counter heading must be removed');
+  assert.ok(html.includes('id="timerToggle"') && html.includes('id="trkClear"'),
+    'the timer and counter tools themselves stay available');
+  assert.ok(!html.includes('id="trkCoef"'), 'the negative-coefficient select must be removed');
+  assert.ok(!html.includes('ضریب نمره منفی</label>'), 'the old coefficient label must be removed');
+  assert.ok(html.includes('۱/۳ نمره منفی (کنکور)'), 'the fixed Konkur penalty must be shown');
+
+  const stored = { coef: 1 };
+  let written = null;
+  const ctx = loadFunctions('js/04-activity.js', ['loadTracker', 'saveTracker'], {
+    TRK_KEY: 'konkur-trk-v1',
+    TRK_COEF: 1 / 3,
+    trkCounts: { correct: 0, wrong: 0, blank: 0 },
+    trkCoef: 1,
+    localStorage: {
+      getItem: () => JSON.stringify({ correct: 2, wrong: 1, blank: 0, coef: stored.coef }),
+      setItem: (key, value) => { written = { key, value }; }
+    },
+    window: {}
+  });
+  ctx.loadTracker();
+  assert.strictEqual(ctx.trkCoef, 1 / 3, 'stored custom coefficients must not override 1/3');
+  ctx.saveTracker();
+  assert.strictEqual(JSON.parse(written.value).coef, 1 / 3, 'saved tracker data must use 1/3');
+  assert.deepStrictEqual(JSON.parse(written.value), { correct: 2, wrong: 1, blank: 0, coef: 1 / 3 });
+
+  const activity = read('js/04-activity.js');
+  assert.ok(activity.includes('const TRK_COEF=1/3;'), 'the app must define one fixed penalty constant');
+  assert.ok(!activity.includes('trkCoef=+d.coef') && !activity.includes("getElementById('trkCoef')"),
+    'no loader or select can change the penalty');
+  assert.ok(!read('js/11-backup.js').includes('trkCoef = +tracker.coef'),
+    'backup restore must not bring back a custom penalty');
+  assert.ok(!read('js/12-pocketbase.js').includes('trkCoef = +remoteTracker.coef'),
+    'sync must not apply a remote custom penalty');
 });
 
 test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
@@ -800,7 +843,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r37'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r38'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

@@ -319,10 +319,8 @@ async function importBackup(file){
         };
         try { saveTracker(); } catch(_) {}
       }
-      if(tracker.coef != null && isFinite(+tracker.coef)){
-        trkCoef = +tracker.coef;
-        try { saveTracker(); } catch(_) {}
-      }
+      trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
+      try { saveTracker(); } catch(_) {}
     }
 
     save();
@@ -341,7 +339,7 @@ async function clearAllData(){
   if(!confirm('همه داده‌ها پاک شوند؟ این عملیات قابل بازگشت نیست.')) return;
   replaceTrackedState(defaultState(), true);
   trkCounts = { correct: 0, wrong: 0, blank: 0 };
-  trkCoef = 1 / 3;
+  trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
   try{
     localStorage.removeItem(LS_KEY);
     localStorage.removeItem(TRK_KEY);

@@ -262,44 +262,47 @@ test('BUGFIX: note/question/answer edits are tracked as question sync mutations'
   assert.strictEqual(questionMutation.record().value.answerText, 'جواب تازه');
 });
 
-test('REWORK: image report uses an exact vertical minute rail', () => {
-  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineVerticalLayout', 'reportTimelineItemName']);
+test('RESTORED: image report keeps the compact frame with exact minute blocks', () => {
+  const ctx = loadFunctions('js/02-dashboard.js', ['reportTimelineExactLayout', 'reportTimelineItemName']);
   const items = [
     { id: 'a', startMin: 480, endMin: 540 },
     { id: 'b', startMin: 510, endMin: 570 },
     { id: 'c', startMin: 600, endMin: 615 }
   ];
-  const out = ctx.reportTimelineVerticalLayout(items, 0, 1440, 18);
+  const out = ctx.reportTimelineExactLayout(items, 960, 0, 1440);
   assert.strictEqual(out.blocks.length, 3);
-  assert.strictEqual(out.blocks[0].top, 144, '08:00 sits at 8 * 18px on the hour rail');
-  assert.strictEqual(out.blocks[0].height, 18, 'a 60 minute block is exactly one hour tall');
-  assert.strictEqual(out.blocks[1].top, 153, 'overlapping items keep their real minute position');
-  assert.strictEqual(out.blocks[1]._lane, 1, 'overlaps use side-by-side lanes');
-  assert.strictEqual(out.blocks[2].top, 180, 'gaps stay proportional');
+  assert.strictEqual(out.blocks[0].left, 320, '08:00 stays at one third of the compact axis');
+  assert.ok(Math.abs(out.blocks[0].width - 40) < 0.001, 'a 60 minute block is exactly 40px wide');
+  assert.strictEqual(out.blocks[1].left, 340, 'overlapping items keep their real x position');
+  assert.strictEqual(out.blocks[1]._lane, 1, 'overlaps use lanes instead of shifting blocks');
+  assert.strictEqual(out.blocks[2].left, 400, 'gaps stay proportional');
   assert.strictEqual(out.blocks[2]._lane, 0, 'a later non-overlapping item reuses the first lane');
   assert.strictEqual(out.lanes, 2);
 
   const dashboard = read('js/02-dashboard.js');
   const section = dashboard.slice(dashboard.indexOf('function drawReportTimelineDaySection'),
     dashboard.indexOf('function drawReportTimelineWeekSection'));
-  const shortOnly = ctx.reportTimelineVerticalLayout([{ startMin: 600, endMin: 615 }], 0, 1440, 18);
-  assert.strictEqual(shortOnly.blocks[0].height, 4.5, '15 minutes stays 15 minutes tall, not stretched');
-  const endOnly = ctx.reportTimelineVerticalLayout([{ startMin: 1435, endMin: 1440 }], 0, 1440, 18);
-  assert.ok(endOnly.blocks[0].top + endOnly.blocks[0].height <= 432, 'the last block stays inside the rail');
-  assert.ok(section.includes('reportTimelineVerticalLayout(allTimelineItems,START_MIN,END_MIN,hourH)'),
-    'daily image timeline must use the exact vertical layout');
-  assert.ok(section.includes('m+=60') && section.includes('minToStr(m)'),
-    'the hour rail must label every real hour');
-  assert.ok(!section.includes('reportTimelineImageLayout') && !section.includes('widthScale'),
-    'stretched horizontal blocks must be gone');
-  assert.ok(dashboard.includes('(isDay?REPORT_TIMELINE_DAY_HEIGHT:'),
-    'canvas height must reserve space for the readable vertical rail');
+  const shortOnly = ctx.reportTimelineExactLayout([{ startMin: 600, endMin: 615 }], 960, 0, 1440);
+  assert.strictEqual(shortOnly.blocks[0].width, 10, '15 minutes stays 10px, not widened to fit a label');
+  const endOnly = ctx.reportTimelineExactLayout([{ startMin: 1435, endMin: 1440 }], 960, 0, 1440);
+  assert.ok(endOnly.blocks[0].left + endOnly.blocks[0].width <= 960, 'the last block stays inside the frame');
+  assert.ok(section.includes('reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN)'),
+    'daily image timeline must use the exact horizontal layout');
+  assert.ok(section.includes('tlTop=y0+60,tlH=130') && section.includes('const tickStep=180'),
+    'the original compact frame geometry must be restored');
+  assert.ok(section.includes('timeLabel') && section.includes('x.fillText(timeLabel'),
+    'original blocks show their real start-end range');
+  assert.ok(!section.includes('widthScale') && !section.includes('minVisualWidth'),
+    'block stretching and minimum-width widening must be gone');
+  assert.ok(!dashboard.includes('REPORT_TIMELINE_DAY_HEIGHT') && !dashboard.includes('reportTimelineVerticalLayout'),
+    'the temporary vertical rail must be gone');
+  assert.ok(dashboard.includes('(isDay?260:'),
+    'canvas height must match the restored compact section');
 
   assert.strictEqual(ctx.reportTimelineItemName({ subject: 'ریاضی' }), 'ریاضی');
   assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'other', subject: 'دیگر', topic: 'سایر' }), 'سایر');
   assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'sleep' }), '🌙 خواب');
-  assert.ok(section.includes('reportTimelineItemName(a)'), 'blocks still show only the item name');
-  assert.ok(!section.includes('timeLabel'), 'blocks must not print clock times inside them');
+  assert.ok(section.includes('reportTimelineItemName(a)'), 'original name labels must be restored');
 });
 
 test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
@@ -363,7 +366,7 @@ test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
     'time ranges need their own line in narrow volume cells');
 });
 
-test('FEAT: timeline adds a month mode beside week', () => {
+test('FEAT: timeline month mode renders a real Persian calendar', () => {
   const calendar = {
     j2d: (jy, jm, jd) => jy * 360 + (jm - 1) * 30 + jd,
     d2j: (n) => {
@@ -371,9 +374,22 @@ test('FEAT: timeline adds a month mode beside week', () => {
       const rem = (n - 1) % 360;
       return { jy, jm: Math.floor(rem / 30) + 1, jd: rem % 30 + 1 };
     },
-    jKey: (j) => `${j.jy}/${j.jm}/${j.jd}`
+    jKey: (j) => `${j.jy}/${j.jm}/${j.jd}`,
+    dowIndex: () => 0,
+    jMonthLength: () => 30,
+    MONTHS: Array(12).fill('ماه'),
+    DOW_SHORT: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+    TODAY_KEY: '1404/1/1',
+    calYear: 1404,
+    calMonth: 1,
+    calSelected: '1404/1/1',
+    state: { activities: [], exams: [], settings: { examsEnabled: false } },
+    timedOfDay: () => [{ id: 's1', subject: 'ریاضی', startMin: 480, durMin: 60 }],
+    minToStr: (m) => `T${m}`
   };
-  const ctx = loadFunctions('js/03-plan.js', ['shiftPersianMonth', 'monthKeysOf'], calendar);
+  const ctx = loadFunctions('js/03-plan.js',
+    ['shiftPersianMonth', 'monthKeysOf', 'itemTimeRange', 'monthDayItems', 'renderTimelineMonth'],
+    calendar);
   const moved = ctx.shiftPersianMonth(1403, 12, 1);
   assert.strictEqual(`${moved.jy}/${moved.jm}`, '1404/1');
   const back = ctx.shiftPersianMonth(1404, 1, -1);
@@ -386,20 +402,38 @@ test('FEAT: timeline adds a month mode beside week', () => {
   assert.strictEqual(keys[0], '1404/1/1');
   assert.strictEqual(keys[keys.length - 1], '1404/1/30');
 
+  const html = ctx.renderTimelineMonth();
+  assert.ok(html.includes('class="month-cal"'), 'month mode must render a calendar');
+  assert.ok(html.includes('class="mc-weekdays"') && html.includes('class="mc-grid"'),
+    'calendar needs a weekday header and a 7-column grid');
+  const cellCount = (html.match(/data-key="\d+\/\d+\/\d+"/g) || []).length;
+  const adjacentCount = (html.match(/class="mc-cell adjacent"/g) || []).length;
+  assert.strictEqual(cellCount - adjacentCount, 30,
+    'every day of the Persian month gets one calendar cell');
+  assert.strictEqual(adjacentCount, 5, 'the final week is padded to a full row');
+  assert.ok(html.includes('class="mc-chip"'), 'calendar cells must show the day plan');
+  assert.ok(html.includes('class="mc-hint"'), 'calendar must explain how to open a day');
+  assert.ok(!html.includes('week-view') && !html.includes('wv-scroll'),
+    'the wide timeline strip must be gone');
+
   const plan = read('js/03-plan.js');
   assert.ok(plan.includes('<button data-tlmode="month"'), 'month must sit beside the week button');
   assert.ok(plan.includes("if (tlMode === 'month') return `${MONTHS[calMonth - 1]} ${fa(calYear)}`;"),
     'month mode needs a month-and-year title');
-  assert.ok(plan.includes('body.innerHTML = renderTimelineMulti(monthKeysOf(calYear, calMonth));'),
-    'month mode must render the whole month timeline');
+  assert.ok(plan.includes('body.innerHTML = renderTimelineMonth();'),
+    'month mode must render the calendar');
+  assert.ok(plan.includes('html = renderTimelineMonth();'),
+    'swipe previews must render the calendar too');
+  assert.ok(plan.includes("tlMode = 'day';"), 'clicking a calendar day must open its day timeline');
   assert.ok(plan.includes("if (tlMode === 'month') return calYear === TODAY_J.jy && calMonth === TODAY_J.jm;"),
     'the today shortcut must recognize the current month');
   assert.ok(plan.includes('shiftTimelineAnchor(+btn.dataset.nav)'),
     'month navigation must advance one month, not a fixed number of days');
-  assert.ok(plan.includes("if (tlMode === 'month' && e.target.closest('.wv-scroll')) return;"),
-    'month swipes must scroll the wide grid instead of changing months');
-  assert.ok(read('css/07-plan.css').includes('.week-view.month-view .wv-scroll > *'),
-    'month timeline needs its own scrollable styling');
+  assert.ok(!plan.includes('month-view'), 'the removed wide month strip must not linger');
+  const css = read('css/07-plan.css');
+  assert.ok(css.includes('.month-cal') && css.includes('.mc-grid'),
+    'calendar needs its own responsive styling');
+  assert.ok(!css.includes('.week-view.month-view'), 'old month-strip styling must be removed');
 });
 
 test('REWORK: dashboard report dialog uses the plan export design', () => {
@@ -766,7 +800,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r36'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r37'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

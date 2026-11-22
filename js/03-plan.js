@@ -919,9 +919,6 @@ function applyDrop(st, target) {
 function onTimelineSwipeStart(e) {
   if (e.pointerType !== 'touch') return;
   if (!e.target.closest('#tlBody')) return;
-  /* The month grid is wider than the screen and scrolls sideways itself. Keep
-     touch gestures native there so swiping does not change the whole month. */
-  if (tlMode === 'month' && e.target.closest('.wv-scroll')) return;
   if (e.target.closest('.tl-block, .tl-activity, .tl-exam, .tl-sleep, .reserved-bar, [data-sid], button, input, .tl-hour, .resize-handle, .grid-header, .tl-mode-row')) return;
   if (dragState || createDragState) return;
   if (document.getElementById('modalBackdrop')?.classList.contains('show')) return;
@@ -1097,7 +1094,7 @@ function renderAdjacentTimelineHTML(targetDir) {
   try {
     if (savedMode === 'month') {
       shiftTimelineAnchor(targetDir);
-      html = renderTimelineMulti(monthKeysOf(calYear, calMonth));
+      html = renderTimelineMonth();
     } else {
       const step = timelineStepDays();
       const targetJdn = jdnFromKey(calSelected) + targetDir * step;
@@ -1193,7 +1190,7 @@ function renderTimelineBody() {
   if (tlMode === 'day') {
     body.innerHTML = renderTimelineDay(calSelected);
   } else if (tlMode === 'month') {
-    body.innerHTML = renderTimelineMulti(monthKeysOf(calYear, calMonth));
+    body.innerHTML = renderTimelineMonth();
   } else {
     const keys = tlMode === '3day'
       ? Array.from({ length: 3 }, (_, i) => jKey(d2j(jdnFromKey(calSelected) + i)))
@@ -1201,6 +1198,18 @@ function renderTimelineBody() {
     body.innerHTML = renderTimelineMulti(keys);
   }
   bindCardsInContainer(body);
+  body.querySelectorAll('.mc-cell[data-key]').forEach(cell => {
+    cell.onclick = () => {
+      calSelected = cell.dataset.key;
+      const j = parseKey(calSelected);
+      calYear = j.jy;
+      calMonth = j.jm;
+      tlMode = 'day';
+      syncCompat();
+      renderCalendar();
+      renderViewContent();
+    };
+  });
   body.querySelectorAll('[data-drop-timeline]').forEach(tl => {
     tl.addEventListener('pointerdown', onTimelinePointerDown);
   });
@@ -1464,9 +1473,69 @@ function renderTimelineDay(dayKey) {
   return reservedBar + `<div class="timeline" data-drop-timeline="${dayKey}">${html}</div>`;
 }
 
+function monthDayItems(dayKey) {
+  const timed = timedOfDay(dayKey);
+  const linkedIds = new Set(timed.map(s => s.activityId).filter(Boolean));
+  const recorded = state.activities.filter(a =>
+    a.date === dayKey && a.startMin != null && a.endMin != null && !linkedIds.has(a.id)
+  );
+  const exams = state.settings.examsEnabled
+    ? state.exams.filter(e => e.date === dayKey && e.startMin != null)
+    : [];
+  return [
+    ...timed.map(s => ({ ...s, _monthKind: 'session' })),
+    ...recorded.map(a => ({ ...a, _monthKind: 'activity' })),
+    ...exams.map(e => ({ ...e, _monthKind: 'exam' }))
+  ].sort((a, b) => (+a.startMin || 0) - (+b.startMin || 0));
+}
+
+function renderTimelineMonth() {
+  const firstJdn = j2d(calYear, calMonth, 1);
+  const startCol = dowIndex(firstJdn);
+  const len = jMonthLength(calYear, calMonth);
+  const cellCount = Math.ceil((startCol + len) / 7) * 7;
+  let html = `<div class="month-cal" role="grid" aria-label="${MONTHS[calMonth - 1]} ${fa(calYear)}">
+    <div class="mc-weekdays">${DOW_SHORT.map(d => `<span>${d}</span>`).join('')}</div>
+    <div class="mc-grid">`;
+
+  for (let i = 0; i < cellCount; i++) {
+    const jdn = firstJdn - startCol + i;
+    const j = d2j(jdn);
+    const k = jKey(j);
+    const adjacent = i < startCol || j.jm !== calMonth || j.jy !== calYear;
+    const items = adjacent ? [] : monthDayItems(k);
+    const hasExam = !adjacent && state.settings.examsEnabled && state.exams.some(e => e.date === k);
+    const cls = ['mc-cell'];
+    if (adjacent) cls.push('adjacent');
+    if (k === TODAY_KEY) cls.push('today');
+    if (k === calSelected) cls.push('sel');
+
+    const chips = items.slice(0, 2).map(item => {
+      const label = item._monthKind === 'exam'
+        ? `📝 ${item.name || 'امتحان'}`
+        : item._monthKind === 'activity'
+          ? (item.topic || item.subject || 'فعالیت')
+          : (item.subject || 'مطالعه');
+      const range = itemTimeRange(item);
+      const time = range ? ` · ${minToStr(range.start)}–${minToStr(range.end)}` : '';
+      const color = item._monthKind === 'exam' ? '#eab308' : subjColor(item.subject);
+      return `<span class="mc-chip" style="--chip:${color}" title="${esc(label + time)}">${esc(label)}</span>`;
+    }).join('');
+    const more = items.length > 2 ? `<span class="mc-more">+${fa(items.length - 2)}</span>` : '';
+
+    html += `<div class="${cls.join(' ')}" data-key="${k}" role="gridcell" aria-label="${fa(j.jd)} ${MONTHS[j.jm - 1]}">
+      <div class="mc-day"><b>${fa(j.jd)}</b>${hasExam ? '<i class="mc-exam-dot"></i>' : ''}</div>
+      <div class="mc-events">${chips}${more}</div>
+    </div>`;
+  }
+
+  html += `</div><div class="mc-hint">برای دیدن تایم لاین روز، روی یک تاریخ کلیک کنید</div></div>`;
+  return html;
+}
+
 function renderTimelineMulti(keys) {
   const cols = keys.length;
-  const wrapper = cols > 14 ? 'week-view narrow month-view' : cols >= 7 ? 'week-view narrow' : 'week-view';
+  const wrapper = cols >= 7 ? 'week-view narrow' : 'week-view';
   const head = `<div class="wv-head" style="--cols:${cols}"><div></div>${keys.map(k => {
     const j = parseKey(k);
     const kd = j2d(j.jy, j.jm, j.jd);

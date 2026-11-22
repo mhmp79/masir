@@ -637,7 +637,8 @@ function renderPhoneEntryList(){
    ============================================================ */
 
 let trkCounts={correct:0,wrong:0,blank:0};
-let trkCoef=1/3;
+const TRK_COEF=1/3;
+let trkCoef=TRK_COEF;
 const TRK_KEY='konkur-trk-v1';
 
 function loadTracker(){
@@ -645,12 +646,12 @@ function loadTracker(){
     const d=JSON.parse(localStorage.getItem(TRK_KEY)||'null');
     if(d){
       trkCounts={correct:Math.max(0,+d.correct||0),wrong:Math.max(0,+d.wrong||0),blank:Math.max(0,+d.blank||0)};
-      trkCoef=+d.coef||1/3;
     }
   }catch(e){}
+  trkCoef=TRK_COEF;
 }
 function saveTracker(){
-  try{localStorage.setItem(TRK_KEY,JSON.stringify({...trkCounts,coef:trkCoef}));}catch(e){}
+  try{localStorage.setItem(TRK_KEY,JSON.stringify({...trkCounts,coef:TRK_COEF}));}catch(e){}
   try{ if(typeof window._trackerSaveHook==='function') window._trackerSaveHook(); }catch(e){}
 }
 
@@ -659,8 +660,6 @@ function renderTracker(){
     const k=inp.dataset.input;
     inp.value=trkCounts[k]>0?String(trkCounts[k]):'';
   });
-  const coef=document.getElementById('trkCoef');
-  if(coef)coef.value=String(trkCoef);
   const total=trkCounts.correct+trkCounts.wrong+trkCounts.blank;
   const totalEl=document.getElementById('trkTotal');
   if(totalEl)totalEl.textContent=fa(total);
@@ -693,9 +692,6 @@ document.querySelectorAll('.trk-input[data-input]').forEach(inp=>{
     saveTracker();renderTracker();
   };
 });
-const _trkCoefEl=document.getElementById('trkCoef');
-if(_trkCoefEl)_trkCoefEl.onchange=(e)=>{trkCoef=parseFloat(e.target.value)||0;saveTracker();renderTracker();};
-
 const _trkClearEl=document.getElementById('trkClear');
 if(_trkClearEl)_trkClearEl.onclick=()=>{trkCounts={correct:0,wrong:0,blank:0};saveTracker();renderTracker();toast('پاک شد');};
 

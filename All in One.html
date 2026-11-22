@@ -3198,7 +3198,15 @@ body.creating-block .pool-drop-wrap {
 #activityTimerPane #trkPct.negative { color: #fda4af; }
 #activityTimerPane #trkPct.positive { color: #6ee7b7; }
 #activityTimerPane .trk-coef-row { display: flex; gap: 8px; align-items: stretch; }
-#activityTimerPane .trk-coef-row select { flex: 1; min-width: 0; }
+#activityTimerPane .trk-fixed-coef {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 11px;
+  background: rgba(0,0,0,.22);
+  color: #8b94ad; font-size: 12px; font-weight: 700;
+  padding: 8px 12px;
+}
 #activityTimerPane .trk-clear-sm {
   flex: 0 0 44px; width: 44px; min-height: 42px;
   border-radius: 11px;
@@ -3278,7 +3286,7 @@ body.creating-block .pool-drop-wrap {
   #activityTimerPane .trk-summary span { font-size: 9.5px; }
   #activityTimerPane .trk-summary b { font-size: 15px; }
   #activityTimerPane .trk-coef-row { gap: 4px; }
-  #activityTimerPane .trk-coef-row select { font-size: 11px; padding: 6px 8px; }
+  #activityTimerPane .trk-fixed-coef { font-size: 11px; padding: 6px 8px; }
   #activityTimerPane .trk-clear-sm { flex: 0 0 38px; width: 38px; min-height: 36px; font-size: 15px; }
   #activityTimerPane .tools-divider { margin: 10px 0; }
   #activityTimerPane .section-label { font-size: 11.5px; margin-bottom: 6px; }
@@ -7034,7 +7042,6 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
           <div id="activityTimerPane">
             <div class="card unified-tools-card" id="unifiedToolsCard">
-              <div class="card-title">⏱ میخوام بخونم — تایمر + شمارنده تست</div>
               <div class="timer-block">
                 <div class="timer-mode-tabs">
                   <button data-tmode="stopwatch" class="active">⏱ کرنومتر</button>
@@ -7114,15 +7121,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
                   <div><span>تعداد کل</span><b id="trkTotal" class="text-violet">۰</b></div>
                   <div><span>درصد</span><b id="trkPct" class="pct-mute">۰٪</b></div>
                 </div>
-                <label class="lbl">ضریب نمره منفی</label>
                 <div class="trk-coef-row">
-                  <select class="input" id="trkCoef">
-                    <option value="0">بدون نمره منفی</option>
-                    <option value="0.333333">۱/۳ نمره منفی (کنکور)</option>
-                    <option value="0.25">۱/۴ نمره منفی</option>
-                    <option value="0.5">۱/۲ نمره منفی</option>
-                    <option value="1">۱ نمره منفی</option>
-                  </select>
+                  <div class="trk-fixed-coef">۱/۳ نمره منفی (کنکور)</div>
                   <button class="trk-clear-sm" id="trkClear" title="پاک کردن شمارنده">↺</button>
                 </div>
               </div>
@@ -10742,7 +10742,7 @@ function drawReportTimelineDaySection(x,W,pad,y0,d){
     /* No minimum width or scaling: the painted width is the real duration. */
     const layout=reportTimelineExactLayout(allTimelineItems,tlW,START_MIN,END_MIN);
     const by=blockY+2;
-    const laneH=Math.max(8,Math.min(26,Math.floor((blockH-4)/layout.lanes)));
+    const laneH=Math.max(8,Math.floor((blockH-4)/layout.lanes));
     const bh=Math.max(6,laneH-4);
     const rad=Math.min(8,bh/2);
 
@@ -14377,7 +14377,8 @@ function renderPhoneEntryList(){
    ============================================================ */
 
 let trkCounts={correct:0,wrong:0,blank:0};
-let trkCoef=1/3;
+const TRK_COEF=1/3;
+let trkCoef=TRK_COEF;
 const TRK_KEY='konkur-trk-v1';
 
 function loadTracker(){
@@ -14385,12 +14386,12 @@ function loadTracker(){
     const d=JSON.parse(localStorage.getItem(TRK_KEY)||'null');
     if(d){
       trkCounts={correct:Math.max(0,+d.correct||0),wrong:Math.max(0,+d.wrong||0),blank:Math.max(0,+d.blank||0)};
-      trkCoef=+d.coef||1/3;
     }
   }catch(e){}
+  trkCoef=TRK_COEF;
 }
 function saveTracker(){
-  try{localStorage.setItem(TRK_KEY,JSON.stringify({...trkCounts,coef:trkCoef}));}catch(e){}
+  try{localStorage.setItem(TRK_KEY,JSON.stringify({...trkCounts,coef:TRK_COEF}));}catch(e){}
   try{ if(typeof window._trackerSaveHook==='function') window._trackerSaveHook(); }catch(e){}
 }
 
@@ -14399,8 +14400,6 @@ function renderTracker(){
     const k=inp.dataset.input;
     inp.value=trkCounts[k]>0?String(trkCounts[k]):'';
   });
-  const coef=document.getElementById('trkCoef');
-  if(coef)coef.value=String(trkCoef);
   const total=trkCounts.correct+trkCounts.wrong+trkCounts.blank;
   const totalEl=document.getElementById('trkTotal');
   if(totalEl)totalEl.textContent=fa(total);
@@ -14433,9 +14432,6 @@ document.querySelectorAll('.trk-input[data-input]').forEach(inp=>{
     saveTracker();renderTracker();
   };
 });
-const _trkCoefEl=document.getElementById('trkCoef');
-if(_trkCoefEl)_trkCoefEl.onchange=(e)=>{trkCoef=parseFloat(e.target.value)||0;saveTracker();renderTracker();};
-
 const _trkClearEl=document.getElementById('trkClear');
 if(_trkClearEl)_trkClearEl.onclick=()=>{trkCounts={correct:0,wrong:0,blank:0};saveTracker();renderTracker();toast('پاک شد');};
 
@@ -20275,10 +20271,8 @@ async function importBackup(file){
         };
         try { saveTracker(); } catch(_) {}
       }
-      if(tracker.coef != null && isFinite(+tracker.coef)){
-        trkCoef = +tracker.coef;
-        try { saveTracker(); } catch(_) {}
-      }
+      trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
+      try { saveTracker(); } catch(_) {}
     }
 
     save();
@@ -20297,7 +20291,7 @@ async function clearAllData(){
   if(!confirm('همه داده‌ها پاک شوند؟ این عملیات قابل بازگشت نیست.')) return;
   replaceTrackedState(defaultState(), true);
   trkCounts = { correct: 0, wrong: 0, blank: 0 };
-  trkCoef = 1 / 3;
+  trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
   try{
     localStorage.removeItem(LS_KEY);
     localStorage.removeItem(TRK_KEY);
@@ -20923,7 +20917,7 @@ function currentTrackerPayload() {
       wrong: Math.max(0, +trkCounts.wrong || 0),
       blank: Math.max(0, +trkCounts.blank || 0)
     },
-    coef: (typeof trkCoef !== 'undefined' && isFinite(+trkCoef)) ? +trkCoef : 0
+    coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)
   };
 }
 function trackerSignatureOf(payload) {
@@ -20937,7 +20931,7 @@ function applyRemoteTracker(remoteTracker) {
     wrong: Math.max(0, +counts.wrong || 0),
     blank: Math.max(0, +counts.blank || 0)
   };
-  if (typeof trkCoef !== 'undefined' && isFinite(+remoteTracker.coef)) trkCoef = +remoteTracker.coef;
+  trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
   try { saveTracker(); } catch (e) { console.warn('[PB] saving tracker failed:', e); }
 }
 
@@ -21028,7 +21022,7 @@ function buildUploadRecords() {
             wrong: Math.max(0, +trkCounts.wrong || 0),
             blank: Math.max(0, +trkCounts.blank || 0)
           },
-          coef: (typeof trkCoef !== 'undefined' && isFinite(+trkCoef)) ? +trkCoef : 0
+          coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)
         }
       }
     });

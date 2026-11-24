@@ -1,0 +1,43 @@
+<!-- MASIR_WIDGETS_START -->
+<activity
+    android:name=".WidgetSyncActivity"
+    android:exported="true"
+    android:excludeFromRecents="true"
+    android:theme="@android:style/Theme.Translucent.NoTitleBar">
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="masirwidget" android:host="sync" />
+    </intent-filter>
+</activity>
+
+<receiver android:name=".TodayWidgetProvider" android:exported="false" android:label="@string/widget_today_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/today_widget_info" />
+</receiver>
+<receiver android:name=".WeekWidgetProvider" android:exported="false" android:label="@string/widget_week_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/week_widget_info" />
+</receiver>
+<receiver android:name=".WeekTrendWidgetProvider" android:exported="false" android:label="@string/widget_week_trend_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/week_trend_widget_info" />
+</receiver>
+<receiver android:name=".MonthWidgetProvider" android:exported="false" android:label="@string/widget_month_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/month_widget_info" />
+</receiver>
+<receiver android:name=".SubjectsWidgetProvider" android:exported="false" android:label="@string/widget_subjects_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/subjects_widget_info" />
+</receiver>
+<receiver android:name=".ExamTrendWidgetProvider" android:exported="false" android:label="@string/widget_exam_trend_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_trend_widget_info" />
+</receiver>
+<receiver android:name=".ExamTagsWidgetProvider" android:exported="false" android:label="@string/widget_exam_tags_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_tags_widget_info" />
+</receiver>
+<!-- MASIR_WIDGETS_END -->

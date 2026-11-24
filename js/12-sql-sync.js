@@ -91,6 +91,11 @@ function defaultSqlBaseUrl() {
 
 function sqlBaseUrl() {
   try {
+    /* On the production domain the SQL API lives behind the same origin at /api.
+       Drop any stale URL saved on an older domain so sync never targets it. */
+    if (!window.MASIR_SQL_API_URL && window.location && /^masir\.ir$/i.test(window.location.hostname || '')) {
+      localStorage.removeItem(SQL_API_URL_KEY);
+    }
     const saved = localStorage.getItem(SQL_API_URL_KEY);
     if (saved) return normalizeSqlBaseUrl(saved);
   } catch (e) {}
@@ -1377,6 +1382,9 @@ function renderAccountUI(loggedIn, phone, online, busy, lastSync) {
   const studentButtons = role === 'student'
     ? accountActionButton('accountPairAdvisorBtn', 'اتصال مشاور', 'ghost')
     : '';
+  const widgetButtons = (window.masirWidgets && typeof window.masirWidgets.isTwa === 'function' && window.masirWidgets.isTwa())
+    ? accountActionButton('accountWidgetsBtn', 'ویجتهای اندروید', 'ghost')
+    : '';
   box.innerHTML = `
     <div class="account-row">
       <span class="account-avatar">${esc(initial)}</span>
@@ -1388,7 +1396,7 @@ function renderAccountUI(loggedIn, phone, online, busy, lastSync) {
     </div>
     <div class="account-actions">
       ${accountActionButton('accountPasswordBtn', 'تغییر رمز', 'ghost')}
-      ${adminButtons}${advisorButtons}${studentButtons}
+      ${adminButtons}${advisorButtons}${studentButtons}${widgetButtons}
     </div>`;
 
   const bind = (id, handler) => {
@@ -1408,6 +1416,13 @@ function renderAccountUI(loggedIn, phone, online, busy, lastSync) {
   bind('accountAdminBtn', openAuth('admin'));
   bind('accountAdvisorCodeBtn', openAuth('advisor-code'));
   bind('accountPairAdvisorBtn', openAuth('pair-advisor'));
+  bind('accountWidgetsBtn', () => {
+    if (!window.masirWidgets || !window.masirWidgets.enable()) {
+      toast('این قابلیت فقط در برنامه اندروید موجود است');
+      return;
+    }
+    toast('ویجتهای مسیر بهروز شدند ✓');
+  });
 }
 
 function renderSyncUI() {

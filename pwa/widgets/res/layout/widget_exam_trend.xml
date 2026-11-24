@@ -1,0 +1,25 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/widget_card" android:padding="12dp">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="12sp" android:textStyle="bold" android:text="تراز آزمونها" />
+  <TextView android:id="@+id/widget_empty" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="10sp" android:textColor="@color/widget_muted" />
+  
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp">
+    <TextView android:id="@+id/exam0" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="9.5sp" />
+    <TextView android:id="@+id/value0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FCD34D" android:textSize="11sp" android:textStyle="bold" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp">
+    <TextView android:id="@+id/exam1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="9.5sp" />
+    <TextView android:id="@+id/value1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FCD34D" android:textSize="11sp" android:textStyle="bold" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp">
+    <TextView android:id="@+id/exam2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="9.5sp" />
+    <TextView android:id="@+id/value2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FCD34D" android:textSize="11sp" android:textStyle="bold" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp">
+    <TextView android:id="@+id/exam3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="9.5sp" />
+    <TextView android:id="@+id/value3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FCD34D" android:textSize="11sp" android:textStyle="bold" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp">
+    <TextView android:id="@+id/exam4" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="9.5sp" />
+    <TextView android:id="@+id/value4" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#FCD34D" android:textSize="11sp" android:textStyle="bold" />
+  </LinearLayout>
+</LinearLayout>

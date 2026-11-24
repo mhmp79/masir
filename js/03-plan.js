@@ -2198,7 +2198,7 @@ async function generatePlanWeekCanvas(weekStartJdnVal) {
 
   cx.fillStyle = 'rgba(255,255,255,.55)';
   cx.font = '600 26px Vazirmatn, Tahoma, sans-serif';
-  cx.fillText('مسیر کنکور • برنامه‌ریزی هفتگی', R, pad + 26);
+  cx.fillText('مسیر • برنامه‌ریزی هفتگی', R, pad + 26);
   cx.fillStyle = '#fff';
   cx.font = '800 54px Vazirmatn, Tahoma, sans-serif';
   cx.fillText(weekLabelTxt, R, pad + 100);

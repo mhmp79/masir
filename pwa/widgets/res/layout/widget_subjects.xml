@@ -1,0 +1,24 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/widget_card" android:padding="12dp">
+  <TextView android:id="@+id/widget_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="12sp" android:textStyle="bold" />
+  
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+    <View android:id="@+id/dot0" android:layout_width="9dp" android:layout_height="9dp" android:layout_marginTop="4dp" android:background="@color/widget_primary" />
+    <TextView android:id="@+id/subject0" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="7dp" android:textColor="@color/widget_text" android:textSize="11sp" />
+    <TextView android:id="@+id/pct0" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="10.5sp" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+    <View android:id="@+id/dot1" android:layout_width="9dp" android:layout_height="9dp" android:layout_marginTop="4dp" android:background="@color/widget_primary" />
+    <TextView android:id="@+id/subject1" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="7dp" android:textColor="@color/widget_text" android:textSize="11sp" />
+    <TextView android:id="@+id/pct1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="10.5sp" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+    <View android:id="@+id/dot2" android:layout_width="9dp" android:layout_height="9dp" android:layout_marginTop="4dp" android:background="@color/widget_primary" />
+    <TextView android:id="@+id/subject2" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="7dp" android:textColor="@color/widget_text" android:textSize="11sp" />
+    <TextView android:id="@+id/pct2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="10.5sp" />
+  </LinearLayout>
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
+    <View android:id="@+id/dot3" android:layout_width="9dp" android:layout_height="9dp" android:layout_marginTop="4dp" android:background="@color/widget_primary" />
+    <TextView android:id="@+id/subject3" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:layout_marginStart="7dp" android:textColor="@color/widget_text" android:textSize="11sp" />
+    <TextView android:id="@+id/pct3" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/widget_muted" android:textSize="10.5sp" />
+  </LinearLayout>
+</LinearLayout>

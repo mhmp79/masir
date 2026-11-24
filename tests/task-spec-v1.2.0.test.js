@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r45', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r46', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r45'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r46'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1125,7 +1125,7 @@ test('REWORK: settings stays inside the app shell with visible active tabs', () 
   const topbar = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>'));
   assert.ok(topbar.includes('id="settingsBackBtn"'), 'back button replaces the app logo');
   assert.ok(topbar.includes('id="appLogo"'));
-  assert.ok(topbar.includes('id="brandTitle"') && topbar.includes('>مسیر کنکور<'));
+  assert.ok(topbar.includes('id="brandTitle"') && topbar.includes('>مسیر<'));
   assert.ok(topbar.includes('id="settingsTitle"') && topbar.includes('>تنظیمات<'));
   const settingsCss = overlays.slice(overlays.indexOf('/* SETTINGS — lives inside the app shell'), overlays.indexOf('#gaBody>.flt-card{'));
   assert.ok(/#settingsOverlay\{\s*position:fixed;inset:0;z-index:0/.test(settingsCss));
@@ -1324,6 +1324,157 @@ test('FIX: first sync downloads before uploading so a new device cannot wipe an 
     'a different account must be seeded from clean defaults, not the previous account');
   assert.ok(sync.includes('accountSwitchPending = false;'));
 });
+
+test('BRAND: login uses the real app logo and the short name مسیر', () => {
+  const auth = read('js/14-auth-ui.js');
+  const css = read('css/16-auth.css');
+  assert.ok(auth.includes('<div class="auth-logo" role="img" aria-label="مسیر"></div>'),
+    'auth shell must render the real logo element twice');
+  assert.strictEqual((auth.match(/class="auth-logo"/g) || []).length, 2,
+    'both desktop hero and mobile header use the logo');
+  assert.ok(!auth.includes('auth-hero-mark'), 'the placeholder M mark is gone');
+  assert.ok(auth.includes('<div class="auth-hero-kicker">مسیر</div>'));
+  assert.ok(!auth.includes('مسیر کنکور'));
+  assert.ok(/url\('\.\.\/icons\/icon-192\.png'\)/.test(css), 'logo comes from the real app icon');
+  assert.ok(!/\.auth-hero-mark\{/.test(css), 'placeholder mark styling is gone');
+
+  const sourceFiles = [
+    'index.html', 'sw.js', 'manifest.json', 'css/16-auth.css',
+    'js/01-core.js', 'js/02-dashboard.js', 'js/03-plan.js', 'js/05-exam.js',
+    'js/09-reports.js', 'js/14-auth-ui.js', 'pwa/twa-manifest.json',
+    'pwa/app/build.gradle', 'pwa/app/src/main/res/values/strings.xml',
+    'pwa/app/src/main/res/raw/web_app_manifest.json', 'All in One.html'
+  ];
+  sourceFiles.forEach(rel => assert.ok(!read(rel).includes('مسیر کنکور'), `${rel} still has the old brand`));
+  const html = read('index.html');
+  assert.ok(html.includes('<title>مسیر</title>'));
+  assert.ok(html.includes('<meta name="application-name" content="مسیر">'));
+  assert.strictEqual(JSON.parse(read('manifest.json')).name, 'مسیر');
+  assert.strictEqual(JSON.parse(read('pwa/twa-manifest.json')).name, 'مسیر');
+});
+
+test('MOBILE: login card sits at the bottom with a compact welcome above it', () => {
+  const auth = read('js/14-auth-ui.js');
+  const css = read('css/16-auth.css');
+  const mobile = css.slice(css.indexOf('@media(max-width:760px)'));
+  assert.ok(auth.includes('class="auth-mobile-top"'));
+  assert.ok(auth.includes('class="auth-mobile-welcome"'));
+  assert.ok(auth.includes('class="auth-card"'));
+  assert.ok(auth.includes("login: { title: 'خوش آمدید'"));
+  assert.ok(/justify-content:space-between/.test(mobile), 'top copy and form use the full screen');
+  assert.ok(/\.auth-mobile-top\{[\s\S]*?padding:calc\(24px \+ env\(safe-area-inset-top\)\)/.test(mobile),
+    'welcome area respects the mobile status bar');
+  assert.ok(/\.auth-card\{[\s\S]*?margin-top:auto/.test(mobile),
+    'form card is pushed to the bottom on phones');
+  assert.ok(/\.auth-card::before\{[\s\S]*?width:38px;height:4px/.test(mobile),
+    'bottom card has a drag-handle style affordance');
+  assert.ok(/\.auth-card\{[\s\S]*?border-radius:26px 26px 0 0/.test(mobile),
+    'bottom sheet only rounds the top corners');
+  assert.ok(/\.auth-mobile-welcome h1\{[\s\S]*?font-size:32px/.test(mobile));
+  assert.ok(/\.auth-heading\{display:none\}/.test(mobile), 'duplicate desktop heading is hidden');
+});
+
+test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {
+  const twa = JSON.parse(read('pwa/twa-manifest.json'));
+  const manifest = JSON.parse(read('manifest.json'));
+  const gradle = read('pwa/app/build.gradle');
+  const strings = read('pwa/app/src/main/res/values/strings.xml');
+  const sync = read('js/12-sql-sync.js');
+  assert.strictEqual(twa.host, 'masir.ir');
+  assert.ok(twa.iconUrl.startsWith('https://masir.ir/'));
+  assert.ok(twa.maskableIconUrl.startsWith('https://masir.ir/'));
+  assert.ok(twa.webManifestUrl.startsWith('https://masir.ir/'));
+  assert.strictEqual(twa.fullScopeUrl, 'https://masir.ir/');
+  assert.strictEqual(twa.appVersionCode, 2);
+  assert.ok(gradle.includes("hostName: 'masir.ir'"));
+  assert.ok(gradle.includes("resValue \"string\", \"webManifestUrl\", 'https://masir.ir/manifest.json'"));
+  assert.ok(gradle.includes("resValue \"string\", \"fullScopeUrl\", 'https://masir.ir/'"));
+  assert.ok(gradle.includes('versionCode 2') && gradle.includes('versionName "0.9.5"'));
+  assert.ok(strings.includes('https://masir.ir'));
+  assert.ok(manifest.name === 'مسیر' && manifest.short_name === 'مسیر');
+  assert.ok(sync.includes('return normalizeSqlBaseUrl(window.location.origin);'), 'API stays same-origin');
+  assert.ok(/masir\\\.ir/.test(sync) && sync.includes('localStorage.removeItem(SQL_API_URL_KEY)'),
+    'stale custom server URLs are dropped on the production domain');
+});
+
+test('ADMIN: user creation guidance and controls are discoverable', () => {
+  const auth = read('js/14-auth-ui.js');
+  const sync = read('js/12-sql-sync.js');
+  assert.ok(auth.includes('تنظیمات ← حساب و همگامسازی ← مدیریت کاربران ← ایجاد کاربر'));
+  assert.ok(sync.includes("accountActionButton('accountAdminBtn', 'مدیریت کاربران'"));
+  assert.ok(sync.includes("role === 'admin'"));
+  assert.ok(auth.includes("action === 'admin-create'"));
+  assert.ok(read('js/13-sql-api.js').includes("this._request('/api/admin/users', { method: 'POST', body })"));
+});
+
+test('ANDROID: seven native widgets consume one dashboard snapshot', () => {
+  const dash = read('js/02-dashboard.js');
+  const bridge = read('js/15-widget-bridge.js');
+  const html = read('index.html');
+  const sw = read('sw.js');
+  const manifest = read('pwa/app/src/main/AndroidManifest.xml');
+  assert.ok(/function collectDashboardSnapshot\(/.test(dash), 'dashboard snapshot is generated in one place');
+  ['day:', 'week:', 'month:', 'subjects:', 'exams:', 'generatedAt', "app:'مسیر'"].forEach(token =>
+    assert.ok(dash.includes(token), `snapshot must expose ${token}`));
+  assert.ok(dash.includes('window.masirWidgets.update(s)'), 'dashboard publishes every refresh');
+  assert.ok(html.includes('js/15-widget-bridge.js') && sw.includes('js/15-widget-bridge.js'));
+  assert.ok(bridge.includes('const INTENT_PREFIX = \'intent://sync#Intent;scheme=masirwidget;package=app.masirkonkur.twa;S.d=\''));
+  assert.ok(syncHasWidgetButton(), 'account page exposes the Android widget refresh action');
+
+  const widgetNames = [
+    'TodayWidgetProvider', 'WeekWidgetProvider', 'WeekTrendWidgetProvider',
+    'MonthWidgetProvider', 'SubjectsWidgetProvider', 'ExamTrendWidgetProvider',
+    'ExamTagsWidgetProvider'
+  ];
+  widgetNames.forEach(name => {
+    assert.ok(manifest.includes(`android:name=".${name}"`), `${name} must be registered`);
+    assert.ok(fs.existsSync(path.join(ROOT, 'pwa', 'widgets', 'java', 'app', 'masirkonkur', 'twa', `${name}.java`)));
+    assert.ok(fs.existsSync(path.join(ROOT, 'pwa', 'app', 'src', 'main', 'java', 'app', 'masirkonkur', 'twa', `${name}.java`)));
+  });
+  assert.ok(manifest.includes('android:name=".WidgetSyncActivity"'));
+  assert.ok(fs.existsSync(path.join(ROOT, 'pwa', 'app', 'src', 'main', 'res', 'xml', 'month_widget_info.xml')));
+  assert.ok(fs.existsSync(path.join(ROOT, 'pwa', 'install_widgets.py')),
+    'generated Bubblewrap projects must be able to reinstall the widgets');
+
+  const fakeWindow = {
+    location: { href: '' },
+    matchMedia: () => ({ matches: true })
+  };
+  const sandbox = {
+    window: fakeWindow,
+    navigator: { userAgent: 'Masir Android' },
+    TextEncoder,
+    btoa: (value) => Buffer.from(value, 'binary').toString('base64')
+  };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(bridge, sandbox);
+  const snapshot = { v: 1, app: 'مسیر', day: { minutes: 75 } };
+  assert.strictEqual(sandbox.window.masirWidgets.update(snapshot), true);
+  assert.strictEqual(sandbox.window.masirWidgets.isTwa(), true);
+  assert.strictEqual(sandbox.window.masirWidgets.sync(snapshot), true);
+  const encoded = sandbox.window.masirWidgets.encode(snapshot);
+  assert.strictEqual(Buffer.from(encoded.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'),
+    JSON.stringify(snapshot));
+  assert.ok(fakeWindow.location.href.startsWith(sandbox.window.masirWidgets.INTENT_PREFIX));
+  assert.ok(fakeWindow.location.href.endsWith(sandbox.window.masirWidgets.INTENT_SUFFIX));
+
+  const desktopSandbox = {
+    window: { location: { href: '' }, matchMedia: () => ({ matches: true }) },
+    navigator: { userAgent: 'Mozilla/5.0 Chrome/120 Desktop' },
+    TextEncoder,
+    btoa: (value) => Buffer.from(value, 'binary').toString('base64')
+  };
+  desktopSandbox.globalThis = desktopSandbox;
+  vm.createContext(desktopSandbox);
+  vm.runInContext(bridge, desktopSandbox);
+  assert.strictEqual(desktopSandbox.window.masirWidgets.isTwa(), false,
+    'installed desktop PWA must not show Android widget controls');
+});
+
+function syncHasWidgetButton() {
+  return read('js/12-sql-sync.js').includes("accountActionButton('accountWidgetsBtn'");
+}
 
 console.log('TASK SPEC v1.2.0 — all phase checks');
 console.log(results.join('\n'));

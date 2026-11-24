@@ -261,13 +261,13 @@
 
     async _resolveUsersCollection() {
       if (this._usersCollection) return this._usersCollection;
-      for (const name of ['masir_users', 'users']) {
+      for (const name of ['users', 'masir_users']) {
         try {
           const res = await fetch(this.baseUrl + '/api/collections/' + encodeURIComponent(name) + '/auth-methods', { headers: { 'Accept': 'application/json' } });
           if (res.ok) { this._usersCollection = name; return name; }
         } catch (_) {}
       }
-      this._usersCollection = 'masir_users';
+      this._usersCollection = 'users';
       return this._usersCollection;
     }
 

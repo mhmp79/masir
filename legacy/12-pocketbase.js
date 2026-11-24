@@ -2760,13 +2760,9 @@ function syncStateBadge(online, loggedIn, busy) {
 function renderAccountUI(loggedIn, email, online, busy, lastSync) {
   const box = document.getElementById('accountUI');
   if (!box) return;
-  const stateKey = loggedIn
-    ? `in|${email}|${online}|${busy}|${lastSync}`
-    : 'out';
+  const stateKey = loggedIn ? `in|${email}|${online}|${busy}|${lastSync}` : 'out';
   const active = document.activeElement;
-  if (active && box.contains(active) &&
-      /^(INPUT|TEXTAREA|SELECT)$/.test(String(active.tagName || '').toUpperCase()) &&
-      accountRenderState === stateKey) return;
+  if (active && box.contains(active) && /^(INPUT|TEXTAREA|SELECT)$/.test(String(active.tagName || '').toUpperCase()) && accountRenderState === stateKey) return;
   accountRenderState = stateKey;
 
   if (loggedIn) {
@@ -2775,17 +2771,17 @@ function renderAccountUI(loggedIn, email, online, busy, lastSync) {
       <div class="account-row">
         <span class="account-avatar">${esc(initial)}</span>
         <div class="account-identity">
-          <div class="account-email" dir="ltr">${esc(email || '╪¡╪│╪º╪¿ ┘à╪¬╪╡┘ä')}</div>
-          <div class="account-sub"><span class="sync-status-${online ? 'online' : 'offline'}">${online ? '╪ó┘å┘ä╪º█î┘å' : '╪ó┘ü┘ä╪º█î┘å'}</span> ΓÇó ╪ó╪«╪▒█î┘å ╪│█î┘å┌⌐: ${esc(lastSync)}</div>
+          <div class="account-email" dir="ltr">${esc(email || 'حساب متصل')}</div>
+          <div class="account-sub"><span class="sync-status-${online ? 'online' : 'offline'}">${online ? 'آنلاین' : 'آفلاین'}</span> · آخرین سینک: ${esc(lastSync)}</div>
         </div>
-        <button class="btn ghost account-btn" id="syncLogoutBtn" ${busy ? 'disabled' : ''}>╪«╪▒┘ê╪¼</button>
+        <button class="btn ghost account-btn" id="syncLogoutBtn" ${busy ? 'disabled' : ''}>خروج</button>
       </div>`;
     const logoutBtn = document.getElementById('syncLogoutBtn');
     if (logoutBtn) logoutBtn.onclick = () => {
       if (busy) return;
-      if (!confirm('╪º╪▓ ╪¡╪│╪º╪¿ ┌⌐╪º╪▒╪¿╪▒█î ╪«╪º╪▒╪¼ ┘à█î╪┤┘ê█î╪»╪ƒ')) return;
+      if (!confirm('از حساب PocketBase قدیمی خارج می‌شوید؟')) return;
       logoutPocketBase();
-      toast('╪«╪º╪▒╪¼ ╪┤╪»█î╪»');
+      toast('خارج شد');
       renderSyncUI();
     };
     return;
@@ -2793,23 +2789,21 @@ function renderAccountUI(loggedIn, email, online, busy, lastSync) {
 
   box.innerHTML = `
     <div class="account-row">
-      <span class="account-avatar muted-avatar">≡ƒæñ</span>
+      <span class="account-avatar muted-avatar">☁️</span>
       <div class="account-identity">
-        <div class="account-email">╪¡╪│╪º╪¿ ┌⌐╪º╪▒╪¿╪▒█î ┘à╪¬╪╡┘ä ┘å█î╪│╪¬</div>
-        <div class="account-sub">╪¿╪▒╪º█î ┘ç┘à┌»╪º┘à╪│╪º╪▓█î ┘ê╪º╪▒╪» ╪┤┘ê█î╪»</div>
+        <div class="account-email">حساب PocketBase قدیمی متصل نیست</div>
+        <div class="account-sub">برای انتقال تدریجی، با ایمیل/رمز قدیمی وارد شوید</div>
       </div>
     </div>
     <div class="account-login-form">
-      <input class="input" id="syncEmail" type="email" placeholder="╪º█î┘à█î┘ä" dir="ltr" autocomplete="username" inputmode="email" aria-label="╪º█î┘à█î┘ä">
-      <input class="input" id="syncPassword" type="password" placeholder="╪▒┘à╪▓ ╪╣╪¿┘ê╪▒" autocomplete="current-password" aria-label="╪▒┘à╪▓ ╪╣╪¿┘ê╪▒">
-      <button class="btn primary" id="syncLoginBtn">┘ê╪▒┘ê╪»</button>
+      <input class="input" id="syncEmail" type="email" placeholder="ایمیل" dir="ltr" autocomplete="username" inputmode="email" aria-label="ایمیل">
+      <input class="input" id="syncPassword" type="password" placeholder="رمز عبور" autocomplete="current-password" aria-label="رمز عبور">
+      <button class="btn primary" id="syncLoginBtn">ورود PocketBase قدیمی</button>
       <div id="syncLoginError" class="sync-login-error"></div>
     </div>`;
   const loginBtn = document.getElementById('syncLoginBtn');
   const passwordEl = document.getElementById('syncPassword');
-  if (passwordEl) passwordEl.onkeydown = event => {
-    if (event.key === 'Enter') { event.preventDefault(); if (loginBtn) loginBtn.click(); }
-  };
+  if (passwordEl) passwordEl.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); if (loginBtn) loginBtn.click(); } };
   if (!loginBtn) return;
   loginBtn.onclick = async () => {
     const emailEl = document.getElementById('syncEmail');
@@ -2818,27 +2812,24 @@ function renderAccountUI(loggedIn, email, online, busy, lastSync) {
     const password = passwordEl ? passwordEl.value : '';
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
     if (!emailValue || !password) {
-      if (errEl) { errEl.textContent = '╪º█î┘à█î┘ä ┘ê ╪▒┘à╪▓ ╪╣╪¿┘ê╪▒ ╪▒╪º ┘ê╪º╪▒╪» ┌⌐┘å█î╪».'; errEl.classList.add('show'); }
+      if (errEl) { errEl.textContent = 'ایمیل و رمز عبور را کامل کنید.'; errEl.classList.add('show'); }
       return;
     }
     loginBtn.disabled = true;
-    loginBtn.textContent = 'ΓÅ│ΓÇª';
+    loginBtn.textContent = 'در حال ورود...';
     try {
       await loginWithPassword(emailValue, password);
       syncError = null;
-      syncNotice = autoSyncEnabled ? 'Γ£ô ┘ê╪º╪▒╪» ╪┤╪»█î╪»╪¢ ┘ç┘à┌»╪º┘à╪│╪º╪▓█î ╪«┘ê╪»┌⌐╪º╪▒ ╪ó╪║╪º╪▓ ╪┤╪».' : 'Γ£ô ┘ê╪º╪▒╪» ╪┤╪»█î╪».';
-      toast('Γ£ô ┘ê╪º╪▒╪» ╪┤╪»█î╪»');
+      syncNotice = 'ورود PocketBase قدیمی انجام شد.';
+      toast('✅ ورود انجام شد');
       renderSyncUI();
       startAutoSync();
       if (autoSyncEnabled) scheduleAutoCycle(300, 'login');
     } catch (error) {
       console.error('[PB] login failed:', error);
-      if (errEl) {
-        errEl.textContent = '╪«╪╖╪º ╪»╪▒ ┘ê╪▒┘ê╪»: ' + pocketBaseErrorMessage(error);
-        errEl.classList.add('show');
-      }
+      if (errEl) { errEl.textContent = 'خطا در ورود: ' + pocketBaseErrorMessage(error); errEl.classList.add('show'); }
       loginBtn.disabled = false;
-      loginBtn.textContent = '┘ê╪▒┘ê╪»';
+      loginBtn.textContent = 'ورود PocketBase قدیمی';
     }
   };
 }
@@ -2869,15 +2860,15 @@ function renderSyncUI() {
 
   box.innerHTML = `
     <div class="sync-card-head">
-      <div class="sync-card-title">┘ç┘à┌»╪º┘àΓÇî╪│╪º╪▓█î ╪º╪¿╪▒█î</div>
+      <div class="sync-card-title">PocketBase قدیمی (موقت)</div>
       <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
     </div>
     <div class="sync-pending-row">
-      <span class="sync-pending" id="syncPendingStatus">╪»╪▒ ╪¡╪º┘ä ╪¿╪▒╪▒╪│█î ╪¬╪║█î█î╪▒╪º╪¬ΓÇª</span>
+      <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
     </div>
-    <div class="sync-auto-note">┘ç┘à┌»╪º┘à ╪│╪º╪▓█î ╪«┘ê╪»┌⌐╪º╪▒ ┘ü╪╣╪º┘ä ╪º╪│╪¬╪¢ ╪¬╪║█î█î╪▒╪º╪¬ ╪¿┘ç ┘à╪¡╪╢ ╪º╪¬╪╡╪º┘ä ╪º╪▒╪│╪º┘ä ┘ê ╪»╪▒█î╪º┘ü╪¬ ┘à█î ╪┤┘ê┘å╪».</div>
+    <div class="sync-auto-note">برای انتقال تدریجی از ایمیل/رمز قدیمی استفاده کنید.</div>
     ${syncProgressMarkup()}
-    ${syncError ? `<div class="sync-login-error show">ΓÜá∩╕Å ${esc(syncError)}</div>` : ''}
+    ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
   `;
 
   if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);

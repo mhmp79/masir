@@ -1,7 +1,8 @@
 'use strict';
 
 /* ============================================================
-   SETTINGS — paged: home → profile / subjects / exam / sync / backup / danger
+   SETTINGS — paged: home → account / subjects / exam / backup / danger
+   Profile, account and automatic-sync status live on one page.
    Sync UI is rendered by 12-sql-sync.js → renderSyncUI()
    ============================================================ */
 
@@ -36,6 +37,9 @@ function updateHomeSyncState(){
 function renderProfileSection(){
   const p = state.profile || {};
   const displayNameEl = document.getElementById('profileDisplayName');
+  const heroNameEl = document.getElementById('profileHeroName');
+  const heroAvatarEl = document.getElementById('profileHeroAvatar');
+  const badgeEl = document.getElementById('accountProfileBadge');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
   const fnEl = document.getElementById('setFirstName');
@@ -44,6 +48,14 @@ function renderProfileSection(){
   const gEl = document.getElementById('setGrade');
   const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
   if(displayNameEl) displayNameEl.textContent = fullName || 'نام ثبت نشده';
+  if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
+  if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  if(badgeEl){
+    badgeEl.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
+    badgeEl.classList.toggle('connected', loggedIn);
+  }
   if(displayFieldEl) displayFieldEl.textContent = `رشته: ${p.field || 'تجربی'}`;
   if(displayGradeEl) displayGradeEl.textContent = `پایه: ${p.grade || 'دوازدهم'}`;
   if(fnEl) fnEl.value = p.firstName || '';
@@ -55,7 +67,7 @@ function renderProfileSection(){
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('profile');
+if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('account');
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;

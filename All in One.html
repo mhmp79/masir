@@ -948,18 +948,6 @@ select option{background:#0d1524;color:var(--txt)}
 }
 #settingsOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(245,158,11,.6)}
 #gaOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(34,211,238,.5)}
-#examCompareOverlay .wr-top{
-  margin:0 0 12px;padding:12px 14px;border-radius:18px;
-  border:1px solid rgba(255,255,255,.10);
-  background:linear-gradient(135deg,rgba(234,179,8,.10),rgba(124,92,255,.06)),rgba(11,16,34,.76);
-  backdrop-filter:blur(18px) saturate(150%);
-  -webkit-backdrop-filter:blur(18px) saturate(150%);
-  box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
-  top:10px;
-}
-#examCompareOverlay .wr-logo{box-shadow:0 10px 24px -12px rgba(234,179,8,.5)}
-#examCompareOverlay .wr-close{width:38px;height:38px;border-radius:14px}
-#examCompareOverlay .wr-title{color:#fff}
 
 /* EXAM COMPARE — lives inside the app shell: topbar and bottom tabs stay visible */
 #examCompareOverlay{
@@ -967,7 +955,6 @@ select option{background:#0d1524;color:var(--txt)}
   overflow-y:auto;overflow-x:hidden;background:transparent;
   -webkit-overflow-scrolling:touch;
 }
-#examCompareOverlay .wr-top{display:none}
 #examCompareOverlay .wr-shell{
   width:100%;max-width:480px;margin:0 auto;box-sizing:border-box;
   padding:96px 14px calc(104px + env(safe-area-inset-bottom));
@@ -976,7 +963,8 @@ select option{background:#0d1524;color:var(--txt)}
 .app.compare-open .topbar,
 .app.compare-open .nav{pointer-events:auto}
 .app.compare-open > main{display:none}
-.app.compare-open .context-btn{display:none}
+.app.compare-open .context-btn,
+.app.compare-open .settings-btn{display:none}
 
 /* SETTINGS — lives inside the app shell: topbar and bottom tabs stay visible */
 #settingsOverlay{
@@ -996,16 +984,16 @@ select option{background:#0d1524;color:var(--txt)}
 .app.settings-open .nav{pointer-events:auto}
 .app.settings-open > main{display:none}
 .app.settings-open .context-btn{display:none}
-.icon-btn.settings-back-btn{
+.icon-btn.settings-back-btn,.icon-btn.compare-back-btn{
   width:44px;height:44px;
   border:0;background:transparent;color:#98a2bb;
 }
-.icon-btn.settings-back-btn svg{
+.icon-btn.settings-back-btn,.icon-btn.compare-back-btn svg{
   width:20px;height:20px;
   stroke:currentColor;fill:none;
   stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
 }
-.icon-btn.settings-back-btn:hover{color:#fff;background:rgba(255,255,255,.06)}
+.icon-btn.settings-back-btn:hover,.icon-btn.compare-back-btn:hover{color:#fff;background:rgba(255,255,255,.06)}
 
 #settingsBody .card,
 #gaBody>.flt-card,
@@ -5406,20 +5394,67 @@ input.ex-subj{
 
 .profile-card{
   padding:16px;
-  border:1px solid rgba(124,92,255,.32);
-  background:linear-gradient(155deg,rgba(124,92,255,.08),rgba(255,255,255,.02));
+  border:1px solid rgba(124,92,255,.30);
+  background:linear-gradient(155deg,rgba(124,92,255,.10),rgba(255,255,255,.02));
 }
-/* حساب کاربری و پروفایل در یک کارت واحد */
-.account-ui{
-  margin-top:14px;padding-top:13px;
-  border-top:1px solid rgba(255,255,255,.08);
+
+/* Unified account + profile page */
+.account-profile-card{
+  overflow:hidden;padding:0;
+  border:1px solid rgba(124,92,255,.24);
+  background:linear-gradient(180deg,rgba(20,28,58,.72),rgba(255,255,255,.02));
 }
-.account-row{display:flex;align-items:center;gap:10px;min-width:0}
-.account-avatar{
-  flex:0 0 34px;width:34px;height:34px;border-radius:50%;
+.account-profile-hero{
+  display:flex;align-items:center;gap:13px;
+  padding:18px;
+  background:linear-gradient(135deg,rgba(124,92,255,.18),rgba(34,211,238,.06));
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.account-profile-avatar{
+  flex:0 0 52px;width:52px;height:52px;border-radius:18px;
   display:grid;place-items:center;
   background:linear-gradient(135deg,#7c5cff,#22d3ee);
-  color:#fff;font-size:13px;font-weight:800;line-height:1;
+  color:#fff;font-size:21px;font-weight:900;line-height:1;
+  box-shadow:0 14px 30px -14px #7c5cff;
+}
+.account-profile-intro{flex:1;min-width:0}
+.account-profile-eyebrow{color:#8b94ad;font-size:9.5px;font-weight:900;letter-spacing:.6px;text-transform:uppercase}
+.account-profile-name{
+  margin-top:2px;color:#f7f8ff;font-size:16px;font-weight:900;line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.account-profile-meta{
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  margin-top:4px;color:#aab3ca;font-size:10.5px;font-weight:700;
+}
+.account-profile-badge{
+  flex:0 0 auto;padding:6px 10px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.05);
+  color:#8b94ad;font-size:9.5px;font-weight:800;white-space:nowrap;
+}
+.account-profile-badge.connected{
+  border-color:rgba(16,185,129,.30);background:rgba(16,185,129,.10);color:#6ee7b7;
+}
+.account-profile-body{padding:16px}
+.account-services-card{padding:16px}
+.account-services-card .account-section-head{margin-bottom:4px}
+.account-section-head{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.account-section-icon{
+  flex:0 0 34px;width:34px;height:34px;border-radius:11px;
+  display:grid;place-items:center;
+  border:1px solid rgba(124,92,255,.26);background:rgba(124,92,255,.12);
+  color:#c7bfff;font-size:15px;font-weight:900;
+}
+.account-section-head b{display:block;color:#e8ecff;font-size:12.5px;font-weight:900;line-height:1.5}
+.account-section-head small{display:block;margin-top:2px;color:#8791a8;font-size:10px;font-weight:600;line-height:1.6}
+
+.account-ui{margin-top:2px;padding:12px;border-radius:13px;background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06)}
+.account-row{display:flex;align-items:center;gap:10px;min-width:0}
+.account-avatar{
+  flex:0 0 38px;width:38px;height:38px;border-radius:13px;
+  display:grid;place-items:center;
+  background:linear-gradient(135deg,#7c5cff,#22d3ee);
+  color:#fff;font-size:14px;font-weight:900;line-height:1;
 }
 .account-avatar.muted-avatar{background:rgba(255,255,255,.07);color:#aab3ca}
 .account-identity{flex:1;min-width:0}
@@ -5429,23 +5464,26 @@ input.ex-subj{
 }
 .account-actions{
   display:flex;align-items:center;gap:7px;flex-wrap:wrap;
-  margin-top:10px;
+  margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06);
 }
 .account-actions .account-btn{width:auto;flex:0 0 auto}
 .account-sub{
   margin-top:2px;color:#8791a8;font-size:10.5px;font-weight:600;line-height:1.6;
   overflow-wrap:anywhere;
 }
-.account-btn{flex:0 0 auto;width:auto;white-space:nowrap;padding:8px 12px;font-size:11px}
+.account-btn{flex:0 0 auto;width:auto;white-space:nowrap;padding:8px 11px;font-size:10.5px}
 .sync-login-error{
   margin-top:8px;padding:9px 11px;border-radius:8px;
   background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.30);
   color:#fda4af;font-size:11.5px;display:none;
 }
 
-.sync-card{padding:14px}
+.sync-card{
+  margin-top:10px;padding:12px;border-radius:13px;
+  background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);
+}
 .sync-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.sync-card-title{color:#e8ecff;font-size:13px;font-weight:800;line-height:1.6}
+.sync-card-title{color:#e8ecff;font-size:12.5px;font-weight:900;line-height:1.6}
 .sync-state-pill{
   flex:0 0 auto;padding:4px 9px;border-radius:999px;
   background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);
@@ -5454,16 +5492,14 @@ input.ex-subj{
 .sync-state-pill.live{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.32);color:#6ee7b7}
 .sync-state-pill.busy{background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.32);color:#67e8f9}
 .sync-state-pill.warn{background:rgba(251,191,36,.10);border-color:rgba(251,191,36,.30);color:#fcd34d}
-.sync-empty-note{margin-top:10px;color:#8791a8;font-size:11px;line-height:1.8}
+.sync-empty-note{margin-top:9px;color:#8791a8;font-size:10.5px;font-weight:600;line-height:1.8}
+
 .profile-summary{
   display:flex;align-items:center;justify-content:space-between;gap:14px;
   min-width:0;
 }
 .profile-summary-info{min-width:0}
-.profile-display-name{
-  color:#f3f4ff;font-size:16px;font-weight:800;line-height:1.5;
-  overflow-wrap:anywhere;
-}
+.profile-display-name{color:#f3f4ff;font-size:16px;font-weight:900;line-height:1.5;overflow-wrap:anywhere}
 .profile-summary-meta{
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   margin-top:5px;color:#aab3ca;font-size:11.5px;font-weight:600;
@@ -5480,31 +5516,22 @@ input.ex-subj{
 .profile-edit-btn:hover{background:rgba(124,92,255,.22);border-color:rgba(124,92,255,.5)}
 .profile-edit-btn:active{transform:scale(.94)}
 .profile-edit-fields[hidden]{display:none!important}
-.profile-edit-fields{
-  margin-top:16px;padding-top:14px;
-  border-top:1px solid rgba(255,255,255,.08);
-}
-.profile-intro{
-  margin-bottom:16px;padding:12px 14px;
-  border:1px solid rgba(124,92,255,.2);
-  border-radius:12px;background:rgba(124,92,255,.06);
-  color:#cbd3e8;font-size:12px;line-height:1.8;
-}
-.profile-identity-grid{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
-}
-.profile-field{min-width:0;padding:12px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}
-.profile-field .lbl{margin-bottom:7px}
+.profile-edit-fields{margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+.profile-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.profile-field{min-width:0;padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(255,255,255,.025)}
+.profile-field .lbl{margin-bottom:6px}
 .profile-field .input{margin:0}
-.profile-card #profileFieldHint{padding:9px 11px;border-radius:9px;background:rgba(234,179,8,.07)}
+.account-profile-card #profileFieldHint{padding:9px 11px;border-radius:9px;background:rgba(234,179,8,.07)}
 .profile-edit-actions{display:flex;align-items:center;gap:8px;margin-top:14px}
-.profile-card #saveProfileBtn{min-width:180px}
+.account-profile-card #saveProfileBtn{min-width:150px}
 .grade-picker[hidden]{display:none!important}
 
 @media(max-width:520px){
   .profile-card{padding:13px}
-  .sync-card{padding:13px}
+  .account-profile-hero{padding:15px;gap:10px;flex-wrap:wrap}
+  .account-profile-badge{margin-inline-start:auto}
+  .account-profile-body,.account-services-card{padding:13px}
+  .sync-card{padding:11px}
   .account-btn{padding:8px 10px;font-size:10.5px}
   .profile-display-name{font-size:15px}
   .profile-summary-meta{font-size:10.5px;gap:6px}
@@ -6147,8 +6174,6 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   .topbar { margin: 0 0 14px; padding: 13px 16px; }
   .nav { max-width: 100%; }
   #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
-  #examCompareOverlay .wr-shell { padding: 16px 24px 80px; }
-  #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 13px 16px; }
   #examCompareOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
@@ -6239,7 +6264,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     box-shadow: 0 12px 32px -22px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
   }
   .logo { width: 38px; height: 38px; font-size: 16px; border-radius: 12px; }
-  .icon-btn.settings-back-btn { width: 38px; height: 38px; }
+  .icon-btn.settings-back-btn,
+  .icon-btn.compare-back-btn { width: 38px; height: 38px; }
   .brand-title { font-size: 14px; }
 
   .nav {
@@ -6653,9 +6679,6 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
   .wr-shell { max-width: 1240px; padding: 20px 24px 60px; }
   #settingsOverlay .wr-shell { max-width: 1120px; }
-  #examCompareOverlay .wr-shell { max-width: 100%; padding: 8px 14px 60px; }
-  #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 12px 18px; position: relative; top: auto; }
-  #examCompareOverlay .wr-logo { width: 38px; height: 38px; border-radius: 12px; font-size: 16px; }
   #examCompareBody > .exam-compare-toolbar,
   #examCompareOverlay .exam-compare-layout { max-width: 1240px; margin-inline: auto; }
   #examCompareOverlay .exam-compare-layout {
@@ -6828,108 +6851,127 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
 /* ===== css/16-auth.css ===== */
 /* ============================================================
-   AUTH — phone/password, OTP signup/reset and account tools
-   Styled from the same glass surfaces as the app shell.
+   AUTH — full-screen, app-designed sign in and account tools
+   Local-only styling; no external assets or runtime scripts.
    ============================================================ */
 
 .auth-overlay{
-  position:fixed;inset:0;z-index:600;
+  position:fixed;inset:0;z-index:1000;
   display:none;place-items:center;
-  padding:18px 14px calc(18px + env(safe-area-inset-bottom));
-  background:rgba(3,6,16,.82);
-  backdrop-filter:blur(12px) saturate(120%);
-  -webkit-backdrop-filter:blur(12px) saturate(120%);
+  padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:
+    radial-gradient(900px 520px at 86% -12%,rgba(124,92,255,.26),transparent 62%),
+    radial-gradient(760px 520px at 6% 112%,rgba(34,211,238,.16),transparent 62%),
+    #070b18;
 }
 .auth-overlay.show{display:grid}
 .auth-overlay[hidden]{display:none!important}
 
-.auth-card{
-  width:100%;max-width:440px;max-height:92vh;overflow-y:auto;
-  padding:20px 18px calc(20px + env(safe-area-inset-bottom));
-  background:linear-gradient(180deg,#141c3a 0%,#0b1022 72%);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:26px;
-  box-shadow:0 30px 80px -30px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.08);
-  animation:auth-rise .28s cubic-bezier(.2,.9,.3,1);
+.auth-shell{
+  width:100%;max-width:980px;
+  display:grid;grid-template-columns:1.05fr .95fr;
+  gap:18px;align-items:stretch;
 }
-@keyframes auth-rise{
-  from{transform:translateY(36px);opacity:0}
-  to{transform:none;opacity:1}
+.auth-hero{
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;justify-content:space-between;
+  gap:28px;padding:34px;border-radius:28px;
+  border:1px solid rgba(255,255,255,.10);
+  background:linear-gradient(155deg,rgba(124,92,255,.24),rgba(11,16,34,.95) 58%),#0b1022;
+  box-shadow:0 30px 80px -36px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.08);
 }
-
-.auth-brand{
-  display:flex;align-items:center;gap:12px;
-  padding-bottom:15px;margin-bottom:16px;
-  border-bottom:1px solid rgba(255,255,255,.09);
+.auth-hero::before{
+  content:'';position:absolute;left:-70px;top:-70px;width:240px;height:240px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.07);box-shadow:0 0 0 42px rgba(255,255,255,.025);
+  pointer-events:none;
 }
-.auth-logo{
-  flex:0 0 46px;width:46px;height:46px;border-radius:16px;
+.auth-hero-top{display:flex;align-items:center;gap:12px}
+.auth-hero-mark{
+  flex:0 0 48px;width:48px;height:48px;border-radius:16px;
   display:grid;place-items:center;
-  font-size:21px;font-weight:900;color:#fff;
+  color:#fff;font-size:21px;font-weight:900;line-height:1;
   background:linear-gradient(135deg,#7c5cff,#22d3ee);
-  box-shadow:0 12px 26px -12px #7c5cff;
+  box-shadow:0 14px 30px -14px #7c5cff;
 }
-.auth-title{font-size:17px;font-weight:900;color:#f3f4ff;line-height:1.4}
-.auth-subtitle{margin-top:2px;font-size:10.5px;font-weight:700;color:#8b94ad}
+.auth-hero-kicker{color:#f3f4ff;font-size:16px;font-weight:900;letter-spacing:.2px}
+.auth-hero-copy h2{
+  margin:0;color:#fff;font-size:26px;font-weight:900;line-height:1.55;
+}
+.auth-hero-copy p{
+  margin:10px 0 0;color:#aab3ca;font-size:12.5px;font-weight:600;line-height:2;
+}
+.auth-hero-features{display:flex;flex-direction:column;gap:8px}
+.auth-hero-features span{
+  display:inline-flex;align-items:center;gap:8px;width:fit-content;
+  padding:8px 12px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);
+  color:#cbd3e8;font-size:11px;font-weight:700;
+}
+.auth-hero-features span::first-letter{color:#6ee7b7}
 
-.auth-heading{margin-bottom:16px}
-.auth-heading h1{margin:0;font-size:19px;font-weight:900;color:#f5f6ff;line-height:1.5}
-.auth-heading p{margin:6px 0 0;font-size:11.5px;font-weight:600;line-height:1.85;color:#aab3ca}
-.auth-heading b{color:#c7bfff;direction:ltr}
+.auth-panel{
+  max-height:calc(100vh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:30px;border-radius:28px;
+  border:1px solid rgba(255,255,255,.11);
+  background:linear-gradient(180deg,rgba(20,28,58,.97),rgba(9,13,28,.99));
+  box-shadow:0 30px 80px -36px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.07);
+}
+.auth-mobile-brand{display:none}
+.auth-tool-close{
+  display:inline-flex;align-items:center;gap:4px;
+  margin:0 0 14px;padding:7px 11px;border-radius:10px;
+  border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.04);
+  color:#aab3ca;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer;
+}
+.auth-tool-close:hover{color:#fff;background:rgba(255,255,255,.08)}
+
+.auth-heading{margin-bottom:18px}
+.auth-heading h1{margin:0;color:#f7f8ff;font-size:23px;font-weight:900;line-height:1.45}
+.auth-heading p{margin:8px 0 0;color:#aab3ca;font-size:12px;font-weight:600;line-height:1.9}
+.auth-heading b{color:#c7bfff;direction:ltr;unicode-bidi:isolate}
 
 .auth-label{
-  display:block;margin:13px 0 6px;
-  font-size:11px;font-weight:800;color:#aab3ca;
+  display:block;margin:14px 0 7px;
+  color:#aab3ca;font-size:11px;font-weight:800;
 }
 .auth-input{
-  width:100%;margin:0;
-  padding:12px 13px;
+  width:100%;margin:0;padding:13px 14px;
+  color:#eef1ff;font-family:inherit;
   font-size:13.5px;font-weight:700;
   background:rgba(255,255,255,.055);
   border:1px solid rgba(255,255,255,.11);
   border-radius:13px;
+  transition:border-color .18s,background .18s,box-shadow .18s;
 }
+.auth-input::placeholder{color:#626d88;font-weight:600}
 .auth-input:focus{
-  border-color:rgba(124,92,255,.7);
+  outline:none;border-color:rgba(124,92,255,.72);
   background:rgba(124,92,255,.10);
-  box-shadow:0 0 0 3px rgba(124,92,255,.12);
+  box-shadow:0 0 0 3px rgba(124,92,255,.13);
 }
 .auth-input[readonly]{opacity:.72;cursor:default}
 .auth-code{
   letter-spacing:5px;text-align:center;
-  font-variant-numeric:tabular-nums;
-  font-size:18px;
+  font-variant-numeric:tabular-nums;font-size:18px;
 }
-.auth-code::placeholder{letter-spacing:2px;color:#4d5670}
+.auth-code::placeholder{letter-spacing:2px}
 
-.auth-submit{margin-top:16px;min-height:46px;font-size:13.5px;font-weight:900}
+.auth-submit{margin-top:18px;min-height:48px;font-size:13.5px;font-weight:900}
 .auth-submit:disabled{opacity:.65;cursor:wait}
-
 .auth-actions{
   display:flex;align-items:center;justify-content:center;
-  flex-wrap:wrap;gap:8px 16px;margin-top:13px;
+  flex-wrap:wrap;gap:8px 16px;margin-top:14px;
 }
 .auth-link{
-  border:0;background:transparent;padding:5px 2px;
+  border:0;background:transparent;padding:6px 2px;
   color:#9b8cff;font-family:inherit;font-size:11.5px;font-weight:800;
   cursor:pointer;transition:color .18s;
 }
 .auth-link:hover{color:#c7bfff}
-.auth-close-link{
-  display:block;margin:16px auto 0;
-  border:0;background:transparent;padding:6px 10px;
-  color:#8791a8;font-family:inherit;font-size:11px;font-weight:700;
-  cursor:pointer;
-}
-.auth-close-link:hover{color:#cbd3e8}
-.auth-footnote{
-  margin-top:8px;padding-top:11px;
-  border-top:1px solid rgba(255,255,255,.07);
-  color:#69748e;font-size:9.5px;font-weight:600;line-height:1.8;text-align:center;
-}
 
 .auth-message,.auth-error{
-  display:none;margin-top:11px;padding:10px 12px;
+  display:none;margin-top:12px;padding:11px 13px;
   border-radius:11px;font-size:11.5px;font-weight:700;line-height:1.75;
 }
 .auth-message.show{
@@ -6947,8 +6989,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   border:1px solid rgba(255,255,255,.08);
 }
 .auth-tab{
-  flex:1;min-width:0;
-  border:0;border-radius:10px;padding:9px 4px;
+  flex:1;min-width:0;border:0;border-radius:10px;padding:10px 4px;
   background:transparent;color:#8791a8;
   font-family:inherit;font-size:10.5px;font-weight:800;cursor:pointer;
   transition:.18s;
@@ -6958,19 +6999,9 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
 }
 
-.auth-advanced{margin-top:15px;padding-top:11px;border-top:1px dashed rgba(255,255,255,.10)}
-.auth-advanced summary{
-  cursor:pointer;list-style:none;
-  color:#8791a8;font-size:10.5px;font-weight:700;
-}
-.auth-advanced summary::-webkit-details-marker{display:none}
-.auth-advanced .auth-input{margin-top:9px;font-size:11.5px;padding:9px 11px}
-.auth-hint{margin-top:7px;color:#69748e;font-size:10px;font-weight:600;line-height:1.7}
-
 .auth-code-box{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
-  margin-top:12px;padding:13px 14px;
-  border-radius:14px;
+  margin-top:12px;padding:13px 14px;border-radius:14px;
   border:1px solid rgba(34,211,238,.32);
   background:linear-gradient(135deg,rgba(34,211,238,.12),rgba(124,92,255,.10));
 }
@@ -6982,24 +7013,39 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 }
 .auth-link-row{
   display:grid;grid-template-columns:1fr auto;gap:3px 10px;
-  padding:10px 12px;margin-bottom:6px;
-  border-radius:11px;border:1px solid rgba(255,255,255,.07);
-  background:rgba(255,255,255,.03);
+  padding:10px 12px;margin-bottom:6px;border-radius:11px;
+  border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);
   font-size:11px;color:#aab3ca;
 }
 .auth-link-row b{color:#e8ecff;font-size:11.5px;text-align:left}
 .auth-link-row small{grid-column:1/-1;color:#69748e;font-size:9.5px;font-weight:700}
 
-@media(max-width:520px){
-  .auth-overlay{align-items:end;padding:0}
-  .auth-card{
-    max-width:none;max-height:94vh;
-    border-radius:26px 26px 0 0;
-    border-bottom:0;
-    padding:18px 14px calc(18px + env(safe-area-inset-bottom));
+@media(max-width:760px){
+  .auth-overlay{
+    align-items:stretch;padding:0;
+    min-height:100vh;min-height:100dvh;
   }
-  .auth-heading h1{font-size:17.5px}
-  .auth-submit{min-height:48px}
+  .auth-overlay.show{display:block}
+  .auth-shell{display:block;max-width:none;min-height:100vh;min-height:100dvh}
+  .auth-hero{display:none}
+  .auth-panel{
+    max-width:none;max-height:none;min-height:100vh;min-height:100dvh;
+    padding:24px 18px calc(30px + env(safe-area-inset-bottom));
+    border:0;border-radius:0;box-shadow:none;
+    background:
+      radial-gradient(680px 380px at 90% -8%,rgba(124,92,255,.18),transparent 60%),
+      linear-gradient(180deg,#0e1530,#070b18);
+  }
+  .auth-mobile-brand{
+    display:flex;align-items:center;gap:11px;
+    padding-bottom:16px;margin-bottom:18px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .auth-mobile-brand .auth-hero-mark{flex-basis:42px;width:42px;height:42px;border-radius:14px;font-size:19px}
+  .auth-mobile-tagline{margin-top:2px;color:#8791a8;font-size:10.5px;font-weight:700}
+  .auth-heading h1{font-size:21px}
+  .auth-heading p{font-size:11.5px}
+  .auth-submit{min-height:50px}
 }
 
 </style>
@@ -7011,10 +7057,14 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
       <button class="icon-btn settings-back-btn hidden" id="settingsBackBtn" title="بازگشت" aria-label="بازگشت">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
       </button>
+      <button class="icon-btn compare-back-btn hidden" id="compareBackBtn" title="بازگشت به آزمونها" aria-label="بازگشت به آزمونها">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
       <div class="logo app-logo" id="appLogo" aria-hidden="true"></div>
       <div>
         <div class="brand-title" id="brandTitle">مسیر کنکور</div>
         <div class="brand-title hidden" id="settingsTitle">تنظیمات</div>
+        <div class="brand-title hidden" id="compareTitle">بخش مقایسه آزمونها</div>
       </div>
     </div>
     <div class="topbar-actions">
@@ -7441,18 +7491,9 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   </div>
 </div>
 
-<!-- ===== EXAM COMPARE OVERLAY ===== -->
+<!-- ===== EXAM COMPARE OVERLAY — chrome lives in the shared app topbar ===== -->
 <div class="wr-overlay" id="examCompareOverlay">
   <div class="wr-shell">
-    <header class="wr-top">
-      <div class="wr-top-right">
-        <div class="wr-logo wr-logo-gold">📝</div>
-        <div><div class="wr-title">مقایسه آزمون‌های آزمایشی</div><div class="wr-sub" id="examCompareSub">—</div></div>
-      </div>
-      <div class="wr-nav">
-        <button class="wr-close" id="examCompareClose" title="بستن">✕</button>
-      </div>
-    </header>
     <main class="wr-body" id="examCompareBody"></main>
   </div>
 </div>
@@ -7483,7 +7524,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
                 <span id="profileDisplayGrade">پایه: دوازدهم</span>
               </div>
             </div>
-            <button type="button" class="profile-link-btn" id="editProfileBtn" title="پروفایل" aria-label="پروفایل">پروفایل</button>
+            <button type="button" class="profile-link-btn" id="editProfileBtn" title="ویرایش حساب" aria-label="ویرایش حساب">ویرایش حساب</button>
           </div>
         </div>
 
@@ -7500,9 +7541,9 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
         </button>
 
         <div class="card settings-link sync-link-row">
-          <button type="button" class="set-link-main" data-go="sync">
+          <button type="button" class="set-link-main" data-go="account">
             <span class="set-link-icon">☁️</span>
-            <span class="set-link-copy"><b>همگام سازی و حساب کاربری</b><small id="homeSyncState">ورود، خروج و تنظیمات همگام سازی</small></span>
+            <span class="set-link-copy"><b>حساب و پروفایل</b><small id="homeSyncState">اطلاعات شخصی، ورود و وضعیت همگامسازی</small></span>
             <span class="set-link-arrow">‹</span>
           </button>
         </div>
@@ -7525,44 +7566,81 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
         </div>
       </section>
 
-      <!-- ===== PROFILE PAGE ===== -->
-      <section class="settings-page" data-page="profile" hidden>
+      <!-- ===== ACCOUNT + PROFILE PAGE ===== -->
+      <section class="settings-page" data-page="account" hidden>
         <div class="settings-page-head">
-          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
-          <div class="page-title">پروفایل</div>
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">‹</button>
+          <div class="page-title">حساب و پروفایل</div>
         </div>
-        <div class="card settings-detail-card">
-          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجیهای تصویری استفاده میشود.</div>
-          <div class="profile-identity-grid">
-            <div class="profile-field">
-              <label class="lbl mt-0">نام</label>
-              <input class="input" id="setFirstName" placeholder="مثلاً: متین" maxlength="40">
+
+        <div class="card account-profile-card">
+          <div class="account-profile-hero">
+            <div class="account-profile-avatar" id="profileHeroAvatar" aria-hidden="true">M</div>
+            <div class="account-profile-intro">
+              <div class="account-profile-eyebrow">حساب شخصی</div>
+              <div class="account-profile-name" id="profileHeroName">نام ثبت نشده</div>
+              <div class="account-profile-meta">
+                <span id="profileDisplayField">رشته: تجربی</span>
+                <span class="profile-meta-divider">•</span>
+                <span id="profileDisplayGrade">پایه: دوازدهم</span>
+              </div>
             </div>
-            <div class="profile-field">
-              <label class="lbl mt-0">نام خانوادگی</label>
-              <input class="input" id="setLastName" placeholder="مثلاً: رحمانیان" maxlength="40">
+            <span class="account-profile-badge" id="accountProfileBadge">👤 مهمان</span>
+          </div>
+
+          <div class="account-profile-body">
+            <div class="account-section-head">
+              <span class="account-section-icon">✦</span>
+              <div>
+                <b>اطلاعات شخصی</b>
+                <small>در خروجیهای تصویری و برنامه نمایش داده میشود</small>
+              </div>
             </div>
-            <div class="profile-field">
-              <label class="lbl mt-0">رشته</label>
-              <select class="input" id="setField">
-                <option value="تجربی">تجربی</option>
-                <option value="ریاضی">ریاضی</option>
-                <option value="انسانی">انسانی</option>
-              </select>
+            <div class="profile-identity-grid">
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setFirstName">نام</label>
+                <input class="input" id="setFirstName" placeholder="مثلاً: متین" maxlength="40">
+              </div>
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setLastName">نام خانوادگی</label>
+                <input class="input" id="setLastName" placeholder="مثلاً: رحمانیان" maxlength="40">
+              </div>
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setField">رشته</label>
+                <select class="input" id="setField">
+                  <option value="تجربی">تجربی</option>
+                  <option value="ریاضی">ریاضی</option>
+                  <option value="انسانی">انسانی</option>
+                </select>
+              </div>
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setGrade">پایه</label>
+                <select class="input" id="setGrade">
+                  <option value="دهم">دهم</option>
+                  <option value="یازدهم">یازدهم</option>
+                  <option value="دوازدهم">دوازدهم</option>
+                </select>
+              </div>
             </div>
-            <div class="profile-field">
-              <label class="lbl mt-0">پایه</label>
-              <select class="input" id="setGrade">
-                <option value="دهم">دهم</option>
-                <option value="یازدهم">یازدهم</option>
-                <option value="دوازدهم">دوازدهم</option>
-              </select>
+            <div class="muted mt-10 fs-10h lh-175 text-amber" id="profileFieldHint"></div>
+            <div class="profile-edit-actions">
+              <button class="btn primary" id="saveProfileBtn">ذخیره اطلاعات</button>
+              <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
             </div>
           </div>
-          <div class="muted mt-10 fs-10h lh-175 text-amber" id="profileFieldHint"></div>
-          <div class="profile-edit-actions">
-            <button class="btn primary" id="saveProfileBtn">ذخیره پروفایل</button>
-            <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
+        </div>
+
+        <div class="card account-profile-card account-services-card">
+          <div class="account-section-head">
+            <span class="account-section-icon">☁</span>
+            <div>
+              <b>حساب و همگامسازی</b>
+              <small>ورود، امنیت و وضعیت همگامسازی خودکار</small>
+            </div>
+          </div>
+          <div id="accountUI" class="account-ui"></div>
+          <div class="sync-card" id="syncCard">
+            <div id="syncUI"></div>
           </div>
         </div>
       </section>
@@ -7612,21 +7690,6 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           <div class="chips" id="errSubjectChips"></div>
           <div id="subjectErrorsList" class="mt-10"></div>
           <div class="add-topic"><input class="input" id="newSubjectErr" placeholder="اشتباه اختصاصی جدید..."><button id="addSubjectErrBtn">+</button></div>
-        </div>
-      </section>
-
-      <!-- ===== SYNC + ACCOUNT PAGE ===== -->
-      <section class="settings-page" data-page="sync" hidden>
-        <div class="settings-page-head">
-          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
-          <div class="page-title">همگام سازی و حساب کاربری</div>
-        </div>
-        <div class="card settings-detail-card">
-          <div class="card-title">حساب کاربری</div>
-          <div id="accountUI" class="account-ui"></div>
-        </div>
-        <div class="card sync-card settings-detail-card" id="syncCard">
-          <div id="syncUI"></div>
         </div>
       </section>
 
@@ -16918,7 +16981,17 @@ function getExamChartData(){
 
 function setCompareChrome(open){
   const app=document.querySelector('.app');
+  const logo=document.getElementById('appLogo');
+  const brandTitle=document.getElementById('brandTitle');
+  const compareTitle=document.getElementById('compareTitle');
+  const compareBackBtn=document.getElementById('compareBackBtn');
+  const settingsBtn=document.getElementById('settingsBtn');
   if(app)app.classList.toggle('compare-open',open);
+  if(logo)logo.classList.toggle('hidden',open);
+  if(brandTitle)brandTitle.classList.toggle('hidden',open);
+  if(compareTitle)compareTitle.classList.toggle('hidden',!open);
+  if(compareBackBtn)compareBackBtn.classList.toggle('hidden',!open);
+  if(settingsBtn)settingsBtn.classList.toggle('hidden',open);
 }
 function openExamCompare(){
   if(!state.settings.examsEnabled){toast('اول آزمون را فعال کن');return;}
@@ -16937,12 +17010,14 @@ function closeExamCompare(force){
   setCompareChrome(false);
   document.body.style.overflow='';
 }
-document.getElementById('examCompareClose').onclick=()=>closeExamCompare(true);
+const compareBackBtn=document.getElementById('compareBackBtn');
+if(compareBackBtn)compareBackBtn.onclick=()=>{
+  closeExamCompare(true);
+  if(typeof switchView==='function')switchView('exam');
+};
 
 function renderExamCompare(){
   const exams=getExamChartData();
-  const sub=document.getElementById('examCompareSub');
-  if(sub)sub.textContent=exams.length?`${fa(exams.length)} آزمون`:'—';
   const body=document.getElementById('examCompareBody');
   if(!exams.length){body.innerHTML=`<div class="exam-empty-state"><b>هنوز نتیجه‌ای ثبت نکردی</b></div>`;return;}
   const totalTarazs=exams.map((e)=>+e.totalTaraz||0);
@@ -18326,7 +18401,8 @@ function openCompactClassEditor(subjectName, i){
 'use strict';
 
 /* ============================================================
-   SETTINGS — paged: home → profile / subjects / exam / sync / backup / danger
+   SETTINGS — paged: home → account / subjects / exam / backup / danger
+   Profile, account and automatic-sync status live on one page.
    Sync UI is rendered by 12-sql-sync.js → renderSyncUI()
    ============================================================ */
 
@@ -18361,6 +18437,9 @@ function updateHomeSyncState(){
 function renderProfileSection(){
   const p = state.profile || {};
   const displayNameEl = document.getElementById('profileDisplayName');
+  const heroNameEl = document.getElementById('profileHeroName');
+  const heroAvatarEl = document.getElementById('profileHeroAvatar');
+  const badgeEl = document.getElementById('accountProfileBadge');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
   const fnEl = document.getElementById('setFirstName');
@@ -18369,6 +18448,14 @@ function renderProfileSection(){
   const gEl = document.getElementById('setGrade');
   const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
   if(displayNameEl) displayNameEl.textContent = fullName || 'نام ثبت نشده';
+  if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
+  if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  if(badgeEl){
+    badgeEl.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
+    badgeEl.classList.toggle('connected', loggedIn);
+  }
   if(displayFieldEl) displayFieldEl.textContent = `رشته: ${p.field || 'تجربی'}`;
   if(displayGradeEl) displayGradeEl.textContent = `پایه: ${p.grade || 'دوازدهم'}`;
   if(fnEl) fnEl.value = p.firstName || '';
@@ -18380,7 +18467,7 @@ function renderProfileSection(){
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('profile');
+if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('account');
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;
@@ -22251,6 +22338,11 @@ function renderSyncUI() {
   const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
   const busy = !!syncBusy || autoSyncRunning;
   const badge = syncStateBadge(online, loggedIn, busy);
+  const accountBadge = document.getElementById('accountProfileBadge');
+  if (accountBadge) {
+    accountBadge.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
+    accountBadge.classList.toggle('connected', loggedIn);
+  }
 
   renderAccountUI(loggedIn, phone, online, busy, lastSync);
 
@@ -22920,14 +23012,12 @@ readSession();
 'use strict';
 
 /* ============================================================
-   MASIR AUTH UI — phone/password sign in, OTP signup/reset,
-   account tools and advisor pairing, styled as part of the app.
-   The overlay is dismissible for offline-first local use; sync
-   starts automatically as soon as an account is available.
+   MASIR AUTH UI — dedicated full-screen sign in, phone/password,
+   OTP signup/reset, account tools and advisor pairing.
+   Sync starts automatically only after a successful sign in.
    ============================================================ */
 
 (function () {
-  const SESSION_DISMISSED_KEY = 'konkur-auth-offline-session-v1';
   const AUTH_MODES = Object.freeze([
     'login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'
   ]);
@@ -22998,17 +23088,6 @@ readSession();
   function unlockBody() {
     if (!bodyIsLocked()) document.body.style.overflow = '';
   }
-  function dismissForOffline() {
-    try { sessionStorage.setItem(SESSION_DISMISSED_KEY, '1'); } catch (e) {}
-    hide();
-    notify('ادامه آفلاین؛ دادهها روی این دستگاه ذخیره میشوند.');
-  }
-  function wasDismissed() {
-    try { return sessionStorage.getItem(SESSION_DISMISSED_KEY) === '1'; } catch (e) { return false; }
-  }
-  function clearDismissed() {
-    try { sessionStorage.removeItem(SESSION_DISMISSED_KEY); } catch (e) {}
-  }
 
   function show(nextMode, options) {
     const opts = options || {};
@@ -23027,7 +23106,6 @@ readSession();
       advisorCode = '';
       advisorLinks = [];
     }
-    clearDismissed();
     const box = overlay();
     if (!box) return;
     box.hidden = false;
@@ -23055,7 +23133,6 @@ readSession();
   function startup() {
     const client = sync();
     if (!client || client.isLoggedIn()) return;
-    if (wasDismissed()) return;
     show('login');
   }
 
@@ -23075,33 +23152,35 @@ readSession();
     else if (mode === 'pair-advisor') inner = renderPairAdvisor(role);
     else inner = renderLogin();
 
-    const closeLabel = role ? 'بستن' : 'ادامه آفلاین';
     box.innerHTML = `
-      <div class="auth-card">
-        <div class="auth-brand">
-          <div class="auth-logo" aria-hidden="true">M</div>
-          <div>
-            <div class="auth-title">مسیر کنکور</div>
-            <div class="auth-subtitle">حساب امن، پیشرفت همراهت</div>
+      <div class="auth-shell">
+        <aside class="auth-hero" aria-hidden="true">
+          <div class="auth-hero-top">
+            <div class="auth-hero-mark">M</div>
+            <div class="auth-hero-kicker">مسیر کنکور</div>
           </div>
-        </div>
-        ${inner}
-        <button type="button" class="auth-close-link" data-auth-action="dismiss">${closeLabel}</button>
-        <div class="auth-footnote">دادههای مطالعاتی همیشه روی همین دستگاه ذخیره میشوند و فقط برای همگامسازی به سرور فرستاده میشوند.</div>
+          <div class="auth-hero-copy">
+            <h2>هر قدمی که برمیداری، حساب میشود</h2>
+            <p>برنامه، فعالیتها و آزمونهایت را در یک فضای منظم و شخصی دنبال کن.</p>
+          </div>
+          <div class="auth-hero-features">
+            <span>✓ برنامه ریزی هفتگی</span>
+            <span>✓ ثبت فعالیت و شمارنده تست</span>
+            <span>✓ تحلیل و مقایسه آزمونها</span>
+          </div>
+        </aside>
+        <section class="auth-panel">
+          <div class="auth-mobile-brand">
+            <div class="auth-hero-mark">M</div>
+            <div>
+              <div class="auth-hero-kicker">مسیر کنکور</div>
+              <div class="auth-mobile-tagline">حساب شخصی تو</div>
+            </div>
+          </div>
+          ${role ? '<button type="button" class="auth-tool-close" data-auth-action="close" aria-label="بازگشت به تنظیمات">‹ بازگشت به تنظیمات</button>' : ''}
+          ${inner}
+        </section>
       </div>`;
-  }
-
-  function serverField() {
-    const client = sync();
-    const url = client && client.baseUrl ? client.baseUrl() : '';
-    return `
-      <details class="auth-advanced">
-        <summary>آدرس سرور همگامسازی</summary>
-        <input class="input auth-input" id="authServerUrl" type="url" dir="ltr"
-          inputmode="url" autocomplete="off" spellcheck="false"
-          value="${escapeHtml(url)}" placeholder="https://…">
-        <div class="auth-hint">در نصب معمولی نیازی به تغییر نیست.</div>
-      </details>`;
   }
 
   function phoneField(value, readonly, id) {
@@ -23149,7 +23228,7 @@ readSession();
         <button type="button" class="auth-link" data-auth-mode="signup">ثبت نام</button>
         <button type="button" class="auth-link" data-auth-mode="reset">فراموشی رمز عبور</button>
       </div>
-      ${serverField()}`;
+      `;
   }
 
   function renderSignup() {
@@ -23186,7 +23265,7 @@ readSession();
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-mode="login">حساب دارم، وارد شوید</button>
       </div>
-      ${serverField()}`;
+      `;
   }
 
   function renderReset() {
@@ -23221,7 +23300,7 @@ readSession();
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-mode="login">بازگشت به ورود</button>
       </div>
-      ${serverField()}`;
+      `;
   }
 
   function renderPassword() {
@@ -23369,13 +23448,6 @@ readSession();
     errorText = String(error || '');
   }
 
-  function saveServerUrl() {
-    const client = sync();
-    const raw = valueOf('authServerUrl');
-    if (!client || !raw || raw === client.baseUrl()) return;
-    client.saveBaseUrl(raw);
-  }
-
   function requirePasswordMatch() {
     const first = valueOf('authNewPassword');
     const second = valueOf('authConfirmPassword');
@@ -23388,7 +23460,6 @@ readSession();
   }
 
   async function finishLogin() {
-    clearDismissed();
     const client = sync();
     try { if (client && client.startAutoSync) client.startAutoSync(); } catch (e) {}
     try { if (client && client.cycle) client.cycle({ reason: 'login' }); } catch (e) {}
@@ -23403,7 +23474,6 @@ readSession();
     if (!client) { setResult('', 'ماژول ارتباط با سرور بارگذاری نشد.'); render(); return; }
     const phone = valueOf('authPhone');
     if (!phone) { setResult('', 'شماره تلفن را وارد کنید.'); render(); return; }
-    saveServerUrl();
     setBusy(true, purpose === 'signup' ? 'send-signup' : 'send-reset');
     errorText = '';
     notice = '';
@@ -23456,7 +23526,6 @@ readSession();
     const phone = valueOf('authPhone');
     const password = valueOf('authPassword');
     if (!phone || !password) { setResult('', 'شماره تلفن و رمز عبور را وارد کنید.'); render(); return; }
-    saveServerUrl();
     setBusy(true, 'login');
     notice = '';
     errorText = '';
@@ -23636,7 +23705,6 @@ readSession();
     }
     const action = button.dataset.authAction;
     if (!action) return;
-    if (action === 'dismiss') { dismissForOffline(); return; }
     if (action === 'close') { hide(); return; }
     if (action === 'login') return void doLogin();
     if (action === 'send-signup') return void sendOtp('signup');
@@ -23686,7 +23754,6 @@ readSession();
     hide,
     isOpen,
     startup,
-    dismissForOffline,
     getMode: () => mode,
     showLogin: () => show('login'),
     showSignup: () => show('signup'),
@@ -23728,11 +23795,6 @@ function setupBackExitGuard(){
     if(exitConfirmed) return;
 
     /* ۱) لایه‌های باز */
-    const auth=document.getElementById('authOverlay');
-    if(auth && auth.classList.contains('show') && !auth.hidden){
-      try{ window.masirAuth.dismissForOffline(); }catch(_){}
-      rearm(); return;
-    }
     const settings=document.getElementById('settingsOverlay');
     if(settings && settings.classList.contains('show')){
       try{ closeSettingsOverlay(); }catch(_){}

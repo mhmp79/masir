@@ -2011,7 +2011,17 @@ function getExamChartData(){
 
 function setCompareChrome(open){
   const app=document.querySelector('.app');
+  const logo=document.getElementById('appLogo');
+  const brandTitle=document.getElementById('brandTitle');
+  const compareTitle=document.getElementById('compareTitle');
+  const compareBackBtn=document.getElementById('compareBackBtn');
+  const settingsBtn=document.getElementById('settingsBtn');
   if(app)app.classList.toggle('compare-open',open);
+  if(logo)logo.classList.toggle('hidden',open);
+  if(brandTitle)brandTitle.classList.toggle('hidden',open);
+  if(compareTitle)compareTitle.classList.toggle('hidden',!open);
+  if(compareBackBtn)compareBackBtn.classList.toggle('hidden',!open);
+  if(settingsBtn)settingsBtn.classList.toggle('hidden',open);
 }
 function openExamCompare(){
   if(!state.settings.examsEnabled){toast('اول آزمون را فعال کن');return;}
@@ -2030,12 +2040,14 @@ function closeExamCompare(force){
   setCompareChrome(false);
   document.body.style.overflow='';
 }
-document.getElementById('examCompareClose').onclick=()=>closeExamCompare(true);
+const compareBackBtn=document.getElementById('compareBackBtn');
+if(compareBackBtn)compareBackBtn.onclick=()=>{
+  closeExamCompare(true);
+  if(typeof switchView==='function')switchView('exam');
+};
 
 function renderExamCompare(){
   const exams=getExamChartData();
-  const sub=document.getElementById('examCompareSub');
-  if(sub)sub.textContent=exams.length?`${fa(exams.length)} آزمون`:'—';
   const body=document.getElementById('examCompareBody');
   if(!exams.length){body.innerHTML=`<div class="exam-empty-state"><b>هنوز نتیجه‌ای ثبت نکردی</b></div>`;return;}
   const totalTarazs=exams.map((e)=>+e.totalTaraz||0);

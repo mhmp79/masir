@@ -38,10 +38,14 @@
       <button class="icon-btn settings-back-btn hidden" id="settingsBackBtn" title="بازگشت" aria-label="بازگشت">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
       </button>
+      <button class="icon-btn compare-back-btn hidden" id="compareBackBtn" title="بازگشت به آزمونها" aria-label="بازگشت به آزمونها">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
       <div class="logo app-logo" id="appLogo" aria-hidden="true"></div>
       <div>
         <div class="brand-title" id="brandTitle">مسیر کنکور</div>
         <div class="brand-title hidden" id="settingsTitle">تنظیمات</div>
+        <div class="brand-title hidden" id="compareTitle">بخش مقایسه آزمونها</div>
       </div>
     </div>
     <div class="topbar-actions">
@@ -468,18 +472,9 @@
   </div>
 </div>
 
-<!-- ===== EXAM COMPARE OVERLAY ===== -->
+<!-- ===== EXAM COMPARE OVERLAY — chrome lives in the shared app topbar ===== -->
 <div class="wr-overlay" id="examCompareOverlay">
   <div class="wr-shell">
-    <header class="wr-top">
-      <div class="wr-top-right">
-        <div class="wr-logo wr-logo-gold">📝</div>
-        <div><div class="wr-title">مقایسه آزمون‌های آزمایشی</div><div class="wr-sub" id="examCompareSub">—</div></div>
-      </div>
-      <div class="wr-nav">
-        <button class="wr-close" id="examCompareClose" title="بستن">✕</button>
-      </div>
-    </header>
     <main class="wr-body" id="examCompareBody"></main>
   </div>
 </div>
@@ -510,7 +505,7 @@
                 <span id="profileDisplayGrade">پایه: دوازدهم</span>
               </div>
             </div>
-            <button type="button" class="profile-link-btn" id="editProfileBtn" title="پروفایل" aria-label="پروفایل">پروفایل</button>
+            <button type="button" class="profile-link-btn" id="editProfileBtn" title="ویرایش حساب" aria-label="ویرایش حساب">ویرایش حساب</button>
           </div>
         </div>
 
@@ -527,9 +522,9 @@
         </button>
 
         <div class="card settings-link sync-link-row">
-          <button type="button" class="set-link-main" data-go="sync">
+          <button type="button" class="set-link-main" data-go="account">
             <span class="set-link-icon">☁️</span>
-            <span class="set-link-copy"><b>همگام سازی و حساب کاربری</b><small id="homeSyncState">ورود، خروج و تنظیمات همگام سازی</small></span>
+            <span class="set-link-copy"><b>حساب و پروفایل</b><small id="homeSyncState">اطلاعات شخصی، ورود و وضعیت همگامسازی</small></span>
             <span class="set-link-arrow">‹</span>
           </button>
         </div>
@@ -552,44 +547,81 @@
         </div>
       </section>
 
-      <!-- ===== PROFILE PAGE ===== -->
-      <section class="settings-page" data-page="profile" hidden>
+      <!-- ===== ACCOUNT + PROFILE PAGE ===== -->
+      <section class="settings-page" data-page="account" hidden>
         <div class="settings-page-head">
-          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
-          <div class="page-title">پروفایل</div>
+          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">‹</button>
+          <div class="page-title">حساب و پروفایل</div>
         </div>
-        <div class="card settings-detail-card">
-          <div class="muted profile-intro">اطلاعاتت در برنامه و خروجیهای تصویری استفاده میشود.</div>
-          <div class="profile-identity-grid">
-            <div class="profile-field">
-              <label class="lbl mt-0">نام</label>
-              <input class="input" id="setFirstName" placeholder="مثلاً: متین" maxlength="40">
+
+        <div class="card account-profile-card">
+          <div class="account-profile-hero">
+            <div class="account-profile-avatar" id="profileHeroAvatar" aria-hidden="true">M</div>
+            <div class="account-profile-intro">
+              <div class="account-profile-eyebrow">حساب شخصی</div>
+              <div class="account-profile-name" id="profileHeroName">نام ثبت نشده</div>
+              <div class="account-profile-meta">
+                <span id="profileDisplayField">رشته: تجربی</span>
+                <span class="profile-meta-divider">•</span>
+                <span id="profileDisplayGrade">پایه: دوازدهم</span>
+              </div>
             </div>
-            <div class="profile-field">
-              <label class="lbl mt-0">نام خانوادگی</label>
-              <input class="input" id="setLastName" placeholder="مثلاً: رحمانیان" maxlength="40">
+            <span class="account-profile-badge" id="accountProfileBadge">👤 مهمان</span>
+          </div>
+
+          <div class="account-profile-body">
+            <div class="account-section-head">
+              <span class="account-section-icon">✦</span>
+              <div>
+                <b>اطلاعات شخصی</b>
+                <small>در خروجیهای تصویری و برنامه نمایش داده میشود</small>
+              </div>
             </div>
-            <div class="profile-field">
-              <label class="lbl mt-0">رشته</label>
-              <select class="input" id="setField">
-                <option value="تجربی">تجربی</option>
-                <option value="ریاضی">ریاضی</option>
-                <option value="انسانی">انسانی</option>
-              </select>
+            <div class="profile-identity-grid">
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setFirstName">نام</label>
+                <input class="input" id="setFirstName" placeholder="مثلاً: متین" maxlength="40">
+              </div>
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setLastName">نام خانوادگی</label>
+                <input class="input" id="setLastName" placeholder="مثلاً: رحمانیان" maxlength="40">
+              </div>
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setField">رشته</label>
+                <select class="input" id="setField">
+                  <option value="تجربی">تجربی</option>
+                  <option value="ریاضی">ریاضی</option>
+                  <option value="انسانی">انسانی</option>
+                </select>
+              </div>
+              <div class="profile-field">
+                <label class="lbl mt-0" for="setGrade">پایه</label>
+                <select class="input" id="setGrade">
+                  <option value="دهم">دهم</option>
+                  <option value="یازدهم">یازدهم</option>
+                  <option value="دوازدهم">دوازدهم</option>
+                </select>
+              </div>
             </div>
-            <div class="profile-field">
-              <label class="lbl mt-0">پایه</label>
-              <select class="input" id="setGrade">
-                <option value="دهم">دهم</option>
-                <option value="یازدهم">یازدهم</option>
-                <option value="دوازدهم">دوازدهم</option>
-              </select>
+            <div class="muted mt-10 fs-10h lh-175 text-amber" id="profileFieldHint"></div>
+            <div class="profile-edit-actions">
+              <button class="btn primary" id="saveProfileBtn">ذخیره اطلاعات</button>
+              <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
             </div>
           </div>
-          <div class="muted mt-10 fs-10h lh-175 text-amber" id="profileFieldHint"></div>
-          <div class="profile-edit-actions">
-            <button class="btn primary" id="saveProfileBtn">ذخیره پروفایل</button>
-            <button type="button" class="btn" id="cancelProfileEditBtn">انصراف</button>
+        </div>
+
+        <div class="card account-profile-card account-services-card">
+          <div class="account-section-head">
+            <span class="account-section-icon">☁</span>
+            <div>
+              <b>حساب و همگامسازی</b>
+              <small>ورود، امنیت و وضعیت همگامسازی خودکار</small>
+            </div>
+          </div>
+          <div id="accountUI" class="account-ui"></div>
+          <div class="sync-card" id="syncCard">
+            <div id="syncUI"></div>
           </div>
         </div>
       </section>
@@ -639,21 +671,6 @@
           <div class="chips" id="errSubjectChips"></div>
           <div id="subjectErrorsList" class="mt-10"></div>
           <div class="add-topic"><input class="input" id="newSubjectErr" placeholder="اشتباه اختصاصی جدید..."><button id="addSubjectErrBtn">+</button></div>
-        </div>
-      </section>
-
-      <!-- ===== SYNC + ACCOUNT PAGE ===== -->
-      <section class="settings-page" data-page="sync" hidden>
-        <div class="settings-page-head">
-          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
-          <div class="page-title">همگام سازی و حساب کاربری</div>
-        </div>
-        <div class="card settings-detail-card">
-          <div class="card-title">حساب کاربری</div>
-          <div id="accountUI" class="account-ui"></div>
-        </div>
-        <div class="card sync-card settings-detail-card" id="syncCard">
-          <div id="syncUI"></div>
         </div>
       </section>
 

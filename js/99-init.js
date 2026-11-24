@@ -26,11 +26,6 @@ function setupBackExitGuard(){
     if(exitConfirmed) return;
 
     /* ۱) لایه‌های باز */
-    const auth=document.getElementById('authOverlay');
-    if(auth && auth.classList.contains('show') && !auth.hidden){
-      try{ window.masirAuth.dismissForOffline(); }catch(_){}
-      rearm(); return;
-    }
     const settings=document.getElementById('settingsOverlay');
     if(settings && settings.classList.contains('show')){
       try{ closeSettingsOverlay(); }catch(_){}

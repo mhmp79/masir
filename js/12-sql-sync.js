@@ -1419,6 +1419,11 @@ function renderSyncUI() {
   const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
   const busy = !!syncBusy || autoSyncRunning;
   const badge = syncStateBadge(online, loggedIn, busy);
+  const accountBadge = document.getElementById('accountProfileBadge');
+  if (accountBadge) {
+    accountBadge.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
+    accountBadge.classList.toggle('connected', loggedIn);
+  }
 
   renderAccountUI(loggedIn, phone, online, busy, lastSync);
 

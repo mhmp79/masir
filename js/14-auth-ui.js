@@ -1,14 +1,12 @@
 'use strict';
 
 /* ============================================================
-   MASIR AUTH UI — phone/password sign in, OTP signup/reset,
-   account tools and advisor pairing, styled as part of the app.
-   The overlay is dismissible for offline-first local use; sync
-   starts automatically as soon as an account is available.
+   MASIR AUTH UI — dedicated full-screen sign in, phone/password,
+   OTP signup/reset, account tools and advisor pairing.
+   Sync starts automatically only after a successful sign in.
    ============================================================ */
 
 (function () {
-  const SESSION_DISMISSED_KEY = 'konkur-auth-offline-session-v1';
   const AUTH_MODES = Object.freeze([
     'login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'
   ]);
@@ -79,17 +77,6 @@
   function unlockBody() {
     if (!bodyIsLocked()) document.body.style.overflow = '';
   }
-  function dismissForOffline() {
-    try { sessionStorage.setItem(SESSION_DISMISSED_KEY, '1'); } catch (e) {}
-    hide();
-    notify('ادامه آفلاین؛ دادهها روی این دستگاه ذخیره میشوند.');
-  }
-  function wasDismissed() {
-    try { return sessionStorage.getItem(SESSION_DISMISSED_KEY) === '1'; } catch (e) { return false; }
-  }
-  function clearDismissed() {
-    try { sessionStorage.removeItem(SESSION_DISMISSED_KEY); } catch (e) {}
-  }
 
   function show(nextMode, options) {
     const opts = options || {};
@@ -108,7 +95,6 @@
       advisorCode = '';
       advisorLinks = [];
     }
-    clearDismissed();
     const box = overlay();
     if (!box) return;
     box.hidden = false;
@@ -136,7 +122,6 @@
   function startup() {
     const client = sync();
     if (!client || client.isLoggedIn()) return;
-    if (wasDismissed()) return;
     show('login');
   }
 
@@ -156,33 +141,35 @@
     else if (mode === 'pair-advisor') inner = renderPairAdvisor(role);
     else inner = renderLogin();
 
-    const closeLabel = role ? 'بستن' : 'ادامه آفلاین';
     box.innerHTML = `
-      <div class="auth-card">
-        <div class="auth-brand">
-          <div class="auth-logo" aria-hidden="true">M</div>
-          <div>
-            <div class="auth-title">مسیر کنکور</div>
-            <div class="auth-subtitle">حساب امن، پیشرفت همراهت</div>
+      <div class="auth-shell">
+        <aside class="auth-hero" aria-hidden="true">
+          <div class="auth-hero-top">
+            <div class="auth-hero-mark">M</div>
+            <div class="auth-hero-kicker">مسیر کنکور</div>
           </div>
-        </div>
-        ${inner}
-        <button type="button" class="auth-close-link" data-auth-action="dismiss">${closeLabel}</button>
-        <div class="auth-footnote">دادههای مطالعاتی همیشه روی همین دستگاه ذخیره میشوند و فقط برای همگامسازی به سرور فرستاده میشوند.</div>
+          <div class="auth-hero-copy">
+            <h2>هر قدمی که برمیداری، حساب میشود</h2>
+            <p>برنامه، فعالیتها و آزمونهایت را در یک فضای منظم و شخصی دنبال کن.</p>
+          </div>
+          <div class="auth-hero-features">
+            <span>✓ برنامه ریزی هفتگی</span>
+            <span>✓ ثبت فعالیت و شمارنده تست</span>
+            <span>✓ تحلیل و مقایسه آزمونها</span>
+          </div>
+        </aside>
+        <section class="auth-panel">
+          <div class="auth-mobile-brand">
+            <div class="auth-hero-mark">M</div>
+            <div>
+              <div class="auth-hero-kicker">مسیر کنکور</div>
+              <div class="auth-mobile-tagline">حساب شخصی تو</div>
+            </div>
+          </div>
+          ${role ? '<button type="button" class="auth-tool-close" data-auth-action="close" aria-label="بازگشت به تنظیمات">‹ بازگشت به تنظیمات</button>' : ''}
+          ${inner}
+        </section>
       </div>`;
-  }
-
-  function serverField() {
-    const client = sync();
-    const url = client && client.baseUrl ? client.baseUrl() : '';
-    return `
-      <details class="auth-advanced">
-        <summary>آدرس سرور همگامسازی</summary>
-        <input class="input auth-input" id="authServerUrl" type="url" dir="ltr"
-          inputmode="url" autocomplete="off" spellcheck="false"
-          value="${escapeHtml(url)}" placeholder="https://…">
-        <div class="auth-hint">در نصب معمولی نیازی به تغییر نیست.</div>
-      </details>`;
   }
 
   function phoneField(value, readonly, id) {
@@ -230,7 +217,7 @@
         <button type="button" class="auth-link" data-auth-mode="signup">ثبت نام</button>
         <button type="button" class="auth-link" data-auth-mode="reset">فراموشی رمز عبور</button>
       </div>
-      ${serverField()}`;
+      `;
   }
 
   function renderSignup() {
@@ -267,7 +254,7 @@
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-mode="login">حساب دارم، وارد شوید</button>
       </div>
-      ${serverField()}`;
+      `;
   }
 
   function renderReset() {
@@ -302,7 +289,7 @@
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-mode="login">بازگشت به ورود</button>
       </div>
-      ${serverField()}`;
+      `;
   }
 
   function renderPassword() {
@@ -450,13 +437,6 @@
     errorText = String(error || '');
   }
 
-  function saveServerUrl() {
-    const client = sync();
-    const raw = valueOf('authServerUrl');
-    if (!client || !raw || raw === client.baseUrl()) return;
-    client.saveBaseUrl(raw);
-  }
-
   function requirePasswordMatch() {
     const first = valueOf('authNewPassword');
     const second = valueOf('authConfirmPassword');
@@ -469,7 +449,6 @@
   }
 
   async function finishLogin() {
-    clearDismissed();
     const client = sync();
     try { if (client && client.startAutoSync) client.startAutoSync(); } catch (e) {}
     try { if (client && client.cycle) client.cycle({ reason: 'login' }); } catch (e) {}
@@ -484,7 +463,6 @@
     if (!client) { setResult('', 'ماژول ارتباط با سرور بارگذاری نشد.'); render(); return; }
     const phone = valueOf('authPhone');
     if (!phone) { setResult('', 'شماره تلفن را وارد کنید.'); render(); return; }
-    saveServerUrl();
     setBusy(true, purpose === 'signup' ? 'send-signup' : 'send-reset');
     errorText = '';
     notice = '';
@@ -537,7 +515,6 @@
     const phone = valueOf('authPhone');
     const password = valueOf('authPassword');
     if (!phone || !password) { setResult('', 'شماره تلفن و رمز عبور را وارد کنید.'); render(); return; }
-    saveServerUrl();
     setBusy(true, 'login');
     notice = '';
     errorText = '';
@@ -717,7 +694,6 @@
     }
     const action = button.dataset.authAction;
     if (!action) return;
-    if (action === 'dismiss') { dismissForOffline(); return; }
     if (action === 'close') { hide(); return; }
     if (action === 'login') return void doLogin();
     if (action === 'send-signup') return void sendOtp('signup');
@@ -767,7 +743,6 @@
     hide,
     isOpen,
     startup,
-    dismissForOffline,
     getMode: () => mode,
     showLogin: () => show('login'),
     showSignup: () => show('signup'),

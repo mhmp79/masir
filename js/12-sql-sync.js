@@ -166,8 +166,12 @@ function saveSession(result) {
     localStorage.setItem(SQL_AUTH_USER_KEY, JSON.stringify(user));
   } catch (e) {}
   try {
-    if (state && state.profile && nextId) {
-      state.profile.id = nextId;
+    if (state && state.profile) {
+      if (nextId) state.profile.id = nextId;
+      if (user.firstName) state.profile.firstName = String(user.firstName).slice(0, 40);
+      if (user.lastName) state.profile.lastName = String(user.lastName).slice(0, 40);
+      if (['تجربی','ریاضی','انسانی'].includes(user.field)) state.profile.field = user.field;
+      if (['دهم','یازدهم','دوازدهم'].includes(user.grade)) state.profile.grade = user.grade;
       save();
     }
   } catch (e) {}
@@ -195,6 +199,7 @@ function getLoggedInUserId() {
 function getLoggedInRole() {
   return String((authUser && authUser.role) || 'student');
 }
+function getAuthUser() { return authUser; }
 
 /* Kept as a compatibility alias for older callers; it returns the phone,
    because the app no longer has e-mail accounts. */
@@ -535,6 +540,15 @@ function pendingToChange(change) {
   };
 }
 
+function sanitizeAppMetaForSync(record) {
+  const rec = record && typeof record === 'object' ? { ...record } : {};
+  const value = rec.value && typeof rec.value === 'object' ? { ...rec.value } : {};
+  // Profile is account/server-only; never sync it through app_meta.
+  delete value.profile;
+  rec.value = value;
+  return rec;
+}
+
 function buildFullUploadChanges() {
   const api = window.MasirSqlApi;
   const snapshot = normalizedStorageSnapshot(compactStateForStorage(state));
@@ -545,7 +559,7 @@ function buildFullUploadChanges() {
     records.forEach((json, localId) => {
       let record;
       try { record = JSON.parse(json); } catch (e) { return; }
-      const data = { ...record };
+      const data = store === 'app-meta' ? { ...sanitizeAppMetaForSync(record) } : { ...record };
       if (record.order !== undefined && record.order !== null) data.localOrder = record.order;
       changes.push({
         store,
@@ -609,6 +623,13 @@ function buildIncrementalUploadChanges(pending, meta) {
   return changes;
 }
 
+function conflictId(conflict) {
+  if (!conflict) return '';
+  if (typeof conflict === 'string') return conflict;
+  if (typeof conflict === 'object') return String(conflict.id || conflict.changeId || '');
+  return '';
+}
+
 async function sendChangeBatch(client, changes) {
   const applied = [];
   const conflicts = [];
@@ -661,8 +682,11 @@ async function performUpload(options) {
     setProgress('upload', 35, `${fa(0)} از ${fa(changes.length)} رکورد`, true);
     const { applied, conflicts } = await sendChangeBatch(client, changes);
     const appliedSet = new Set(applied.map(String));
+    const conflictSet = new Set((conflicts || []).map(conflictId).filter(Boolean));
+    // Ack applied changes. For LWW conflicts server is newer/equal, so drop local pending
+    // conflicting edits; a forced download will bring the server winner.
     const acked = changes
-      .filter(item => item.original && appliedSet.has(String(item.id)))
+      .filter(item => item.original && (appliedSet.has(String(item.id)) || conflictSet.has(String(item.id))))
       .map(item => item.original);
     await acknowledgeChanges(acked).catch(error => console.warn('[SQL] ack failed:', error));
 
@@ -676,11 +700,11 @@ async function performUpload(options) {
     setLastSyncTimestamp(now);
 
     if (conflicts.length) {
-      syncError = `ارسال با ${fa(conflicts.length)} تداخل مواجه شد؛ تغییرات دوباره فرستاده میشوند.`;
-      return { ok: false, changed: applied.length, error: syncError };
+      syncError = `تداخل ${fa(conflicts.length)} موردی تشخیص داده شد؛ نسخه جدیدتر سرور اعمال میشود.`;
+      return { ok: false, changed: acked.length, conflicts: conflictSet.size, error: syncError };
     }
-    syncNotice = `✓ ${fa(applied.length)} تغییر روی حساب شما ذخیره شد`;
-    return { ok: true, changed: applied.length };
+    syncNotice = `✓ ${fa(acked.length)} تغییر روی حساب شما ذخیره شد`;
+    return { ok: true, changed: acked.length };
   } catch (error) {
     console.error('[SQL] upload failed:', error);
     syncError = 'ارسال ناموفق بود — ' + sqlErrorMessage(error);
@@ -745,7 +769,12 @@ function decodeRemoteChange(change, api, localSnapshot) {
     throw new Error('دادههای اصلی حساب روی سرور حذف شده است؛ عملیات برای جلوگیری از حذف داده متوقف شد.');
   }
   const typed = api.fromTypedRow(table, data);
-  const value = store === 'app-meta' ? (data.value || {}) : stripLocalEnvelope(typed);
+  let value = store === 'app-meta' ? (data.value || {}) : stripLocalEnvelope(typed);
+  if (store === 'app-meta' && value && typeof value === 'object') {
+    const v = { ...value };
+    delete v.profile; // account profile is server-only; never overwrite local account profile from app_meta sync
+    value = v;
+  }
   const order = data.local_order == null
     ? (localSnapshot && localSnapshot.get(store) && localSnapshot.get(store).get(localId)
         ? (() => { try { return JSON.parse(localSnapshot.get(store).get(localId)).order || 0; } catch (e) { return 0; } })()
@@ -764,7 +793,10 @@ function safeSinceFromChanges(changes, fallback) {
   });
   if (!max) return fallback || '';
   const time = Date.parse(max);
-  return Number.isFinite(time) ? new Date(Math.max(0, time - 1000)).toISOString() : (fallback || '');
+  const next = Number.isFinite(time) ? new Date(time).toISOString() : max;
+  // Never move cursor backwards; moving forward prevents re-applying the same batch forever.
+  if (fallback && next <= String(fallback)) return fallback;
+  return next;
 }
 
 async function refreshAppAfterSync() {
@@ -843,12 +875,13 @@ async function performDownload(options) {
     const deletes = [];
     let remoteTracker = null;
     let remoteTimer = null;
+    let guardedBlocked = false;
 
     decoded.forEach(item => {
       if (item.kind === 'tracker') { remoteTracker = item.value; return; }
       if (item.kind === 'timer') { remoteTimer = item.value; return; }
       const key = `${item.store}::${item.record.id}`;
-      if (guarded.has(key)) return;
+      if (guarded.has(key)) { guardedBlocked = true; return; }
       if (item.kind === 'delete') deletes.push({ store: item.store, id: item.record.id });
       else puts.push({ store: item.store, record: item.record });
     });
@@ -901,14 +934,20 @@ async function performDownload(options) {
     const now = Date.now();
     const tracker = currentTrackerPayload();
     const timer = currentTimerPayload();
+    // If local pending edits blocked remote application, don't advance cursor past them;
+    // keep current since so remote changes are re-fetched after pending resolves.
+    const nextSince = guardedBlocked ? String((meta && meta.since) || '') : safeSinceFromChanges(changes, meta && meta.since);
     saveSyncMeta(server, owner, {
       ...(meta || {}),
-      since: safeSinceFromChanges(changes, meta && meta.since),
+      since: nextSince,
       tracker: trackerSignatureOf(tracker),
       timer: timerSignatureOf(timer),
       lastSyncAt: now
     });
     setLastSyncTimestamp(now);
+    if (guardedBlocked) {
+      syncNotice = 'تغییرات محلی در انتظار ارسال هستند؛ پس از ارسال، نسخه جدیدتر سرور بررسی میشود.';
+    }
     const applied = puts.length + deletes.length + (remoteTracker ? 1 : 0) + (remoteTimer ? 1 : 0);
     syncNotice = applied
       ? `✓ ${fa(applied)} تغییر از حساب شما اعمال شد`
@@ -1138,11 +1177,11 @@ async function syncCycle(options) {
       registerAutoFailure(uploadFailure);
     }
 
-    const forceDownload = ['probe', 'realtime', 'login'].includes(reason);
+    const forceDownload = ['probe', 'realtime', 'login', 'online', 'visible', 'focus'].includes(reason) || !!(up && up.conflicts);
     const downloadAllowed = forceDownload || (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP);
     if (!downloadAllowed) {
       outcome = uploadFailed
-        ? { ok: false, partial: true, error: uploadFailure }
+        ? { ok: false, partial: true, error: uploadFailure, conflicts: up.conflicts || 0 }
         : { ok: true, changed: up.changed || 0, downloadSkipped: true };
       if (!uploadFailed) { registerAutoSuccess(); lastAutoStatus = 'idle'; }
       else lastAutoStatus = 'error';
@@ -1349,6 +1388,66 @@ function accountActionButton(id, label, className) {
   return `<button type="button" class="btn ${className || 'ghost'} account-btn" id="${id}">${label}</button>`;
 }
 
+let adminUsersCache = [];
+let adminUsersLoaded = false;
+let adminUsersLoading = false;
+
+async function loadAdminUsersPanel() {
+  if (adminUsersLoading) return;
+  const client = window.sqlSync || window.masirSqlSync;
+  if (!client || !client.isLoggedIn || !client.isLoggedIn() || client.getLoggedInRole() !== 'admin') return;
+  adminUsersLoading = true;
+  renderAdminUsersPanel(true);
+  try {
+    const result = await client.listUsers(200);
+    adminUsersCache = Array.isArray(result) ? result : (result && result.users) || [];
+    adminUsersLoaded = true;
+  } catch (e) {
+    console.warn('[admin] users list failed', e);
+  } finally {
+    adminUsersLoading = false;
+    renderAdminUsersPanel(true);
+  }
+}
+
+function renderAdminUsersPanel(loggedIn) {
+  const box = document.getElementById('adminUsersUI');
+  if (!box) return;
+  const role = getLoggedInRole();
+  if (!loggedIn || role !== 'admin') {
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  box.hidden = false;
+  const roleLabel = { student: 'دانشآموز', advisor: 'مشاور', admin: 'مدیر' };
+  const rows = !adminUsersLoaded
+    ? '<div class="admin-users-empty">در حال دریافت لیست کاربران…</div>'
+    : (adminUsersCache.length ? adminUsersCache.map(u => {
+        const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.displayName || '—';
+        const meta = [roleLabel[u.role] || u.role, u.field, u.grade].filter(Boolean).join(' · ');
+        return `<div class="admin-user-row">
+          <div class="admin-user-main">
+            <div class="admin-user-name">${esc(name)}</div>
+            <div class="admin-user-meta">${esc(meta || '—')}</div>
+          </div>
+          <div class="admin-user-phone" dir="ltr">${esc(u.phone || '')}</div>
+        </div>`;
+      }).join('') : '<div class="admin-users-empty">کاربری ثبت نشده است.</div>');
+  box.innerHTML = `
+    <div class="admin-users-head">
+      <div>
+        <b>لیست کاربران</b>
+        <small>شماره، نام و اطلاعات حساب متصل</small>
+      </div>
+      <button type="button" class="btn ghost account-btn" id="adminUsersRefreshBtn">${adminUsersLoading ? '…' : 'بهروزرسانی'}</button>
+    </div>
+    <div class="admin-users-list">${rows}</div>`;
+  const refreshBtn = document.getElementById('adminUsersRefreshBtn');
+  if (refreshBtn) refreshBtn.onclick = () => { adminUsersLoaded = false; loadAdminUsersPanel(); };
+  if (!adminUsersLoaded && !adminUsersLoading) loadAdminUsersPanel();
+}
+
 function renderAccountUI(loggedIn, phone, busy) {
   const box = document.getElementById('accountUI');
   if (!box) return;
@@ -1369,13 +1468,11 @@ function renderAccountUI(loggedIn, phone, busy) {
   };
 
   if (!loggedIn) {
-    box.innerHTML = `<div class="account-actions">${accountActionButton('accountLoginBtn', 'ورود', 'primary')}</div>`;
+    box.innerHTML = `<div class="account-actions">${accountActionButton('accountLoginBtn', 'ورود به حساب', 'primary')}</div>`;
     bind('accountLoginBtn', openAuth('login'));
     return;
   }
 
-  const roleLabels = { admin: 'مدیر', advisor: 'مشاور', student: 'دانشآموز' };
-  const roleLabel = roleLabels[role] || 'کاربر';
   const adminButtons = role === 'admin'
     ? accountActionButton('accountAdminBtn', 'مدیریت کاربران', 'ghost')
     : '';
@@ -1390,11 +1487,10 @@ function renderAccountUI(loggedIn, phone, busy) {
     : '';
   box.innerHTML = `
     <div class="account-actions">
-      ${accountActionButton('accountLogoutBtn', busy ? 'در حال سینک…' : 'خروج', 'ghost')}
+      ${accountActionButton('accountLogoutBtn', busy ? 'در حال همگامسازی…' : 'خروج', 'ghost')}
       ${accountActionButton('accountPasswordBtn', 'تغییر رمز', 'ghost')}
       ${adminButtons}${advisorButtons}${studentButtons}${widgetButtons}
-    </div>
-    <div class="account-role">دسترسی: ${esc(roleLabel)}</div>`;
+    </div>`;
 
   bind('accountLogoutBtn', () => {
     if (busy) return;
@@ -1437,11 +1533,13 @@ function renderSyncUI() {
   }
 
   renderAccountUI(loggedIn, phone, busy);
+  renderAdminUsersPanel(loggedIn);
+  try { if (typeof window.refreshBackupUiState === 'function') window.refreshBackupUiState(); } catch (e) {}
 
   if (!loggedIn) {
     box.innerHTML = `
       <div class="sync-status-line">
-        <span class="sync-empty-note">برای شروع همگامسازی وارد شوید.</span>
+        <span class="sync-status-note">برای ذخیره ابری و استفاده در چند دستگاه وارد شوید.</span>
         <span class="sync-state-pill warn">${badge.text}</span>
       </div>`;
     return;
@@ -1449,7 +1547,7 @@ function renderSyncUI() {
 
   box.innerHTML = `
     <div class="sync-status-line">
-      <span class="sync-status-note">همگامسازی خودکار فعال است · آخرین سینک: ${esc(lastSync)}</span>
+      <span class="sync-status-note">ذخیره ابری خودکار · آخرین بروزرسانی: ${esc(lastSync)}</span>
       <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
     </div>
     <div class="sync-pending-row">
@@ -1474,6 +1572,7 @@ window.sqlSync = {
   getLoggedInEmail,
   getLoggedInUserId,
   getLoggedInRole,
+  getUser: getAuthUser,
   getLastSyncTimestamp,
   formatLastSync,
   getClient: getSqlClient,
@@ -1499,6 +1598,20 @@ window.sqlSync = {
   onSettingsOpen,
   logout: logoutSql,
   deleteAccountData,
+  updateProfile: async (profile) => {
+    const client = await requireSqlAuth();
+    const res = await client.updateProfile(profile);
+    const user = res && res.user ? res.user : res;
+    if (user && typeof user === 'object') {
+      authUser = { ...(authUser || {}), ...user };
+      try { localStorage.setItem(SQL_AUTH_USER_KEY, JSON.stringify(authUser)); } catch (e) {}
+    }
+    return res;
+  },
+  listUsers: async (limit) => {
+    const client = await requireSqlAuth();
+    return client.listUsers(limit);
+  },
   isAutoSyncEnabled: () => autoSyncEnabled,
   render: renderSyncUI,
   realtimeStatus: () => ({

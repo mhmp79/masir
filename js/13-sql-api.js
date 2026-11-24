@@ -260,11 +260,13 @@
     if (rawId === undefined || rawId === null || String(rawId) === '') {
       throw new Error('Invalid change. Missing record id.');
     }
+    const localUpdated = firstDefined(change.clientUpdated, change.updatedAt, change.changedAt, change.updated);
     const payload = {
       table,
       id: String(rawId),
       op,
-      /* Optimistic timestamp: the server compares it with its stored `updated`. */
+      /* LWW hint for server; server also has its own updated timestamp. */
+      clientUpdated: localUpdated ? new Date(localUpdated).toISOString() : new Date().toISOString(),
       updated: change.updated !== undefined && change.updated !== null
         ? String(change.updated)
         : new Date().toISOString()
@@ -434,6 +436,26 @@
     /** Remove every synced row belonging to the signed-in account. */
     deleteAccountData() {
       return this._request('/api/account/clear-data', { method: 'POST', body: {} });
+    }
+
+    /** Update first/last name, field and grade for the signed-in account. */
+    updateProfile(profile) {
+      const p = profile && typeof profile === 'object' ? profile : {};
+      return this._request('/api/account/profile', {
+        method: 'PUT',
+        body: {
+          firstName: String(p.firstName == null ? '' : p.firstName),
+          lastName: String(p.lastName == null ? '' : p.lastName),
+          field: String(p.field == null ? '' : p.field),
+          grade: String(p.grade == null ? '' : p.grade),
+        },
+      });
+    }
+
+    /** Admin only: list users for account management. */
+    listUsers(limit) {
+      const query = Number.isFinite(Number(limit)) ? `?limit=${encodeURIComponent(String(limit))}` : '';
+      return this._request(`/api/admin/users${query}`);
     }
 
     createUser(phone, password, options) {

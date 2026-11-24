@@ -6,6 +6,8 @@
 
 let ovTab='specialized';
 let ovMql=null;
+let ovSelectedSubject={specialized:'',general:''};
+let ovSelectedGrade={specialized:'',general:''};
 
 function ovIsMobile(){ return window.matchMedia('(max-width:767px)').matches; }
 
@@ -126,7 +128,8 @@ function renderSpecializedOverview(body){
   }
 
   if(ovIsMobile()){
-    body.innerHTML=`<div class="card ov-table-card">${renderSpecializedMobile(specSubs)}${ovLegendSpecialized()}</div>`;
+    const selected=ensureOvSelectedSubject('specialized', specSubs.map(s=>s.name));
+    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(specSubs, selected, 'specialized')}${renderSpecializedMobile(specSubs, selected)}${ovLegendSpecialized()}</div>`;
     return;
   }
 
@@ -198,24 +201,69 @@ function ovLegendSpecialized(){
   return `<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg ov-leg-hint">کلیک روی خانه = ثبت درصد و مرور</span></div>`;
 }
 
-function renderSpecializedMobile(specSubs){
+function ensureOvSelectedSubject(kind, names){
+  const list = Array.isArray(names) ? names.filter(Boolean) : [];
+  if(!list.length){ ovSelectedSubject[kind]=''; return ''; }
+  if(!list.includes(ovSelectedSubject[kind])) ovSelectedSubject[kind]=list[0];
+  return ovSelectedSubject[kind];
+}
+function ensureOvSelectedGrade(kind, subjectName, grades){
+  const list = Array.isArray(grades) ? grades.filter(Boolean) : [];
+  const key = kind + '::' + String(subjectName||'');
+  if(!ovSelectedGrade._keys) ovSelectedGrade._keys = {};
+  if(ovSelectedGrade._keys[kind] !== key){ ovSelectedGrade[kind]=''; ovSelectedGrade._keys[kind]=key; }
+  if(!list.length){ ovSelectedGrade[kind]=''; return ''; }
+  if(!list.includes(ovSelectedGrade[kind])) ovSelectedGrade[kind]=list[0];
+  return ovSelectedGrade[kind];
+}
+
+function renderOvSubjectSelector(subs, selected, kind){
+  if(!Array.isArray(subs)||!subs.length) return '';
+  return `<div class="ov-subject-selector" role="tablist" aria-label="انتخاب درس">
+    ${subs.map(sub=>{
+      const name=sub.name;
+      const active=name===selected;
+      return `<button type="button" class="ov-subject-chip ${active?'active':''}" data-ov-subject="${esc(name)}" data-ov-kind="${kind}" style="--ov-color:${sub.color||'#7c5cff'}">${esc(sub.type==='general'?generalSubjectDisplayName(name):name)}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderOvGradeSelector(grades, selected, kind, color){
+  const list = Array.isArray(grades) ? grades.filter(Boolean) : [];
+  if(list.length <= 1) return '';
+  return `<div class="ov-grade-selector" role="tablist" aria-label="انتخاب پایه" style="--ov-color:${color||'#7c5cff'}">
+    ${list.map(g=>{
+      const active=g===selected;
+      return `<button type="button" class="ov-grade-chip ${active?'active':''}" data-ov-grade="${esc(g)}" data-ov-kind="${kind}">${esc(g)}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderSpecializedMobile(specSubs, selectedName){
+  const subj = specSubs.find(s=>s.name===selectedName) || specSubs[0];
+  if(!subj) return '<div class="empty-state"><b>درسی انتخاب نشده</b></div>';
   let html='<div class="ov-mobile-cards ov-mobile-cards-specialized">';
-  specSubs.forEach(subj=>{
-    const rowGroups=[];
-    subjGrades(subj.name).forEach(grade=>{
-      const topics=getTopics(subj.name,grade)||[];
-      if(!topics.length)return;
-      rowGroups.push({grade,topics});
+  const rowGroups=[];
+  subjGrades(subj.name).forEach(grade=>{
+    const topics=getTopics(subj.name,grade)||[];
+    if(!topics.length)return;
+    rowGroups.push({grade,topics});
+  });
+  const grades=rowGroups.map(r=>r.grade);
+  const selectedGrade=ensureOvSelectedGrade('specialized', subj.name, grades);
+  const visibleRows = selectedGrade ? rowGroups.filter(r=>r.grade===selectedGrade) : rowGroups;
+  html = renderOvGradeSelector(grades, selectedGrade, 'specialized', subj.color) + html;
+  if(!visibleRows.length){
+    html+=`<div class="empty-state"><b>مبحثی برای ${esc(subj.name)} ثبت نشده</b></div>`;
+  }
+  visibleRows.forEach(r=>{
+    html+=`<section class="ov-mobile-group" style="--ov-color:${subj.color}"><header><b>${esc(subj.name)}</b><span>${esc(r.grade)}</span></header><div class="ov-mobile-grid">`;
+    r.topics.forEach(topic=>{
+      const m=specializedCellModel(subj,r.grade,topic);
+      const cls=m.cls.filter(c=>c!=='ov-cell').join(' ');
+      html+=`<div class="ov-mobile-topic ${cls}" ${ovAttrs('spec',subj.name,r.grade,` data-topic="${esc(topic)}"`)}>${m.inner}</div>`;
     });
-    rowGroups.forEach(r=>{
-      html+=`<section class="ov-mobile-group" style="--ov-color:${subj.color}"><header><b>${esc(subj.name)}</b><span>${esc(r.grade)}</span></header><div class="ov-mobile-grid">`;
-      r.topics.forEach(topic=>{
-        const m=specializedCellModel(subj,r.grade,topic);
-        const cls=m.cls.filter(c=>c!=='ov-cell').join(' ');
-        html+=`<div class="ov-mobile-topic ${cls}" ${ovAttrs('spec',subj.name,r.grade,` data-topic="${esc(topic)}"`)}>${m.inner}</div>`;
-      });
-      html+='</div></section>';
-    });
+    html+='</div></section>';
   });
   html+='</div>';
   return html;
@@ -277,7 +325,8 @@ function renderGeneralOverview(body){
   }
 
   if(ovIsMobile()){
-    body.innerHTML=`<div class="card ov-table-card">${renderGeneralMobile(genSubs)}<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg text-amber">◐ آزاد</span><span class="ov-leg ov-leg-hint">کلیک روی درس = ثبت درصد</span></div></div>`;
+    const selected=ensureOvSelectedSubject('general', genSubs.map(s=>s.name));
+    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(genSubs, selected, 'general')}${renderGeneralMobile(genSubs, selected)}<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg text-amber">◐ آزاد</span><span class="ov-leg ov-leg-hint">کلیک روی درس = ثبت درصد</span></div></div>`;
     return;
   }
 
@@ -354,28 +403,35 @@ function renderGeneralOverview(body){
   `;
 }
 
-function renderGeneralMobile(genSubs){
+function renderGeneralMobile(genSubs, selectedName){
+  const group = genSubs.find(s=>s.name===selectedName) || genSubs[0];
+  if(!group) return '<div class="empty-state"><b>درسی انتخاب نشده</b></div>';
   let html='<div class="ov-mobile-cards ov-mobile-cards-general">';
   const visibleGeneralGrades=state.profile.grade==='دوازدهم'
       ?(state.settings.includeEleventhFinal?GENERAL_GRADES:['دوازدهم'])
     :GENERAL_GRADES.includes(state.profile.grade)?[state.profile.grade]:[];
-  genSubs.forEach(group=>{
-    visibleGeneralGrades.forEach(grade=>{
-      const total=getSubjectLessons(group.name,grade);
-      if(total<=0)return;
-      html+=`<section class="ov-mobile-group" style="--ov-color:${group.color}"><header><b>${esc(generalSubjectDisplayName(group.name))}</b><span>${esc(grade)}</span></header><div class="ov-mobile-grid">`;
-      for(let i=0;i<total;i++){
-        if(isFreeLesson(group.name,grade,i)){
-          html+=`<div class="ov-mobile-topic ov-lesson-cell free" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}><div class="ov-cell-inner"><div class="ov-cell-title">${fa(i+1)}</div><div class="ov-cell-date text-amber">آزاد</div></div></div>`;
-          continue;
-        }
-        const m=generalCellModel(group,grade,i);
-        const cls=m.cls.filter(c=>c!=='ov-cell'&&c!=='ov-lesson-cell').join(' ');
-        html+=`<div class="ov-mobile-topic ov-lesson-cell ${cls}" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}>${m.inner}</div>`;
+  const availableGrades = visibleGeneralGrades.filter(g=>getSubjectLessons(group.name,g)>0);
+  const selectedGrade = ensureOvSelectedGrade('general', group.name, availableGrades);
+  html = renderOvGradeSelector(availableGrades, selectedGrade, 'general', group.color) + html;
+  let hasAny=false;
+  visibleGeneralGrades.forEach(grade=>{
+    if(selectedGrade && grade !== selectedGrade) return;
+    const total=getSubjectLessons(group.name,grade);
+    if(total<=0)return;
+    hasAny=true;
+    html+=`<section class="ov-mobile-group" style="--ov-color:${group.color}"><header><b>${esc(generalSubjectDisplayName(group.name))}</b><span>${esc(grade)}</span></header><div class="ov-mobile-grid">`;
+    for(let i=0;i<total;i++){
+      if(isFreeLesson(group.name,grade,i)){
+        html+=`<div class="ov-mobile-topic ov-lesson-cell free" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}><div class="ov-cell-inner"><div class="ov-cell-title">${fa(i+1)}</div><div class="ov-cell-date text-amber">آزاد</div></div></div>`;
+        continue;
       }
-      html+='</div></section>';
-    });
+      const m=generalCellModel(group,grade,i);
+      const cls=m.cls.filter(c=>c!=='ov-cell'&&c!=='ov-lesson-cell').join(' ');
+      html+=`<div class="ov-mobile-topic ov-lesson-cell ${cls}" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}>${m.inner}</div>`;
+    }
+    html+='</div></section>';
   });
+  if(!hasAny) html+=`<div class="empty-state"><b>درسی برای ${esc(generalSubjectDisplayName(group.name))} در این پایه فعال نیست</b></div>`;
   html+='</div>';
   return html;
 }
@@ -385,6 +441,31 @@ function bindOverviewDelegation(body){
   if(body._ovDelegated)return;
   body._ovDelegated=true;
   body.addEventListener('click',e=>{
+    const subjBtn=e.target.closest('[data-ov-subject][data-ov-kind]');
+    if(subjBtn && body.contains(subjBtn)){
+      const kind=subjBtn.dataset.ovKind;
+      const name=subjBtn.dataset.ovSubject;
+      if(kind && name){
+        ovSelectedSubject[kind]=name;
+        ovSelectedGrade[kind]='';
+        const sy=window.scrollY;
+        renderOverview();
+        window.scrollTo({top:sy,behavior:'instant'});
+      }
+      return;
+    }
+    const gradeBtn=e.target.closest('[data-ov-grade][data-ov-kind]');
+    if(gradeBtn && body.contains(gradeBtn)){
+      const kind=gradeBtn.dataset.ovKind;
+      const grade=gradeBtn.dataset.ovGrade;
+      if(kind && grade){
+        ovSelectedGrade[kind]=grade;
+        const sy=window.scrollY;
+        renderOverview();
+        window.scrollTo({top:sy,behavior:'instant'});
+      }
+      return;
+    }
     const secEl=e.target.closest('.ov-section-item');
     if(secEl){
       const host=secEl.closest('[data-kind]');

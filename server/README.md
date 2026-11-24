@@ -70,6 +70,8 @@ Once logged in as admin, the same operations are available in the app at
 | GET | `/api/snapshot` | bearer | `since`, `limit`, `cursor` → `{serverTime, changes, nextCursor?}` |
 | POST | `/api/changes` | bearer | `{changes:[{table,id,op,data}]}` → `{applied, conflicts}` |
 | POST | `/api/account/clear-data` | bearer | Soft-deletes every synced row owned by the caller → `{ok, cleared}` |
+| PUT | `/api/account/profile` | bearer | `{firstName,lastName,field,grade}` → `{ok,user}`; stores profile on the account/phone |
+| GET | `/api/admin/users` | admin bearer | List users for account management → `{users:[...]}` |
 | POST | `/api/advisors/invite` | advisor/admin | Creates a 24-hour pairing code |
 | POST | `/api/advisors/accept` | student | `{code}` approves a pending link |
 | GET | `/api/advisors/links` | any | Links visible to the caller (all for admin) |

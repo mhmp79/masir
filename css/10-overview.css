@@ -158,21 +158,76 @@
 .ov-table-general .ov-cell{height:58px;min-width:50px}
 .ov-table-general .ov-subj-count{color:#8b94ad}
 .ov-mobile-cards{display:none}
+.ov-subject-selector,.ov-grade-selector{
+  display:flex;gap:8px;overflow-x:auto;padding:10px 10px 0;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.ov-subject-selector::-webkit-scrollbar,.ov-grade-selector::-webkit-scrollbar{display:none}
+.ov-subject-chip,.ov-grade-chip{
+  flex:0 0 auto;min-width:max-content;padding:8px 12px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);
+  color:#cfd6ea;font:inherit;font-size:11px;font-weight:800;line-height:1.2;
+  cursor:pointer;transition:border-color .18s,background .18s,color .18s,transform .18s;
+}
+.ov-subject-chip.active,.ov-grade-chip.active{
+  color:#fff;border-color:color-mix(in srgb, var(--ov-color) 72%, white 10%);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--ov-color) 32%, transparent),rgba(255,255,255,.04));
+  box-shadow:0 8px 20px -14px var(--ov-color);
+}
+.ov-subject-chip:active,.ov-grade-chip:active{transform:scale(.98)}
+.ov-grade-selector{padding-top:8px}
+#view-overview{
+  --ov-tabs-h:74px;
+}
+#view-overview > #overviewBody,
+#view-overview > #overviewClassPane{
+  padding-bottom:8px;
+}
 .overview-selector-wrap{
-  display:flex;justify-content:center;align-items:center;
-  flex:0 0 auto;width:100%;min-width:0;
-  margin-bottom:var(--gap);
+  position:sticky;
+  bottom:calc(18px + 56px + env(safe-area-inset-bottom));
+  width:100%;max-width:452px;
+  display:flex;justify-content:stretch;align-items:center;
+  z-index:95;
+  margin:10px auto 0;
+  padding:0;
+  pointer-events:none;
 }
 .overview-tabs{
-  width:auto;max-width:100%;margin:0 auto;
+  width:100%;max-width:none;margin:0;
+  display:flex;gap:4px;padding:6px;
+  border-radius:18px;
+  background:rgba(11,16,34,.82);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  pointer-events:auto;
+}
+.overview-tabs .seg-btn{
+  flex:1 1 0;min-width:0;padding:10px 6px;
+  border-radius:12px;font-size:11px;font-weight:800;
 }
 
 @media (max-width:767px){
-  #view-overview .overview-selector-wrap{justify-content:stretch;margin-bottom:18px}
-  #view-overview .overview-tabs{
-    display:flex;width:100%;max-width:none;flex:1 1 auto;margin:0;
+  #view-overview.active{animation:ov-fade .18s ease}
+  @keyframes ov-fade{from{opacity:0}to{opacity:1}}
+  #view-overview .overview-selector-wrap{
+    position:fixed;
+    left:50%;transform:translateX(-50%) !important;
+    bottom:calc(22px + 56px + env(safe-area-inset-bottom));
+    width:calc(100% - 24px);max-width:452px;margin:0;z-index:120;
+    opacity:1 !important;animation:none !important;will-change:auto;
   }
-  #view-overview .overview-tabs .seg-btn{flex:1 1 0;min-width:0;padding:10px 6px}
+  #view-overview .overview-tabs{width:100%;max-width:none;flex:1 1 auto;margin:0}
+  #view-overview > #overviewBody,
+  #view-overview > #overviewClassPane{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  .ov-subject-selector,.ov-grade-selector{
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,rgba(11,16,34,.96),rgba(11,16,34,.86));
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    padding-bottom:8px;margin:0 -10px 2px;padding-left:10px;padding-right:10px;
+  }
+  .ov-grade-selector{top:46px;z-index:19;padding-top:0;margin-top:-2px;justify-content:center}
   .ov-scroll{display:none}
   .ov-mobile-cards{
     display:flex;flex-direction:column;gap:10px;

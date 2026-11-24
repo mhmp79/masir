@@ -323,6 +323,27 @@ test('HTTP: account data deletion uses a dedicated authenticated endpoint', asyn
     'server deletion must be limited to the signed-in account');
 });
 
+test('HTTP: account profile update and admin user list endpoints', async () => {
+  const h = harness();
+  await h.client.updateProfile({ firstName: 'Ali', lastName: 'Test', field: 'تجربی', grade: 'دوازدهم' });
+  await h.client.listUsers(50);
+  assert.deepStrictEqual(
+    h.calls.map((call) => call.url.replace('https://sql.example.test', '')),
+    ['/api/account/profile', '/api/admin/users?limit=50'],
+  );
+  assert.strictEqual(h.calls[0].init.method, 'PUT');
+  assert.strictEqual(h.calls[1].init.method, 'GET');
+  const profileBody = JSON.parse(h.calls[0].init.body);
+  assert.strictEqual(profileBody.firstName, 'Ali');
+  assert.strictEqual(profileBody.grade, 'دوازدهم');
+
+  const authRoutes = fs.readFileSync(path.join(ROOT, 'server/src/auth.js'), 'utf8');
+  assert.ok(authRoutes.includes("router.put('/api/account/profile', authenticate"),
+    'server must expose account profile update endpoint');
+  assert.ok(authRoutes.includes("router.get('/api/admin/users', authenticate, requireRole('admin')"),
+    'server must expose admin users list endpoint');
+});
+
 test('HTTP: server errors and timeouts produce clear English messages', async () => {
   const denied = harness({
     fetchHook: async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ message: 'expired' }) })

@@ -8,6 +8,50 @@
 
 /* ============ PAGED NAVIGATION ============ */
 let settingsPage = 'home';
+let deferredInstallPrompt = null;
+function isAppInstalled(){
+  try{
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    if(window.navigator && window.navigator.standalone) return true;
+  }catch(e){}
+  return false;
+}
+function renderInstallAppButton(){
+  const btn = document.getElementById('installAppBtn');
+  const sub = document.getElementById('installAppSub');
+  if(!btn) return;
+  const installed = isAppInstalled();
+  const canPrompt = !!deferredInstallPrompt;
+  const isiOS = /iphone|ipad|ipod/i.test(String(navigator.userAgent||''));
+  btn.hidden = installed || (!canPrompt && !isiOS);
+  btn.disabled = false;
+  if(sub){
+    sub.textContent = canPrompt
+      ? 'افزودن مسیر به صفحه اصلی'
+      : (isiOS ? 'در Safari: Share سپس Add to Home Screen' : 'افزودن مسیر به صفحه اصلی');
+  }
+  btn.onclick = async () => {
+    if(!deferredInstallPrompt){
+      if(isiOS) toast('برای نصب: در Safari دکمه Share را بزنید و Add to Home Screen را انتخاب کنید.');
+      return;
+    }
+    try{
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+    }catch(e){}
+    deferredInstallPrompt = null;
+    renderInstallAppButton();
+  };
+}
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  renderInstallAppButton();
+});
+window.addEventListener('appinstalled', ()=>{
+  deferredInstallPrompt = null;
+  renderInstallAppButton();
+});
 function setSettingsPage(page){
   const overlay=document.getElementById('settingsOverlay');
   if(!overlay) return;
@@ -40,20 +84,42 @@ function renderProfileSection(){
   const heroNameEl = document.getElementById('profileHeroName');
   const heroAvatarEl = document.getElementById('profileHeroAvatar');
   const badgeEl = document.getElementById('accountProfileBadge');
+  const editBtn = document.getElementById('editProfileBtn');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
   const fnEl = document.getElementById('setFirstName');
   const lnEl = document.getElementById('setLastName');
   const fEl = document.getElementById('setField');
   const gEl = document.getElementById('setGrade');
-  const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
-  if(displayNameEl) displayNameEl.textContent = fullName || 'نام ثبت نشده';
-  if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
-  if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
   const client = window.sqlSync || window.masirSqlSync || null;
   const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const user = loggedIn && client && typeof client.getUser === 'function' ? (client.getUser() || {}) : {};
   const phone = loggedIn && client && typeof client.getLoggedInPhone === 'function'
     ? String(client.getLoggedInPhone() || '') : '';
+  const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
+  const profileMetaEl = document.getElementById('profileSummaryMeta');
+  if(displayNameEl) displayNameEl.textContent = loggedIn ? (fullName || 'نام ثبت نشده') : 'حساب کاربری';
+  if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
+  if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
+  if(profileMetaEl) profileMetaEl.hidden = !loggedIn;
+  if(editBtn){
+    editBtn.textContent = loggedIn ? 'ویرایش حساب' : 'ورود به حساب';
+    editBtn.title = editBtn.textContent;
+    editBtn.setAttribute('aria-label', editBtn.textContent);
+    editBtn.classList.toggle('profile-login-btn', !loggedIn);
+  }
+  if(loggedIn && user){
+    if(typeof user.firstName === 'string') p.firstName = user.firstName.slice(0,40);
+    if(typeof user.lastName === 'string') p.lastName = user.lastName.slice(0,40);
+    if(['تجربی','ریاضی','انسانی'].includes(user.field)) p.field = user.field;
+    if(['دهم','یازدهم','دوازدهم'].includes(user.grade)) p.grade = user.grade;
+    if(state && state.profile){
+      state.profile.firstName = p.firstName;
+      state.profile.lastName = p.lastName;
+      state.profile.field = p.field || state.profile.field;
+      state.profile.grade = p.grade || state.profile.grade;
+    }
+  }
   const phoneEl = document.getElementById('profileHeroPhone');
   if(phoneEl){
     phoneEl.textContent = phone || 'شماره متصل نشده';
@@ -74,7 +140,15 @@ function renderProfileSection(){
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('account');
+if(_editProfileBtn) _editProfileBtn.onclick = () => {
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  if(!loggedIn){
+    try{ if(window.masirAuth && typeof window.masirAuth.show === 'function') window.masirAuth.show('login'); }catch(e){}
+    return;
+  }
+  setSettingsPage('account');
+};
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;
@@ -107,14 +181,15 @@ const _setGradeEl = document.getElementById('setGrade');
 if(_setGradeEl) _setGradeEl.onchange = updateProfileHint;
 
 const _saveProfileBtn = document.getElementById('saveProfileBtn');
-if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
+if(_saveProfileBtn) _saveProfileBtn.onclick = async () => {
+  const btn = _saveProfileBtn;
   const firstName = (document.getElementById('setFirstName').value || '').trim().slice(0, 40);
   const lastName  = (document.getElementById('setLastName').value || '').trim().slice(0, 40);
   const field     = document.getElementById('setField').value;
   const grade     = document.getElementById('setGrade').value;
   const currentField = (state.profile && state.profile.field) || 'تجربی';
   const currentGrade = (state.profile && state.profile.grade) || 'دوازدهم';
-  
+
   if(field !== currentField){
     const currentSpecials = state.subjects.filter(s => s.type === 'specialized').map(s => s.name);
     const newSpecials = fieldSpecializedSubjects(field,grade);
@@ -126,8 +201,26 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
       if(!confirm(msg)) return;
     }
   }
-  
-  // Keep the local profile identity; accounts use phone numbers, not e-mail.
+
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const prevLabel = btn.textContent;
+  if(loggedIn && client && typeof client.updateProfile === 'function'){
+    btn.disabled = true;
+    btn.textContent = 'در حال ذخیره…';
+    try {
+      await client.updateProfile({ firstName, lastName, field, grade });
+    } catch (error) {
+      console.error('[profile] server save failed:', error);
+      toast('ذخیره در سرور ناموفق بود: ' + (error && error.message ? error.message : 'خطا'));
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+
   state.profile = {
     id: state.profile.id || '',
     role:'student',
@@ -138,7 +231,7 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
   } else {
     save();
   }
-  toast('پروفایل ذخیره شد ✓');
+  toast(loggedIn ? 'پروفایل ذخیره و همگام شد ✓' : 'پروفایل ذخیره شد ✓');
   renderProfileSection();
   try{ renderSubjectManager(); }catch(e){}
   try{ renderSettingsPanel(); }catch(e){}
@@ -826,11 +919,14 @@ function openSettingsOverlay(){
   setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   try{renderProfileSection();}catch(e){console.error(e);}
+  try{renderInstallAppButton();}catch(e){console.error(e);}
   try{renderSubjectManager();}catch(e){console.error(e);}
   try{renderSettingsPanel();}catch(e){console.error(e);}
   try{renderCommonErrors();}catch(e){console.error(e);}
   try{renderSubjectErrorsSection();}catch(e){console.error(e);}
+  try{ if(typeof window.refreshBackupUiState === 'function') window.refreshBackupUiState(); }catch(e){console.error(e);}
   // Sync UI is rendered by 12-sql-sync.js via onSettingsOpen
   try{ if(typeof onSettingsOpen === 'function') onSettingsOpen(); }catch(e){console.error(e);}
   const verEl = document.getElementById('appVersionDisplay');
@@ -847,6 +943,9 @@ function closeSettingsOverlay(force){
   renderProfileSection();
   overlay.classList.remove('show');
   setSettingsChrome(false);
+  const activeView=document.querySelector('.view.active');
+  const viewName=activeView ? String(activeView.id||'').replace(/^view-/,'') : '';
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',!!viewName && b.dataset.view===viewName));
   document.body.style.overflow='';
 }
 document.getElementById('settingsBtn').onclick=openSettingsOverlay;

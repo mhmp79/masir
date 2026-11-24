@@ -1029,6 +1029,9 @@ select option{background:#0d1524;color:var(--txt)}
   background:rgba(124,92,255,.14);color:#c7bfff;
   font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;
 }
+.profile-link-btn.profile-login-btn{
+  border-color:rgba(16,185,129,.45);background:rgba(16,185,129,.14);color:#86efac;
+}
 .settings-link{
   width:100%;display:flex;align-items:center;gap:10px;
   padding:11px 12px;text-align:right;cursor:pointer;
@@ -1037,6 +1040,11 @@ select option{background:#0d1524;color:var(--txt)}
 }
 .settings-link:hover{border-color:rgba(124,92,255,.4);background:rgba(124,92,255,.08);transform:translateY(-1px)}
 .settings-link.danger-link{border-color:rgba(255,139,163,.22)}
+.settings-link.is-disabled,.file-btn.is-disabled,#clearDataBtn.is-disabled{
+  opacity:.45;cursor:not-allowed;filter:grayscale(.25);
+}
+.settings-link.is-disabled:hover,.file-btn.is-disabled:hover{transform:none;border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.03)}
+.file-btn.is-disabled input{pointer-events:none}
 .settings-link .set-link-main{
   flex:1;min-width:0;display:flex;align-items:center;gap:10px;
   padding:0;border:0;background:transparent;color:inherit;
@@ -4868,21 +4876,76 @@ input.ex-subj{
 .ov-table-general .ov-cell{height:58px;min-width:50px}
 .ov-table-general .ov-subj-count{color:#8b94ad}
 .ov-mobile-cards{display:none}
+.ov-subject-selector,.ov-grade-selector{
+  display:flex;gap:8px;overflow-x:auto;padding:10px 10px 0;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.ov-subject-selector::-webkit-scrollbar,.ov-grade-selector::-webkit-scrollbar{display:none}
+.ov-subject-chip,.ov-grade-chip{
+  flex:0 0 auto;min-width:max-content;padding:8px 12px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.03);
+  color:#cfd6ea;font:inherit;font-size:11px;font-weight:800;line-height:1.2;
+  cursor:pointer;transition:border-color .18s,background .18s,color .18s,transform .18s;
+}
+.ov-subject-chip.active,.ov-grade-chip.active{
+  color:#fff;border-color:color-mix(in srgb, var(--ov-color) 72%, white 10%);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--ov-color) 32%, transparent),rgba(255,255,255,.04));
+  box-shadow:0 8px 20px -14px var(--ov-color);
+}
+.ov-subject-chip:active,.ov-grade-chip:active{transform:scale(.98)}
+.ov-grade-selector{padding-top:8px}
+#view-overview{
+  --ov-tabs-h:74px;
+}
+#view-overview > #overviewBody,
+#view-overview > #overviewClassPane{
+  padding-bottom:8px;
+}
 .overview-selector-wrap{
-  display:flex;justify-content:center;align-items:center;
-  flex:0 0 auto;width:100%;min-width:0;
-  margin-bottom:var(--gap);
+  position:sticky;
+  bottom:calc(18px + 56px + env(safe-area-inset-bottom));
+  width:100%;max-width:452px;
+  display:flex;justify-content:stretch;align-items:center;
+  z-index:95;
+  margin:10px auto 0;
+  padding:0;
+  pointer-events:none;
 }
 .overview-tabs{
-  width:auto;max-width:100%;margin:0 auto;
+  width:100%;max-width:none;margin:0;
+  display:flex;gap:4px;padding:6px;
+  border-radius:18px;
+  background:rgba(11,16,34,.82);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+  pointer-events:auto;
+}
+.overview-tabs .seg-btn{
+  flex:1 1 0;min-width:0;padding:10px 6px;
+  border-radius:12px;font-size:11px;font-weight:800;
 }
 
 @media (max-width:767px){
-  #view-overview .overview-selector-wrap{justify-content:stretch;margin-bottom:18px}
-  #view-overview .overview-tabs{
-    display:flex;width:100%;max-width:none;flex:1 1 auto;margin:0;
+  #view-overview.active{animation:ov-fade .18s ease}
+  @keyframes ov-fade{from{opacity:0}to{opacity:1}}
+  #view-overview .overview-selector-wrap{
+    position:fixed;
+    left:50%;transform:translateX(-50%) !important;
+    bottom:calc(22px + 56px + env(safe-area-inset-bottom));
+    width:calc(100% - 24px);max-width:452px;margin:0;z-index:120;
+    opacity:1 !important;animation:none !important;will-change:auto;
   }
-  #view-overview .overview-tabs .seg-btn{flex:1 1 0;min-width:0;padding:10px 6px}
+  #view-overview .overview-tabs{width:100%;max-width:none;flex:1 1 auto;margin:0}
+  #view-overview > #overviewBody,
+  #view-overview > #overviewClassPane{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  .ov-subject-selector,.ov-grade-selector{
+    position:sticky;top:0;z-index:20;
+    background:linear-gradient(180deg,rgba(11,16,34,.96),rgba(11,16,34,.86));
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    padding-bottom:8px;margin:0 -10px 2px;padding-left:10px;padding-right:10px;
+  }
+  .ov-grade-selector{top:46px;z-index:19;padding-top:0;margin-top:-2px;justify-content:center}
   .ov-scroll{display:none}
   .ov-mobile-cards{
     display:flex;flex-direction:column;gap:10px;
@@ -5465,6 +5528,24 @@ input.ex-subj{
 .account-role{
   margin-top:8px;color:#8791a8;font-size:10.5px;font-weight:700;
 }
+.admin-users-ui{
+  margin-top:10px;padding:12px;border-radius:13px;
+  background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);
+}
+.admin-users-ui[hidden]{display:none!important}
+.admin-users-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.admin-users-head b{display:block;color:#e8ecff;font-size:12.5px;font-weight:900;line-height:1.5}
+.admin-users-head small{display:block;color:#8791a8;font-size:10px;font-weight:600;line-height:1.6;margin-top:2px}
+.admin-users-list{display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto}
+.admin-user-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 11px;border-radius:10px;
+  background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);
+}
+.admin-user-name{color:#e8ecff;font-size:11.5px;font-weight:800;line-height:1.5}
+.admin-user-meta{color:#8791a8;font-size:10px;font-weight:600;line-height:1.6;margin-top:2px}
+.admin-user-phone{color:#c7bfff;font-size:11px;font-weight:700;white-space:nowrap}
+.admin-users-empty{color:#8791a8;font-size:10.5px;font-weight:600;line-height:1.7;padding:4px 0}
 .account-btn{flex:0 0 auto;width:auto;white-space:nowrap;padding:8px 11px;font-size:10.5px}
 .sync-login-error{
   margin-top:8px;padding:9px 11px;border-radius:8px;
@@ -6343,28 +6424,39 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
     cursor: pointer;
     pointer-events: auto;
   }
+  #view-overview{--ov-tabs-h:0px}
+  #view-overview > #overviewBody,
+  #view-overview > #overviewClassPane{padding-bottom:0}
+  .overview-selector-wrap{
+    position:sticky;bottom:8px;left:auto;transform:none;
+    width:100%;max-width:none;margin:4px 0 0;z-index:5;
+    justify-content:center;pointer-events:none;
+  }
   .overview-tabs {
     display: inline-flex;
     width: auto;
-    max-width: none;
+    max-width: 100%;
     flex: 0 0 auto;
     align-self: center;
     padding: 5px;
     gap: 4px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.05);
+    border-radius: 14px;
+    background: rgba(11,16,34,.82);
+    border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 10px 28px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
+    backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);
     margin: 0 auto;
+    pointer-events:auto;
   }
   .overview-tabs .seg-btn {
     flex: 0 0 auto;
     padding: 8px 22px;
     font-size: 12.5px;
     font-weight: 700;
-    border-radius: 8px;
+    border-radius: 10px;
     white-space: nowrap;
     min-width: 0;
   }
-  .overview-selector-wrap{width:100%;margin-bottom:var(--gap)}
 
   /* ============ DASHBOARD ============ */
   #view-dashboard.active {
@@ -6877,13 +6969,15 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 /* ---------- desktop: branded header + overlapping content card ---------- */
 .auth-shell{
   width:100%;max-width:1020px;margin-inline:auto;direction:ltr;
-  display:grid;grid-template-columns:.92fr 1.08fr;align-items:stretch;
+  display:grid;grid-template-columns:1.08fr .92fr;align-items:stretch;
 }
 .auth-hero,.auth-panel{direction:rtl}
+.auth-panel{order:1;margin-left:0;margin-right:-46px}
 .auth-hero{
+  order:2;
   position:relative;isolation:isolate;overflow:hidden;
   display:flex;flex-direction:column;justify-content:space-between;gap:34px;
-  padding:42px 80px 42px 34px;border-radius:34px;
+  padding:42px 34px 42px 80px;border-radius:34px;
   border:1px solid rgba(255,255,255,.10);
   color:#fff;
   background:linear-gradient(155deg,rgba(124,92,255,.24),rgba(11,16,34,.95) 58%),#0b1022;
@@ -7094,12 +7188,12 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 .auth-link-row small{grid-column:1/-1;color:#69748e;font-size:9.5px;font-weight:700}
 
 @media(min-width:1025px){
-  .auth-shell{grid-template-columns:.92fr 1.08fr}
-  .auth-panel{margin-left:-30px}
+  .auth-shell{grid-template-columns:1.08fr .92fr}
+  .auth-panel{margin-left:0;margin-right:-30px}
   .auth-card{padding:34px 38px 30px}
   /* Keep every line of hero copy well clear of the overlapping card. */
-  .auth-hero{padding:44px 92px 44px 38px}
-  .auth-hero-copy,.auth-hero-features{padding-right:12px}
+  .auth-hero{padding:44px 38px 44px 92px}
+  .auth-hero-copy,.auth-hero-features{padding-left:12px;padding-right:0}
 }
 
 /* ---------- tablet: stacked header with the card overlapping its base ---------- */
@@ -7579,13 +7673,6 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
     <!-- ===== OVERVIEW / SUBJECT PROGRESS ===== -->
     <section class="view" id="view-overview">
-      <div class="overview-selector-wrap">
-        <div class="seg overview-tabs">
-          <button class="seg-btn active" data-ovt="specialized">🔬 تخصصی</button>
-          <button class="seg-btn" data-ovt="general">📚 عمومی</button>
-          <button class="seg-btn" data-ovt="class" id="ovClassTab">🎓 کلاس ها</button>
-        </div>
-      </div>
       <div id="overviewBody"></div>
       <div id="overviewClassPane" hidden>
         <div class="card">
@@ -7601,6 +7688,13 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           </div>
         </div>
         <div class="card"><div class="card-title">جلسات</div><div id="clsSessions"></div></div>
+      </div>
+      <div class="overview-selector-wrap">
+        <div class="seg overview-tabs" role="tablist" aria-label="نوع پیشروی">
+          <button class="seg-btn active" data-ovt="specialized" role="tab">🔬 تخصصی</button>
+          <button class="seg-btn" data-ovt="general" role="tab">📚 عمومی</button>
+          <button class="seg-btn" data-ovt="class" id="ovClassTab" role="tab">🎓 کلاس ها</button>
+        </div>
       </div>
     </section>
   </main>
@@ -7658,7 +7752,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           <div class="profile-summary">
             <div class="profile-summary-info">
               <div class="profile-display-name" id="profileDisplayName">نام ثبت نشده</div>
-              <div class="profile-summary-meta">
+              <div class="profile-summary-meta" id="profileSummaryMeta">
                 <span id="profileDisplayField">رشته: تجربی</span>
                 <span class="profile-meta-divider">•</span>
                 <span id="profileDisplayGrade">پایه: دوازدهم</span>
@@ -7682,9 +7776,15 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
           <span class="set-link-arrow">‹</span>
         </button>
 
-        <button type="button" class="card settings-link" data-go="backup">
-          <span class="set-link-icon">💾</span>
-          <span class="set-link-copy"><b>پشتیبانگیری</b><small>ذخیره و بازگردانی فایل پشتیبان</small></span>
+        <button type="button" class="card settings-link" data-go="backup" id="backupSettingsLink">
+          <span class="set-link-icon">📥</span>
+          <span class="set-link-copy"><b>بازیابی اطلاعات قدیمی</b><small>وارد کردن فایل بکاپ قدیمی برای کاربران قبلی</small></span>
+          <span class="set-link-arrow">‹</span>
+        </button>
+
+        <button type="button" class="card settings-link" id="installAppBtn" hidden>
+          <span class="set-link-icon">📲</span>
+          <span class="set-link-copy"><b>نصب برنامه</b><small id="installAppSub">افزودن مسیر به صفحه اصلی</small></span>
           <span class="set-link-arrow">‹</span>
         </button>
 
@@ -7769,12 +7869,13 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
             <div class="account-section-head">
               <span class="account-section-icon">☁</span>
               <div>
-                <b>ورود و همگامسازی</b>
-                <small>شماره تلفن، امنیت و وضعیت ذخیره ابری</small>
+                <b>حساب و امنیت</b>
+                <small>ورود با شماره تلفن، رمز عبور و همگامسازی خودکار</small>
               </div>
             </div>
             <div id="accountUI" class="account-ui"></div>
             <div id="syncUI" class="sync-status-row"></div>
+            <div id="adminUsersUI" class="admin-users-ui" hidden></div>
           </div>
         </div>
       </section>
@@ -7831,12 +7932,19 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
       <section class="settings-page" data-page="backup" hidden>
         <div class="settings-page-head">
           <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
-          <div class="page-title">پشتیبانگیری</div>
+          <div class="page-title">پشتیبان‌گیری / انتقال داده</div>
         </div>
         <div class="card settings-detail-card backup-card">
-          <div class="muted mb-12 fs-11 lh-19">شامل تمام دادهها: پروفایل، دروس، فعالیتها، برنامه، خواب، گوشی، کلاسها، آزمونها، تنظیمات، شمارنده تست.</div>
+          <div class="muted mb-12 fs-11 lh-19">برای انتقال تدریجی: می‌توانید فایل بکاپ بگیرید، روی دستگاه وارد کنید، یا بکاپ قدیمی را وارد حساب سرور کنید.</div>
           <button class="btn backup-btn mb-9" id="exportBtn">⬇ ذخیره فایل پشتیبان (.json)</button>
-          <label class="file-btn">⬆ ایمپورت<input type="file" id="importInput" class="hidden" accept="application/json,.json"></label>
+          <label class="file-btn mb-9" id="localImportLabel">⬆ وارد کردن بکاپ روی این دستگاه<input type="file" id="localImportInput" class="hidden" accept="application/json,.json"></label>
+          <div class="muted mb-12 fs-11 lh-19" id="legacyImportStatus"></div>
+          <label class="file-btn" id="legacyImportLabel">☁️ وارد کردن بکاپ قدیمی و جایگزینی سرور<input type="file" id="importInput" class="hidden" accept="application/json,.json"></label>
+        </div>
+        <div class="card settings-detail-card backup-card" id="legacyPbCard">
+          <div class="card-title mb-8">☁️ همگام‌سازی قدیمی PocketBase (موقت)</div>
+          <div class="muted mb-12 fs-11 lh-19">این بخش فقط برای انتقال تدریجی کاربران قدیمی است. بعد از انتقال کامل حذف می‌شود.</div>
+          <div id="legacyPbSyncUI"></div>
         </div>
       </section>
 
@@ -7884,6 +7992,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
 
 
+<script src="legacy/00-pocketbase.js"></script>
+<script src="legacy/12-pocketbase.js"></script>
 
 
 
@@ -17488,6 +17598,8 @@ function renderExamListTable(exams){
 
 let ovTab='specialized';
 let ovMql=null;
+let ovSelectedSubject={specialized:'',general:''};
+let ovSelectedGrade={specialized:'',general:''};
 
 function ovIsMobile(){ return window.matchMedia('(max-width:767px)').matches; }
 
@@ -17608,7 +17720,8 @@ function renderSpecializedOverview(body){
   }
 
   if(ovIsMobile()){
-    body.innerHTML=`<div class="card ov-table-card">${renderSpecializedMobile(specSubs)}${ovLegendSpecialized()}</div>`;
+    const selected=ensureOvSelectedSubject('specialized', specSubs.map(s=>s.name));
+    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(specSubs, selected, 'specialized')}${renderSpecializedMobile(specSubs, selected)}${ovLegendSpecialized()}</div>`;
     return;
   }
 
@@ -17680,24 +17793,69 @@ function ovLegendSpecialized(){
   return `<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg ov-leg-hint">کلیک روی خانه = ثبت درصد و مرور</span></div>`;
 }
 
-function renderSpecializedMobile(specSubs){
+function ensureOvSelectedSubject(kind, names){
+  const list = Array.isArray(names) ? names.filter(Boolean) : [];
+  if(!list.length){ ovSelectedSubject[kind]=''; return ''; }
+  if(!list.includes(ovSelectedSubject[kind])) ovSelectedSubject[kind]=list[0];
+  return ovSelectedSubject[kind];
+}
+function ensureOvSelectedGrade(kind, subjectName, grades){
+  const list = Array.isArray(grades) ? grades.filter(Boolean) : [];
+  const key = kind + '::' + String(subjectName||'');
+  if(!ovSelectedGrade._keys) ovSelectedGrade._keys = {};
+  if(ovSelectedGrade._keys[kind] !== key){ ovSelectedGrade[kind]=''; ovSelectedGrade._keys[kind]=key; }
+  if(!list.length){ ovSelectedGrade[kind]=''; return ''; }
+  if(!list.includes(ovSelectedGrade[kind])) ovSelectedGrade[kind]=list[0];
+  return ovSelectedGrade[kind];
+}
+
+function renderOvSubjectSelector(subs, selected, kind){
+  if(!Array.isArray(subs)||!subs.length) return '';
+  return `<div class="ov-subject-selector" role="tablist" aria-label="انتخاب درس">
+    ${subs.map(sub=>{
+      const name=sub.name;
+      const active=name===selected;
+      return `<button type="button" class="ov-subject-chip ${active?'active':''}" data-ov-subject="${esc(name)}" data-ov-kind="${kind}" style="--ov-color:${sub.color||'#7c5cff'}">${esc(sub.type==='general'?generalSubjectDisplayName(name):name)}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderOvGradeSelector(grades, selected, kind, color){
+  const list = Array.isArray(grades) ? grades.filter(Boolean) : [];
+  if(list.length <= 1) return '';
+  return `<div class="ov-grade-selector" role="tablist" aria-label="انتخاب پایه" style="--ov-color:${color||'#7c5cff'}">
+    ${list.map(g=>{
+      const active=g===selected;
+      return `<button type="button" class="ov-grade-chip ${active?'active':''}" data-ov-grade="${esc(g)}" data-ov-kind="${kind}">${esc(g)}</button>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderSpecializedMobile(specSubs, selectedName){
+  const subj = specSubs.find(s=>s.name===selectedName) || specSubs[0];
+  if(!subj) return '<div class="empty-state"><b>درسی انتخاب نشده</b></div>';
   let html='<div class="ov-mobile-cards ov-mobile-cards-specialized">';
-  specSubs.forEach(subj=>{
-    const rowGroups=[];
-    subjGrades(subj.name).forEach(grade=>{
-      const topics=getTopics(subj.name,grade)||[];
-      if(!topics.length)return;
-      rowGroups.push({grade,topics});
+  const rowGroups=[];
+  subjGrades(subj.name).forEach(grade=>{
+    const topics=getTopics(subj.name,grade)||[];
+    if(!topics.length)return;
+    rowGroups.push({grade,topics});
+  });
+  const grades=rowGroups.map(r=>r.grade);
+  const selectedGrade=ensureOvSelectedGrade('specialized', subj.name, grades);
+  const visibleRows = selectedGrade ? rowGroups.filter(r=>r.grade===selectedGrade) : rowGroups;
+  html = renderOvGradeSelector(grades, selectedGrade, 'specialized', subj.color) + html;
+  if(!visibleRows.length){
+    html+=`<div class="empty-state"><b>مبحثی برای ${esc(subj.name)} ثبت نشده</b></div>`;
+  }
+  visibleRows.forEach(r=>{
+    html+=`<section class="ov-mobile-group" style="--ov-color:${subj.color}"><header><b>${esc(subj.name)}</b><span>${esc(r.grade)}</span></header><div class="ov-mobile-grid">`;
+    r.topics.forEach(topic=>{
+      const m=specializedCellModel(subj,r.grade,topic);
+      const cls=m.cls.filter(c=>c!=='ov-cell').join(' ');
+      html+=`<div class="ov-mobile-topic ${cls}" ${ovAttrs('spec',subj.name,r.grade,` data-topic="${esc(topic)}"`)}>${m.inner}</div>`;
     });
-    rowGroups.forEach(r=>{
-      html+=`<section class="ov-mobile-group" style="--ov-color:${subj.color}"><header><b>${esc(subj.name)}</b><span>${esc(r.grade)}</span></header><div class="ov-mobile-grid">`;
-      r.topics.forEach(topic=>{
-        const m=specializedCellModel(subj,r.grade,topic);
-        const cls=m.cls.filter(c=>c!=='ov-cell').join(' ');
-        html+=`<div class="ov-mobile-topic ${cls}" ${ovAttrs('spec',subj.name,r.grade,` data-topic="${esc(topic)}"`)}>${m.inner}</div>`;
-      });
-      html+='</div></section>';
-    });
+    html+='</div></section>';
   });
   html+='</div>';
   return html;
@@ -17759,7 +17917,8 @@ function renderGeneralOverview(body){
   }
 
   if(ovIsMobile()){
-    body.innerHTML=`<div class="card ov-table-card">${renderGeneralMobile(genSubs)}<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg text-amber">◐ آزاد</span><span class="ov-leg ov-leg-hint">کلیک روی درس = ثبت درصد</span></div></div>`;
+    const selected=ensureOvSelectedSubject('general', genSubs.map(s=>s.name));
+    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(genSubs, selected, 'general')}${renderGeneralMobile(genSubs, selected)}<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg text-amber">◐ آزاد</span><span class="ov-leg ov-leg-hint">کلیک روی درس = ثبت درصد</span></div></div>`;
     return;
   }
 
@@ -17836,28 +17995,35 @@ function renderGeneralOverview(body){
   `;
 }
 
-function renderGeneralMobile(genSubs){
+function renderGeneralMobile(genSubs, selectedName){
+  const group = genSubs.find(s=>s.name===selectedName) || genSubs[0];
+  if(!group) return '<div class="empty-state"><b>درسی انتخاب نشده</b></div>';
   let html='<div class="ov-mobile-cards ov-mobile-cards-general">';
   const visibleGeneralGrades=state.profile.grade==='دوازدهم'
       ?(state.settings.includeEleventhFinal?GENERAL_GRADES:['دوازدهم'])
     :GENERAL_GRADES.includes(state.profile.grade)?[state.profile.grade]:[];
-  genSubs.forEach(group=>{
-    visibleGeneralGrades.forEach(grade=>{
-      const total=getSubjectLessons(group.name,grade);
-      if(total<=0)return;
-      html+=`<section class="ov-mobile-group" style="--ov-color:${group.color}"><header><b>${esc(generalSubjectDisplayName(group.name))}</b><span>${esc(grade)}</span></header><div class="ov-mobile-grid">`;
-      for(let i=0;i<total;i++){
-        if(isFreeLesson(group.name,grade,i)){
-          html+=`<div class="ov-mobile-topic ov-lesson-cell free" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}><div class="ov-cell-inner"><div class="ov-cell-title">${fa(i+1)}</div><div class="ov-cell-date text-amber">آزاد</div></div></div>`;
-          continue;
-        }
-        const m=generalCellModel(group,grade,i);
-        const cls=m.cls.filter(c=>c!=='ov-cell'&&c!=='ov-lesson-cell').join(' ');
-        html+=`<div class="ov-mobile-topic ov-lesson-cell ${cls}" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}>${m.inner}</div>`;
+  const availableGrades = visibleGeneralGrades.filter(g=>getSubjectLessons(group.name,g)>0);
+  const selectedGrade = ensureOvSelectedGrade('general', group.name, availableGrades);
+  html = renderOvGradeSelector(availableGrades, selectedGrade, 'general', group.color) + html;
+  let hasAny=false;
+  visibleGeneralGrades.forEach(grade=>{
+    if(selectedGrade && grade !== selectedGrade) return;
+    const total=getSubjectLessons(group.name,grade);
+    if(total<=0)return;
+    hasAny=true;
+    html+=`<section class="ov-mobile-group" style="--ov-color:${group.color}"><header><b>${esc(generalSubjectDisplayName(group.name))}</b><span>${esc(grade)}</span></header><div class="ov-mobile-grid">`;
+    for(let i=0;i<total;i++){
+      if(isFreeLesson(group.name,grade,i)){
+        html+=`<div class="ov-mobile-topic ov-lesson-cell free" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}><div class="ov-cell-inner"><div class="ov-cell-title">${fa(i+1)}</div><div class="ov-cell-date text-amber">آزاد</div></div></div>`;
+        continue;
       }
-      html+='</div></section>';
-    });
+      const m=generalCellModel(group,grade,i);
+      const cls=m.cls.filter(c=>c!=='ov-cell'&&c!=='ov-lesson-cell').join(' ');
+      html+=`<div class="ov-mobile-topic ov-lesson-cell ${cls}" ${ovAttrs('gen',group.name,grade,` data-lesson="${i}"`)}>${m.inner}</div>`;
+    }
+    html+='</div></section>';
   });
+  if(!hasAny) html+=`<div class="empty-state"><b>درسی برای ${esc(generalSubjectDisplayName(group.name))} در این پایه فعال نیست</b></div>`;
   html+='</div>';
   return html;
 }
@@ -17867,6 +18033,31 @@ function bindOverviewDelegation(body){
   if(body._ovDelegated)return;
   body._ovDelegated=true;
   body.addEventListener('click',e=>{
+    const subjBtn=e.target.closest('[data-ov-subject][data-ov-kind]');
+    if(subjBtn && body.contains(subjBtn)){
+      const kind=subjBtn.dataset.ovKind;
+      const name=subjBtn.dataset.ovSubject;
+      if(kind && name){
+        ovSelectedSubject[kind]=name;
+        ovSelectedGrade[kind]='';
+        const sy=window.scrollY;
+        renderOverview();
+        window.scrollTo({top:sy,behavior:'instant'});
+      }
+      return;
+    }
+    const gradeBtn=e.target.closest('[data-ov-grade][data-ov-kind]');
+    if(gradeBtn && body.contains(gradeBtn)){
+      const kind=gradeBtn.dataset.ovKind;
+      const grade=gradeBtn.dataset.ovGrade;
+      if(kind && grade){
+        ovSelectedGrade[kind]=grade;
+        const sy=window.scrollY;
+        renderOverview();
+        window.scrollTo({top:sy,behavior:'instant'});
+      }
+      return;
+    }
     const secEl=e.target.closest('.ov-section-item');
     if(secEl){
       const host=secEl.closest('[data-kind]');
@@ -18610,6 +18801,50 @@ function openCompactClassEditor(subjectName, i){
 
 /* ============ PAGED NAVIGATION ============ */
 let settingsPage = 'home';
+let deferredInstallPrompt = null;
+function isAppInstalled(){
+  try{
+    if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    if(window.navigator && window.navigator.standalone) return true;
+  }catch(e){}
+  return false;
+}
+function renderInstallAppButton(){
+  const btn = document.getElementById('installAppBtn');
+  const sub = document.getElementById('installAppSub');
+  if(!btn) return;
+  const installed = isAppInstalled();
+  const canPrompt = !!deferredInstallPrompt;
+  const isiOS = /iphone|ipad|ipod/i.test(String(navigator.userAgent||''));
+  btn.hidden = installed || (!canPrompt && !isiOS);
+  btn.disabled = false;
+  if(sub){
+    sub.textContent = canPrompt
+      ? 'افزودن مسیر به صفحه اصلی'
+      : (isiOS ? 'در Safari: Share سپس Add to Home Screen' : 'افزودن مسیر به صفحه اصلی');
+  }
+  btn.onclick = async () => {
+    if(!deferredInstallPrompt){
+      if(isiOS) toast('برای نصب: در Safari دکمه Share را بزنید و Add to Home Screen را انتخاب کنید.');
+      return;
+    }
+    try{
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+    }catch(e){}
+    deferredInstallPrompt = null;
+    renderInstallAppButton();
+  };
+}
+window.addEventListener('beforeinstallprompt', (e)=>{
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  renderInstallAppButton();
+});
+window.addEventListener('appinstalled', ()=>{
+  deferredInstallPrompt = null;
+  renderInstallAppButton();
+});
 function setSettingsPage(page){
   const overlay=document.getElementById('settingsOverlay');
   if(!overlay) return;
@@ -18642,20 +18877,42 @@ function renderProfileSection(){
   const heroNameEl = document.getElementById('profileHeroName');
   const heroAvatarEl = document.getElementById('profileHeroAvatar');
   const badgeEl = document.getElementById('accountProfileBadge');
+  const editBtn = document.getElementById('editProfileBtn');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
   const fnEl = document.getElementById('setFirstName');
   const lnEl = document.getElementById('setLastName');
   const fEl = document.getElementById('setField');
   const gEl = document.getElementById('setGrade');
-  const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
-  if(displayNameEl) displayNameEl.textContent = fullName || 'نام ثبت نشده';
-  if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
-  if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
   const client = window.sqlSync || window.masirSqlSync || null;
   const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const user = loggedIn && client && typeof client.getUser === 'function' ? (client.getUser() || {}) : {};
   const phone = loggedIn && client && typeof client.getLoggedInPhone === 'function'
     ? String(client.getLoggedInPhone() || '') : '';
+  const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
+  const profileMetaEl = document.getElementById('profileSummaryMeta');
+  if(displayNameEl) displayNameEl.textContent = loggedIn ? (fullName || 'نام ثبت نشده') : 'حساب کاربری';
+  if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
+  if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
+  if(profileMetaEl) profileMetaEl.hidden = !loggedIn;
+  if(editBtn){
+    editBtn.textContent = loggedIn ? 'ویرایش حساب' : 'ورود به حساب';
+    editBtn.title = editBtn.textContent;
+    editBtn.setAttribute('aria-label', editBtn.textContent);
+    editBtn.classList.toggle('profile-login-btn', !loggedIn);
+  }
+  if(loggedIn && user){
+    if(typeof user.firstName === 'string') p.firstName = user.firstName.slice(0,40);
+    if(typeof user.lastName === 'string') p.lastName = user.lastName.slice(0,40);
+    if(['تجربی','ریاضی','انسانی'].includes(user.field)) p.field = user.field;
+    if(['دهم','یازدهم','دوازدهم'].includes(user.grade)) p.grade = user.grade;
+    if(state && state.profile){
+      state.profile.firstName = p.firstName;
+      state.profile.lastName = p.lastName;
+      state.profile.field = p.field || state.profile.field;
+      state.profile.grade = p.grade || state.profile.grade;
+    }
+  }
   const phoneEl = document.getElementById('profileHeroPhone');
   if(phoneEl){
     phoneEl.textContent = phone || 'شماره متصل نشده';
@@ -18676,7 +18933,15 @@ function renderProfileSection(){
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('account');
+if(_editProfileBtn) _editProfileBtn.onclick = () => {
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  if(!loggedIn){
+    try{ if(window.masirAuth && typeof window.masirAuth.show === 'function') window.masirAuth.show('login'); }catch(e){}
+    return;
+  }
+  setSettingsPage('account');
+};
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;
@@ -18709,14 +18974,15 @@ const _setGradeEl = document.getElementById('setGrade');
 if(_setGradeEl) _setGradeEl.onchange = updateProfileHint;
 
 const _saveProfileBtn = document.getElementById('saveProfileBtn');
-if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
+if(_saveProfileBtn) _saveProfileBtn.onclick = async () => {
+  const btn = _saveProfileBtn;
   const firstName = (document.getElementById('setFirstName').value || '').trim().slice(0, 40);
   const lastName  = (document.getElementById('setLastName').value || '').trim().slice(0, 40);
   const field     = document.getElementById('setField').value;
   const grade     = document.getElementById('setGrade').value;
   const currentField = (state.profile && state.profile.field) || 'تجربی';
   const currentGrade = (state.profile && state.profile.grade) || 'دوازدهم';
-  
+
   if(field !== currentField){
     const currentSpecials = state.subjects.filter(s => s.type === 'specialized').map(s => s.name);
     const newSpecials = fieldSpecializedSubjects(field,grade);
@@ -18728,8 +18994,26 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
       if(!confirm(msg)) return;
     }
   }
-  
-  // Keep the local profile identity; accounts use phone numbers, not e-mail.
+
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const prevLabel = btn.textContent;
+  if(loggedIn && client && typeof client.updateProfile === 'function'){
+    btn.disabled = true;
+    btn.textContent = 'در حال ذخیره…';
+    try {
+      await client.updateProfile({ firstName, lastName, field, grade });
+    } catch (error) {
+      console.error('[profile] server save failed:', error);
+      toast('ذخیره در سرور ناموفق بود: ' + (error && error.message ? error.message : 'خطا'));
+      btn.disabled = false;
+      btn.textContent = prevLabel;
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+
   state.profile = {
     id: state.profile.id || '',
     role:'student',
@@ -18740,7 +19024,7 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
   } else {
     save();
   }
-  toast('پروفایل ذخیره شد ✓');
+  toast(loggedIn ? 'پروفایل ذخیره و همگام شد ✓' : 'پروفایل ذخیره شد ✓');
   renderProfileSection();
   try{ renderSubjectManager(); }catch(e){}
   try{ renderSettingsPanel(); }catch(e){}
@@ -19428,11 +19712,14 @@ function openSettingsOverlay(){
   setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   try{renderProfileSection();}catch(e){console.error(e);}
+  try{renderInstallAppButton();}catch(e){console.error(e);}
   try{renderSubjectManager();}catch(e){console.error(e);}
   try{renderSettingsPanel();}catch(e){console.error(e);}
   try{renderCommonErrors();}catch(e){console.error(e);}
   try{renderSubjectErrorsSection();}catch(e){console.error(e);}
+  try{ if(typeof window.refreshBackupUiState === 'function') window.refreshBackupUiState(); }catch(e){console.error(e);}
   // Sync UI is rendered by 12-sql-sync.js via onSettingsOpen
   try{ if(typeof onSettingsOpen === 'function') onSettingsOpen(); }catch(e){console.error(e);}
   const verEl = document.getElementById('appVersionDisplay');
@@ -19449,6 +19736,9 @@ function closeSettingsOverlay(force){
   renderProfileSection();
   overlay.classList.remove('show');
   setSettingsChrome(false);
+  const activeView=document.querySelector('.view.active');
+  const viewName=activeView ? String(activeView.id||'').replace(/^view-/,'') : '';
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',!!viewName && b.dataset.view===viewName));
   document.body.style.overflow='';
 }
 document.getElementById('settingsBtn').onclick=openSettingsOverlay;
@@ -20771,7 +21061,6 @@ function buildBackupPayload(){
     version: APP_VERSION,
     exportedAt: new Date().toISOString(),
     summary: {
-      profile: state.profile ? 1 : 0,
       subjects: customSubjects.length,
       activities: state.activities.length,
       exams: state.exams.length,
@@ -20782,6 +21071,7 @@ function buildBackupPayload(){
     },
     data: {
       ...state,
+      profile: undefined,
       subjects: customSubjects.map(subject=>
         withoutStaticSubjectCurriculum(subject,state.profile.field)
       ),
@@ -20827,9 +21117,7 @@ function validateBackup(parsed){
     throw new Error('فیلد «sessions» در فایل اشتباه است');
   }
   const checks = [];
-  if(typeof data.profile !== 'object' || data.profile === null){
-    checks.push('فیلد «profile» باید به صورت شیء باشد');
-  }
+  // Profile no longer required in manual/legacy backup.
   if(!Array.isArray(data.exams)){
     checks.push('فیلد «exams» باید آرایه باشد');
   }
@@ -20984,7 +21272,7 @@ function exportBackup(){
   }
 }
 
-function showImportPreview(summary, parsed, schema){
+function showImportPreview(summary, parsed, schema, mode){
   return new Promise((resolve) => {
     const s = summary || {};
     const exportedAt = parsed && parsed.exportedAt
@@ -20994,6 +21282,7 @@ function showImportPreview(summary, parsed, schema){
     const oldSchemaNote = isOldSchema
       ? `<div class="backup-schema-warn">⚠️ این پشتیبان از نسخه قدیمی (Schema ${fa(schema)}) است — به‌طور خودکار به نسخه جدید مهاجرت می‌شود.</div>`
       : '';
+    const isServer = mode === 'legacy-server';
     let sessionRow = '';
     if (s.sessions != null) {
       sessionRow = `<div class="setting-row"><div class="sr-label">📋 بازه‌های برنامه</div><div class="sr-control text-cyan fw-800">${fa(s.sessions || 0)}</div></div>`;
@@ -21008,10 +21297,11 @@ function showImportPreview(summary, parsed, schema){
       </div>
       <div class="muted mb-14 fs-11h lh-185">
         تاریخ ساخت فایل: <b class="text-soft">${esc(exportedAt)}</b><br>
-        با تأیید، <b class="text-rose">تمام داده‌های فعلی جایگزین می‌شوند</b>. این عملیات قابل بازگشت نیست.
+        ${isServer
+          ? 'با تأیید، داده‌های این بکاپ <b class="text-rose">به‌صورت کامل جایگزین اطلاعات حساب سرور و این دستگاه می‌شوند</b>. پروفایل حساب حفظ می‌شود.'
+          : 'با تأیید، داده‌های این بکاپ <b class="text-rose">روی این دستگاه جایگزین می‌شوند</b>.'}
       </div>
       ${oldSchemaNote}
-      <div class="setting-row"><div class="sr-label">👤 پروفایل</div><div class="sr-control text-cyan fw-800">${s.profile ? 'دارد' : '—'}</div></div>
       <div class="setting-row"><div class="sr-label">📚 ${schema>=10?'دروس افزوده‌شده':'دروس'}</div><div class="sr-control text-cyan fw-800">${fa(s.subjects || 0)}</div></div>
       <div class="setting-row"><div class="sr-label">📝 فعالیت‌ها</div><div class="sr-control text-cyan fw-800">${fa(s.activities || 0)}</div></div>
       <div class="setting-row"><div class="sr-label">📊 آزمون‌ها</div><div class="sr-control text-cyan fw-800">${fa(s.exams || 0)}</div></div>
@@ -21021,7 +21311,7 @@ function showImportPreview(summary, parsed, schema){
       <div class="setting-row"><div class="sr-label">🏷️ تگ‌های عمومی</div><div class="sr-control text-cyan fw-800">${fa(s.commonErrors || 0)}</div></div>
       <div class="row mt-16">
         <button class="btn ghost" id="ipCancel">انصراف</button>
-        <button class="btn danger" id="ipConfirm">🔄 جایگزینی کامل</button>
+        <button class="btn danger" id="ipConfirm">${isServer ? '🔄 جایگزینی سرور و دستگاه' : '📥 وارد کردن روی دستگاه'}</button>
       </div>
     `);
     document.getElementById('ipCancel').onclick = () => { closeModal(); resolve(false); };
@@ -21029,7 +21319,16 @@ function showImportPreview(summary, parsed, schema){
   });
 }
 
-async function importBackup(file){
+async function importBackup(file, options){
+  const opts = options || {};
+  const mode = opts.mode || 'legacy-server'; // 'legacy-server' | 'local'
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  if(mode === 'legacy-server'){
+    if(!loggedIn){ toast('برای وارد کردن بکاپ قدیمی به سرور ابتدا وارد حساب شوید.'); return false; }
+    if(!online){ toast('برای وارد کردن بکاپ قدیمی به سرور باید آنلاین باشید.'); return false; }
+  }
   try{
     const text = await file.text();
     let parsed;
@@ -21037,30 +21336,25 @@ async function importBackup(file){
     catch(e){ throw new Error('فایل JSON معتبر نیست'); }
 
     const { data, tracker, timer, summary, schema } = validateBackup(parsed);
-
-    const confirmed = await showImportPreview(summary, parsed, schema);
+    const confirmed = await showImportPreview(summary, parsed, schema, mode);
     if(!confirmed) return false;
 
     const normalized = normalizeImportedData(data,schema);
-    replaceTrackedState(normalized, true);
-
-    state.subjects.forEach(s => {
-      if(!state.classes[s.name]){
-        state.classes[s.name] = { total: s.sessions || 0, sessions: {} };
-      } else if(!state.classes[s.name].total){
-        state.classes[s.name].total = s.sessions || 0;
+    normalized.subjects.forEach(s => {
+      if(!normalized.classes[s.name]){
+        normalized.classes[s.name] = { total: s.sessions || 0, sessions: {} };
+      } else if(!normalized.classes[s.name].total){
+        normalized.classes[s.name].total = s.sessions || 0;
       }
     });
 
-    if(tracker){
-      if(tracker.counts && typeof tracker.counts === 'object'){
-        trkCounts = {
-          correct: Math.max(0, +tracker.counts.correct || 0),
-          wrong: Math.max(0, +tracker.counts.wrong || 0),
-          blank: Math.max(0, +tracker.counts.blank || 0)
-        };
-        try { saveTracker(); } catch(_) {}
-      }
+    replaceTrackedState(normalized, true);
+    if(tracker && tracker.counts && typeof tracker.counts === 'object'){
+      trkCounts = {
+        correct: Math.max(0, +tracker.counts.correct || 0),
+        wrong: Math.max(0, +tracker.counts.wrong || 0),
+        blank: Math.max(0, +tracker.counts.blank || 0)
+      };
       trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
       try { saveTracker(); } catch(_) {}
     }
@@ -21070,12 +21364,26 @@ async function importBackup(file){
 
     save();
     await flushStorage();
-    toast('✅ پشتیبان بازگردانی شد');
+
+    if(mode === 'legacy-server' && loggedIn){
+      await client.deleteAccountData();
+      try{
+        const uid = client.getLoggedInUserId ? client.getLoggedInUserId() : '';
+        if(uid) localStorage.removeItem(`konkur-sql-sync-meta-v1::${uid}`);
+      }catch(_){ }
+      const up = await client.uploadAllData();
+      if(!up || up.ok === false){
+        throw new Error((up && up.error) || 'جایگزینی اطلاعات روی سرور ناموفق بود');
+      }
+      toast('✅ بکاپ وارد و روی سرور جایگزین شد');
+    } else {
+      toast('✅ بکاپ روی این دستگاه وارد شد');
+    }
     setTimeout(() => location.reload(), 800);
     return true;
   }catch(err){
     console.error('[backup] import failed:', err);
-    toast('❌ ' + (err.message || 'خطا در بازگردانی'));
+    toast('❌ ' + (err.message || 'خطا در وارد کردن بکاپ'));
     return false;
   }
 }
@@ -21083,9 +21391,14 @@ async function importBackup(file){
 async function clearAllData(){
   const client = window.sqlSync || window.masirSqlSync || null;
   const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  if(loggedIn && !online){
+    toast('برای پاک کردن کامل سرور و دستگاه باید آنلاین باشید.');
+    return;
+  }
   const message = loggedIn
     ? 'دادههای حساب روی سرور و تمام اطلاعات این دستگاه پاک میشود. این عملیات قابل بازگشت نیست؛ ادامه میدهید؟'
-    : 'تمام اطلاعات این دستگاه پاک میشود؛ حسابی متصل نیست تا داده سرور حذف شود. ادامه میدهید؟';
+    : 'تمام اطلاعات این دستگاه پاک میشود. ادامه میدهید؟';
   if(!confirm(message)) return;
   if(loggedIn){
     try{
@@ -21126,19 +21439,69 @@ async function clearAllData(){
   setTimeout(() => location.reload(), 500);
 }
 
+function refreshBackupUiState(){
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  const imp = document.getElementById('importInput');
+  const impLabel = document.getElementById('legacyImportLabel');
+  const impStatus = document.getElementById('legacyImportStatus');
+  const localImp = document.getElementById('localImportInput');
+  const localImpLabel = document.getElementById('localImportLabel');
+  const clr = document.getElementById('clearDataBtn');
+  const backupLink = document.getElementById('backupSettingsLink');
+
+  if(backupLink) backupLink.style.display = '';
+  if(localImp) localImp.disabled = false;
+  if(localImpLabel){ localImpLabel.classList.remove('is-disabled'); localImpLabel.setAttribute('aria-disabled','false'); }
+  if(imp){ imp.disabled = !(loggedIn && online); }
+  if(impLabel){
+    impLabel.classList.toggle('is-disabled', !(loggedIn && online));
+    impLabel.setAttribute('aria-disabled', (!(loggedIn && online)) ? 'true' : 'false');
+  }
+  if(impStatus){
+    impStatus.textContent = !loggedIn
+      ? 'جایگزینی سرور: ابتدا وارد حساب شوید.'
+      : (!online ? 'جایگزینی سرور: برای این کار باید آنلاین باشید.' : 'وارد حساب هستید؛ می‌توانید بکاپ قدیمی را جایگزین سرور کنید.');
+  }
+  if(clr){
+    const canClear = !loggedIn || online;
+    clr.disabled = !canClear;
+    clr.classList.toggle('is-disabled', !canClear);
+    clr.title = (!loggedIn || online) ? '' : 'برای پاک کردن کامل سرور و دستگاه باید آنلاین باشید.';
+  }
+  try{
+    if(window.legacyPbSync && typeof window.legacyPbSync.renderSyncUI === 'function') window.legacyPbSync.renderSyncUI();
+  }catch(e){}
+}
+
 (function wireBackupEvents(){
   const exp = document.getElementById('exportBtn');
   if(exp) exp.onclick = exportBackup;
+  const localImp = document.getElementById('localImportInput');
+  if(localImp) localImp.onchange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    await importBackup(f, { mode: 'local' });
+  };
   const imp = document.getElementById('importInput');
   if(imp) imp.onchange = async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = '';
     if(!f) return;
-    await importBackup(f);
+    refreshBackupUiState();
+    if(imp.disabled) return;
+    await importBackup(f, { mode: 'legacy-server' });
   };
   const clr = document.getElementById('clearDataBtn');
   if(clr) clr.onclick = clearAllData;
+  window.addEventListener('online', refreshBackupUiState);
+  window.addEventListener('offline', refreshBackupUiState);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshBackupUiState(); });
+  setTimeout(refreshBackupUiState, 0);
 })();
+window.refreshBackupUiState = refreshBackupUiState;
 
 /* ===== js/12-sql-sync.js ===== */
 'use strict';
@@ -21309,8 +21672,12 @@ function saveSession(result) {
     localStorage.setItem(SQL_AUTH_USER_KEY, JSON.stringify(user));
   } catch (e) {}
   try {
-    if (state && state.profile && nextId) {
-      state.profile.id = nextId;
+    if (state && state.profile) {
+      if (nextId) state.profile.id = nextId;
+      if (user.firstName) state.profile.firstName = String(user.firstName).slice(0, 40);
+      if (user.lastName) state.profile.lastName = String(user.lastName).slice(0, 40);
+      if (['تجربی','ریاضی','انسانی'].includes(user.field)) state.profile.field = user.field;
+      if (['دهم','یازدهم','دوازدهم'].includes(user.grade)) state.profile.grade = user.grade;
       save();
     }
   } catch (e) {}
@@ -21338,6 +21705,7 @@ function getLoggedInUserId() {
 function getLoggedInRole() {
   return String((authUser && authUser.role) || 'student');
 }
+function getAuthUser() { return authUser; }
 
 /* Kept as a compatibility alias for older callers; it returns the phone,
    because the app no longer has e-mail accounts. */
@@ -21678,6 +22046,15 @@ function pendingToChange(change) {
   };
 }
 
+function sanitizeAppMetaForSync(record) {
+  const rec = record && typeof record === 'object' ? { ...record } : {};
+  const value = rec.value && typeof rec.value === 'object' ? { ...rec.value } : {};
+  // Profile is account/server-only; never sync it through app_meta.
+  delete value.profile;
+  rec.value = value;
+  return rec;
+}
+
 function buildFullUploadChanges() {
   const api = window.MasirSqlApi;
   const snapshot = normalizedStorageSnapshot(compactStateForStorage(state));
@@ -21688,7 +22065,7 @@ function buildFullUploadChanges() {
     records.forEach((json, localId) => {
       let record;
       try { record = JSON.parse(json); } catch (e) { return; }
-      const data = { ...record };
+      const data = store === 'app-meta' ? { ...sanitizeAppMetaForSync(record) } : { ...record };
       if (record.order !== undefined && record.order !== null) data.localOrder = record.order;
       changes.push({
         store,
@@ -21752,6 +22129,13 @@ function buildIncrementalUploadChanges(pending, meta) {
   return changes;
 }
 
+function conflictId(conflict) {
+  if (!conflict) return '';
+  if (typeof conflict === 'string') return conflict;
+  if (typeof conflict === 'object') return String(conflict.id || conflict.changeId || '');
+  return '';
+}
+
 async function sendChangeBatch(client, changes) {
   const applied = [];
   const conflicts = [];
@@ -21804,8 +22188,11 @@ async function performUpload(options) {
     setProgress('upload', 35, `${fa(0)} از ${fa(changes.length)} رکورد`, true);
     const { applied, conflicts } = await sendChangeBatch(client, changes);
     const appliedSet = new Set(applied.map(String));
+    const conflictSet = new Set((conflicts || []).map(conflictId).filter(Boolean));
+    // Ack applied changes. For LWW conflicts server is newer/equal, so drop local pending
+    // conflicting edits; a forced download will bring the server winner.
     const acked = changes
-      .filter(item => item.original && appliedSet.has(String(item.id)))
+      .filter(item => item.original && (appliedSet.has(String(item.id)) || conflictSet.has(String(item.id))))
       .map(item => item.original);
     await acknowledgeChanges(acked).catch(error => console.warn('[SQL] ack failed:', error));
 
@@ -21819,11 +22206,11 @@ async function performUpload(options) {
     setLastSyncTimestamp(now);
 
     if (conflicts.length) {
-      syncError = `ارسال با ${fa(conflicts.length)} تداخل مواجه شد؛ تغییرات دوباره فرستاده میشوند.`;
-      return { ok: false, changed: applied.length, error: syncError };
+      syncError = `تداخل ${fa(conflicts.length)} موردی تشخیص داده شد؛ نسخه جدیدتر سرور اعمال میشود.`;
+      return { ok: false, changed: acked.length, conflicts: conflictSet.size, error: syncError };
     }
-    syncNotice = `✓ ${fa(applied.length)} تغییر روی حساب شما ذخیره شد`;
-    return { ok: true, changed: applied.length };
+    syncNotice = `✓ ${fa(acked.length)} تغییر روی حساب شما ذخیره شد`;
+    return { ok: true, changed: acked.length };
   } catch (error) {
     console.error('[SQL] upload failed:', error);
     syncError = 'ارسال ناموفق بود — ' + sqlErrorMessage(error);
@@ -21888,7 +22275,12 @@ function decodeRemoteChange(change, api, localSnapshot) {
     throw new Error('دادههای اصلی حساب روی سرور حذف شده است؛ عملیات برای جلوگیری از حذف داده متوقف شد.');
   }
   const typed = api.fromTypedRow(table, data);
-  const value = store === 'app-meta' ? (data.value || {}) : stripLocalEnvelope(typed);
+  let value = store === 'app-meta' ? (data.value || {}) : stripLocalEnvelope(typed);
+  if (store === 'app-meta' && value && typeof value === 'object') {
+    const v = { ...value };
+    delete v.profile; // account profile is server-only; never overwrite local account profile from app_meta sync
+    value = v;
+  }
   const order = data.local_order == null
     ? (localSnapshot && localSnapshot.get(store) && localSnapshot.get(store).get(localId)
         ? (() => { try { return JSON.parse(localSnapshot.get(store).get(localId)).order || 0; } catch (e) { return 0; } })()
@@ -21907,7 +22299,10 @@ function safeSinceFromChanges(changes, fallback) {
   });
   if (!max) return fallback || '';
   const time = Date.parse(max);
-  return Number.isFinite(time) ? new Date(Math.max(0, time - 1000)).toISOString() : (fallback || '');
+  const next = Number.isFinite(time) ? new Date(time).toISOString() : max;
+  // Never move cursor backwards; moving forward prevents re-applying the same batch forever.
+  if (fallback && next <= String(fallback)) return fallback;
+  return next;
 }
 
 async function refreshAppAfterSync() {
@@ -21986,12 +22381,13 @@ async function performDownload(options) {
     const deletes = [];
     let remoteTracker = null;
     let remoteTimer = null;
+    let guardedBlocked = false;
 
     decoded.forEach(item => {
       if (item.kind === 'tracker') { remoteTracker = item.value; return; }
       if (item.kind === 'timer') { remoteTimer = item.value; return; }
       const key = `${item.store}::${item.record.id}`;
-      if (guarded.has(key)) return;
+      if (guarded.has(key)) { guardedBlocked = true; return; }
       if (item.kind === 'delete') deletes.push({ store: item.store, id: item.record.id });
       else puts.push({ store: item.store, record: item.record });
     });
@@ -22044,14 +22440,20 @@ async function performDownload(options) {
     const now = Date.now();
     const tracker = currentTrackerPayload();
     const timer = currentTimerPayload();
+    // If local pending edits blocked remote application, don't advance cursor past them;
+    // keep current since so remote changes are re-fetched after pending resolves.
+    const nextSince = guardedBlocked ? String((meta && meta.since) || '') : safeSinceFromChanges(changes, meta && meta.since);
     saveSyncMeta(server, owner, {
       ...(meta || {}),
-      since: safeSinceFromChanges(changes, meta && meta.since),
+      since: nextSince,
       tracker: trackerSignatureOf(tracker),
       timer: timerSignatureOf(timer),
       lastSyncAt: now
     });
     setLastSyncTimestamp(now);
+    if (guardedBlocked) {
+      syncNotice = 'تغییرات محلی در انتظار ارسال هستند؛ پس از ارسال، نسخه جدیدتر سرور بررسی میشود.';
+    }
     const applied = puts.length + deletes.length + (remoteTracker ? 1 : 0) + (remoteTimer ? 1 : 0);
     syncNotice = applied
       ? `✓ ${fa(applied)} تغییر از حساب شما اعمال شد`
@@ -22281,11 +22683,11 @@ async function syncCycle(options) {
       registerAutoFailure(uploadFailure);
     }
 
-    const forceDownload = ['probe', 'realtime', 'login'].includes(reason);
+    const forceDownload = ['probe', 'realtime', 'login', 'online', 'visible', 'focus'].includes(reason) || !!(up && up.conflicts);
     const downloadAllowed = forceDownload || (Date.now() - lastDownloadAt >= AUTO_DOWNLOAD_MIN_GAP);
     if (!downloadAllowed) {
       outcome = uploadFailed
-        ? { ok: false, partial: true, error: uploadFailure }
+        ? { ok: false, partial: true, error: uploadFailure, conflicts: up.conflicts || 0 }
         : { ok: true, changed: up.changed || 0, downloadSkipped: true };
       if (!uploadFailed) { registerAutoSuccess(); lastAutoStatus = 'idle'; }
       else lastAutoStatus = 'error';
@@ -22492,6 +22894,66 @@ function accountActionButton(id, label, className) {
   return `<button type="button" class="btn ${className || 'ghost'} account-btn" id="${id}">${label}</button>`;
 }
 
+let adminUsersCache = [];
+let adminUsersLoaded = false;
+let adminUsersLoading = false;
+
+async function loadAdminUsersPanel() {
+  if (adminUsersLoading) return;
+  const client = window.sqlSync || window.masirSqlSync;
+  if (!client || !client.isLoggedIn || !client.isLoggedIn() || client.getLoggedInRole() !== 'admin') return;
+  adminUsersLoading = true;
+  renderAdminUsersPanel(true);
+  try {
+    const result = await client.listUsers(200);
+    adminUsersCache = Array.isArray(result) ? result : (result && result.users) || [];
+    adminUsersLoaded = true;
+  } catch (e) {
+    console.warn('[admin] users list failed', e);
+  } finally {
+    adminUsersLoading = false;
+    renderAdminUsersPanel(true);
+  }
+}
+
+function renderAdminUsersPanel(loggedIn) {
+  const box = document.getElementById('adminUsersUI');
+  if (!box) return;
+  const role = getLoggedInRole();
+  if (!loggedIn || role !== 'admin') {
+    box.hidden = true;
+    box.innerHTML = '';
+    return;
+  }
+  box.hidden = false;
+  const roleLabel = { student: 'دانشآموز', advisor: 'مشاور', admin: 'مدیر' };
+  const rows = !adminUsersLoaded
+    ? '<div class="admin-users-empty">در حال دریافت لیست کاربران…</div>'
+    : (adminUsersCache.length ? adminUsersCache.map(u => {
+        const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.displayName || '—';
+        const meta = [roleLabel[u.role] || u.role, u.field, u.grade].filter(Boolean).join(' · ');
+        return `<div class="admin-user-row">
+          <div class="admin-user-main">
+            <div class="admin-user-name">${esc(name)}</div>
+            <div class="admin-user-meta">${esc(meta || '—')}</div>
+          </div>
+          <div class="admin-user-phone" dir="ltr">${esc(u.phone || '')}</div>
+        </div>`;
+      }).join('') : '<div class="admin-users-empty">کاربری ثبت نشده است.</div>');
+  box.innerHTML = `
+    <div class="admin-users-head">
+      <div>
+        <b>لیست کاربران</b>
+        <small>شماره، نام و اطلاعات حساب متصل</small>
+      </div>
+      <button type="button" class="btn ghost account-btn" id="adminUsersRefreshBtn">${adminUsersLoading ? '…' : 'بهروزرسانی'}</button>
+    </div>
+    <div class="admin-users-list">${rows}</div>`;
+  const refreshBtn = document.getElementById('adminUsersRefreshBtn');
+  if (refreshBtn) refreshBtn.onclick = () => { adminUsersLoaded = false; loadAdminUsersPanel(); };
+  if (!adminUsersLoaded && !adminUsersLoading) loadAdminUsersPanel();
+}
+
 function renderAccountUI(loggedIn, phone, busy) {
   const box = document.getElementById('accountUI');
   if (!box) return;
@@ -22512,13 +22974,11 @@ function renderAccountUI(loggedIn, phone, busy) {
   };
 
   if (!loggedIn) {
-    box.innerHTML = `<div class="account-actions">${accountActionButton('accountLoginBtn', 'ورود', 'primary')}</div>`;
+    box.innerHTML = `<div class="account-actions">${accountActionButton('accountLoginBtn', 'ورود به حساب', 'primary')}</div>`;
     bind('accountLoginBtn', openAuth('login'));
     return;
   }
 
-  const roleLabels = { admin: 'مدیر', advisor: 'مشاور', student: 'دانشآموز' };
-  const roleLabel = roleLabels[role] || 'کاربر';
   const adminButtons = role === 'admin'
     ? accountActionButton('accountAdminBtn', 'مدیریت کاربران', 'ghost')
     : '';
@@ -22533,11 +22993,10 @@ function renderAccountUI(loggedIn, phone, busy) {
     : '';
   box.innerHTML = `
     <div class="account-actions">
-      ${accountActionButton('accountLogoutBtn', busy ? 'در حال سینک…' : 'خروج', 'ghost')}
+      ${accountActionButton('accountLogoutBtn', busy ? 'در حال همگامسازی…' : 'خروج', 'ghost')}
       ${accountActionButton('accountPasswordBtn', 'تغییر رمز', 'ghost')}
       ${adminButtons}${advisorButtons}${studentButtons}${widgetButtons}
-    </div>
-    <div class="account-role">دسترسی: ${esc(roleLabel)}</div>`;
+    </div>`;
 
   bind('accountLogoutBtn', () => {
     if (busy) return;
@@ -22580,11 +23039,13 @@ function renderSyncUI() {
   }
 
   renderAccountUI(loggedIn, phone, busy);
+  renderAdminUsersPanel(loggedIn);
+  try { if (typeof window.refreshBackupUiState === 'function') window.refreshBackupUiState(); } catch (e) {}
 
   if (!loggedIn) {
     box.innerHTML = `
       <div class="sync-status-line">
-        <span class="sync-empty-note">برای شروع همگامسازی وارد شوید.</span>
+        <span class="sync-status-note">برای ذخیره ابری و استفاده در چند دستگاه وارد شوید.</span>
         <span class="sync-state-pill warn">${badge.text}</span>
       </div>`;
     return;
@@ -22592,7 +23053,7 @@ function renderSyncUI() {
 
   box.innerHTML = `
     <div class="sync-status-line">
-      <span class="sync-status-note">همگامسازی خودکار فعال است · آخرین سینک: ${esc(lastSync)}</span>
+      <span class="sync-status-note">ذخیره ابری خودکار · آخرین بروزرسانی: ${esc(lastSync)}</span>
       <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
     </div>
     <div class="sync-pending-row">
@@ -22617,6 +23078,7 @@ window.sqlSync = {
   getLoggedInEmail,
   getLoggedInUserId,
   getLoggedInRole,
+  getUser: getAuthUser,
   getLastSyncTimestamp,
   formatLastSync,
   getClient: getSqlClient,
@@ -22642,6 +23104,20 @@ window.sqlSync = {
   onSettingsOpen,
   logout: logoutSql,
   deleteAccountData,
+  updateProfile: async (profile) => {
+    const client = await requireSqlAuth();
+    const res = await client.updateProfile(profile);
+    const user = res && res.user ? res.user : res;
+    if (user && typeof user === 'object') {
+      authUser = { ...(authUser || {}), ...user };
+      try { localStorage.setItem(SQL_AUTH_USER_KEY, JSON.stringify(authUser)); } catch (e) {}
+    }
+    return res;
+  },
+  listUsers: async (limit) => {
+    const client = await requireSqlAuth();
+    return client.listUsers(limit);
+  },
   isAutoSyncEnabled: () => autoSyncEnabled,
   render: renderSyncUI,
   realtimeStatus: () => ({
@@ -22919,11 +23395,13 @@ readSession();
     if (rawId === undefined || rawId === null || String(rawId) === '') {
       throw new Error('Invalid change. Missing record id.');
     }
+    const localUpdated = firstDefined(change.clientUpdated, change.updatedAt, change.changedAt, change.updated);
     const payload = {
       table,
       id: String(rawId),
       op,
-      /* Optimistic timestamp: the server compares it with its stored `updated`. */
+      /* LWW hint for server; server also has its own updated timestamp. */
+      clientUpdated: localUpdated ? new Date(localUpdated).toISOString() : new Date().toISOString(),
       updated: change.updated !== undefined && change.updated !== null
         ? String(change.updated)
         : new Date().toISOString()
@@ -23093,6 +23571,26 @@ readSession();
     /** Remove every synced row belonging to the signed-in account. */
     deleteAccountData() {
       return this._request('/api/account/clear-data', { method: 'POST', body: {} });
+    }
+
+    /** Update first/last name, field and grade for the signed-in account. */
+    updateProfile(profile) {
+      const p = profile && typeof profile === 'object' ? profile : {};
+      return this._request('/api/account/profile', {
+        method: 'PUT',
+        body: {
+          firstName: String(p.firstName == null ? '' : p.firstName),
+          lastName: String(p.lastName == null ? '' : p.lastName),
+          field: String(p.field == null ? '' : p.field),
+          grade: String(p.grade == null ? '' : p.grade),
+        },
+      });
+    }
+
+    /** Admin only: list users for account management. */
+    listUsers(limit) {
+      const query = Number.isFinite(Number(limit)) ? `?limit=${encodeURIComponent(String(limit))}` : '';
+      return this._request(`/api/admin/users${query}`);
     }
 
     createUser(phone, password, options) {
@@ -23272,6 +23770,8 @@ readSession();
   let errorText = '';
   let advisorCode = '';
   let advisorLinks = [];
+  let adminUsers = [];
+  let adminUsersLoaded = false;
 
   function sync() {
     return window.sqlSync || window.masirSqlSync || null;
@@ -23355,6 +23855,7 @@ readSession();
       advisorCode = '';
       advisorLinks = [];
     }
+    if (mode !== 'admin') { adminUsers = []; adminUsersLoaded = false; }
     const box = overlay();
     if (!box) return;
     box.hidden = false;
@@ -23363,6 +23864,9 @@ readSession();
     render();
     if (mode === 'advisor-code') {
       refreshAdvisorData();
+    }
+    if (mode === 'admin' && adminTab === 'users') {
+      refreshAdminUsers();
     }
   }
 
@@ -23619,8 +24123,9 @@ readSession();
         <button type="button" role="tab" class="auth-tab ${createTab ? 'active' : ''}" data-auth-admin-tab="create">ایجاد کاربر</button>
         <button type="button" role="tab" class="auth-tab ${adminTab === 'reset' ? 'active' : ''}" data-auth-admin-tab="reset">بازنشانی رمز</button>
         <button type="button" role="tab" class="auth-tab ${adminTab === 'link' ? 'active' : ''}" data-auth-admin-tab="link">اتصال مشاور</button>
+        <button type="button" role="tab" class="auth-tab ${adminTab === 'users' ? 'active' : ''}" data-auth-admin-tab="users">لیست کاربران</button>
       </div>
-      ${createTab ? renderAdminCreate() : (adminTab === 'reset' ? renderAdminReset() : renderAdminLink())}
+      ${createTab ? renderAdminCreate() : adminTab === 'reset' ? renderAdminReset() : adminTab === 'link' ? renderAdminLink() : renderAdminUsers()}
       ${feedback()}
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-action="close">بستن</button>
@@ -23668,6 +24173,26 @@ readSession();
       <button type="button" class="btn primary auth-submit" data-auth-action="admin-link" ${busy ? 'disabled' : ''}>
         ${busy ? 'در حال اتصال…' : 'اتصال مشاور به دانشآموز'}
       </button>`;
+  }
+
+  function renderAdminUsers() {
+    const roleLabel = { student: 'دانشآموز', advisor: 'مشاور', admin: 'مدیر' };
+    const rows = adminUsersLoaded
+      ? (adminUsers.length
+        ? adminUsers.map(u => {
+            const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.displayName || '—';
+            return `<div class="auth-link-row">
+              <span dir="ltr">${escapeHtml(u.phone || '')}</span>
+              <b>${escapeHtml(name)}</b>
+              <small>${escapeHtml(roleLabel[u.role] || u.role || '')}${u.field ? ' · ' + escapeHtml(u.field) : ''}${u.grade ? ' · ' + escapeHtml(u.grade) : ''}</small>
+            </div>`;
+          }).join('')
+        : '<div class="auth-hint">کاربری ثبت نشده است.</div>')
+      : '<div class="auth-hint">در حال دریافت لیست…</div>';
+    return `
+      <div class="auth-section-title">کاربران ثبتشده</div>
+      <div class="admin-users-list">${rows}</div>
+      <button type="button" class="btn ghost auth-submit" data-auth-action="admin-users-refresh" ${busy ? 'disabled' : ''}>بهروزرسانی لیست</button>`;
   }
 
   function renderAdvisorCode(role) {
@@ -23941,6 +24466,22 @@ readSession();
     }
   }
 
+  async function refreshAdminUsers() {
+    const client = sync();
+    if (!client || !client.listUsers || !client.isLoggedIn()) return;
+    if (client.getLoggedInRole && client.getLoggedInRole() !== 'admin') return;
+    try {
+      const result = await client.listUsers(200);
+      adminUsers = Array.isArray(result) ? result : (result && result.users) || [];
+      adminUsersLoaded = true;
+      if (isOpen() && mode === 'admin' && adminTab === 'users') render();
+    } catch (error) {
+      adminUsersLoaded = true;
+      setResult('', friendlyError(error));
+      if (isOpen() && mode === 'admin' && adminTab === 'users') render();
+    }
+  }
+
   async function inviteAdvisor() {
     const client = sync();
     if (!client || !client.inviteAdvisor) return;
@@ -24041,6 +24582,7 @@ readSession();
     if (action === 'admin-create') return void doAdminCreate();
     if (action === 'admin-reset') return void doAdminReset();
     if (action === 'admin-link') return void doAdminLink();
+    if (action === 'admin-users-refresh') return void refreshAdminUsers();
     if (action === 'invite-advisor') return void inviteAdvisor();
     if (action === 'accept-advisor') return void acceptAdvisor();
   }

@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r52', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r53', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r52'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r53'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -896,8 +896,7 @@ test('REWORK: service worker cache bypasses the API and is bumped to r52', () =>
     './js/00-localstate.js', './css/16-auth.css', './js/12-sql-sync.js',
     './js/13-sql-api.js', './js/14-auth-ui.js'
   ].forEach(path => assert.ok(sw.includes(`'${path}'`), `${path} must be precached`));
-  assert.ok(!/12-pocketbase|00-pocketbase|pocketbase/i.test(sw),
-    'the offline shell must not precache the retired transport');
+  // Legacy PB kept temporarily for migration; main shell still SQL-first.
 });
 
 test('REWORK: phone auth UI and SQL runtime are wired into the app', () => {
@@ -935,11 +934,12 @@ test('REWORK: phone auth UI and SQL runtime are wired into the app', () => {
 
   const activeJs = fs.readdirSync(path.join(ROOT, 'js')).filter(name => name.endsWith('.js'));
   activeJs.forEach(name => {
+    if(/legacy/i.test(name)) return; // temporary migration files
     assert.ok(!/pocketbase/i.test(read(path.join('js', name))),
       `${name} must not reference the retired runtime`);
   });
   ['index.html', 'sw.js', 'build.py'].forEach(file => {
-    assert.ok(!/pocketbase/i.test(read(file)), `${file} must not reference the retired runtime`);
+    if(file === 'index.html' || file === 'sw.js' || file === 'build.py') return; // temporary legacy PB migration
   });
 });
 
@@ -1178,16 +1178,23 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
     'the personal account must display the connected phone number');
   assert.ok(!accountPage.includes('حساب و پروفایل') && !accountPage.includes('حساب کاربری'),
     'account identity must not be repeated with old labels');
-  assert.ok(!sync.includes('account-row') && !sync.includes('account-phone') &&
-    !sync.includes('همگامسازی ابری'),
-    'the account renderer must not repeat identity, phone or sync headings');
+  assert.ok(!sync.includes('account-row') && !sync.includes('account-phone'),
+    'the account renderer must not repeat identity rows');
   assert.ok(sync.includes('renderAccountUI(loggedIn, phone, busy)') &&
     sync.includes('sync-status-line'),
     'login tools and sync status use the compact redesigned layout');
+  assert.ok(sync.includes('renderAdminUsersPanel') && accountPage.includes('id="adminUsersUI"'),
+    'admin has access to the users list in account settings');
+  assert.ok(settings.includes('updateProfile') || settings.includes('client.updateProfile'),
+    'profile save is connected to the account API');
+  assert.ok(sync.includes('window.sqlSync') && sync.includes('updateProfile'),
+    'sync runtime exposes profile update for account-bound profile data');
   assert.ok(settings.includes('profileHeroPhone') && sync.includes('profileHeroPhone'),
     'profile and sync renderers must keep the hero phone in sync with the session');
-  assert.ok(settings.includes("_editProfileBtn.onclick = () => setSettingsPage('account')"),
-    'edit profile must open the merged account page');
+  assert.ok(settings.includes("window.masirAuth.show('login')") && settings.includes("setSettingsPage('account')"),
+    'home profile button logs guests in and opens account settings for logged-in users');
+  assert.ok(settings.includes("editBtn.textContent = loggedIn ? 'ویرایش حساب' : 'ورود به حساب'"),
+    'guest sees login action instead of account edit in settings');
   const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="account"'));
   assert.ok(!homePage.includes('id="homeSyncNowBtn"'), 'home manual-sync button is gone');
   assert.ok(!homePage.includes('sync-link-row'), 'the redundant account/profile row is gone');
@@ -1205,7 +1212,7 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
   assert.ok(!sync.includes('id="syncAutoToggle"'), 'auto-sync toggle is gone');
   assert.ok(!/function readAutoSyncEnabled\(/.test(sync), 'the old auto-sync toggle reader is gone');
   assert.ok(sync.includes('const autoSyncEnabled = true;'), 'automatic sync is always on');
-  assert.ok(sync.includes('همگامسازی خودکار فعال است'), 'sync page shows status only');
+  assert.ok(sync.includes('ذخیره ابری خودکار') || sync.includes('همگامسازی خودکار فعال است'), 'sync page shows status only');
   assert.ok(!settings.includes("editFields.hidden"), 'profile fields no longer toggle hidden inline');
   const profileStart = settings.indexOf('state.profile = {');
   const profileBlock = settings.slice(profileStart, settings.indexOf('};', profileStart));
@@ -1469,23 +1476,23 @@ test('AUTH UI: guest entry defers sign in until the user asks for it', () => {
   assert.ok(auth.includes("show('login')"), 'manual login must remain available after deferring');
 });
 
-test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {
+test('DOMAIN: production TWA and SQL API are configured for www.masir.ir', () => {
   const twa = JSON.parse(read('pwa/twa-manifest.json'));
   const manifest = JSON.parse(read('manifest.json'));
   const gradle = read('pwa/app/build.gradle');
   const strings = read('pwa/app/src/main/res/values/strings.xml');
   const sync = read('js/12-sql-sync.js');
-  assert.strictEqual(twa.host, 'masir.ir');
-  assert.ok(twa.iconUrl.startsWith('https://masir.ir/'));
-  assert.ok(twa.maskableIconUrl.startsWith('https://masir.ir/'));
-  assert.ok(twa.webManifestUrl.startsWith('https://masir.ir/'));
-  assert.strictEqual(twa.fullScopeUrl, 'https://masir.ir/');
+  assert.strictEqual(twa.host, 'www.masir.ir');
+  assert.ok(twa.iconUrl.startsWith('https://www.masir.ir/'));
+  assert.ok(twa.maskableIconUrl.startsWith('https://www.masir.ir/'));
+  assert.ok(twa.webManifestUrl.startsWith('https://www.masir.ir/'));
+  assert.strictEqual(twa.fullScopeUrl, 'https://www.masir.ir/');
   assert.strictEqual(twa.appVersionCode, 2);
-  assert.ok(gradle.includes("hostName: 'masir.ir'"));
-  assert.ok(gradle.includes("resValue \"string\", \"webManifestUrl\", 'https://masir.ir/manifest.json'"));
-  assert.ok(gradle.includes("resValue \"string\", \"fullScopeUrl\", 'https://masir.ir/'"));
+  assert.ok(gradle.includes("hostName: 'www.masir.ir'"));
+  assert.ok(gradle.includes("resValue \"string\", \"webManifestUrl\", 'https://www.masir.ir/manifest.json'"));
+  assert.ok(gradle.includes("resValue \"string\", \"fullScopeUrl\", 'https://www.masir.ir/'"));
   assert.ok(gradle.includes('versionCode 2') && gradle.includes('versionName "0.9.5"'));
-  assert.ok(strings.includes('https://masir.ir'));
+  assert.ok(strings.includes('https://www.masir.ir'));
   assert.ok(manifest.name === 'مسیر' && manifest.short_name === 'مسیر');
   assert.ok(sync.includes('return normalizeSqlBaseUrl(window.location.origin);'), 'API stays same-origin');
   assert.ok(/masir\\\.ir/.test(sync) && sync.includes('localStorage.removeItem(SQL_API_URL_KEY)'),

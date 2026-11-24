@@ -205,11 +205,21 @@ async function applyChange(change, user) {
       return { conflict: true };
     }
 
-    if (existing && expectedUpdated != null) {
+    const clientUpdated = firstDefined(
+      change.clientUpdated, change.client_updated, change.updatedAt, data.clientUpdated, data.updatedAt,
+    );
+    if (existing && clientUpdated != null) {
+      const clientTs = new Date(clientUpdated).getTime();
+      const serverTs = new Date(existing.updated).getTime();
+      if (Number.isFinite(clientTs) && Number.isFinite(serverTs)) {
+        // Last-write-wins by valid timestamp. Equal/older timestamps yield to server.
+        if (clientTs < serverTs - 1) return { conflict: true, serverRow: existing };
+      }
+    } else if (existing && expectedUpdated != null) {
       const expected = new Date(expectedUpdated).getTime();
       const actual = new Date(existing.updated).getTime();
       if (!Number.isFinite(expected) || Math.abs(expected - actual) > 1) {
-        return { conflict: true };
+        return { conflict: true, serverRow: existing };
       }
     }
 
@@ -437,11 +447,18 @@ router.post('/api/changes', authenticate, async (req, res, next) => {
       );
       try {
         const result = await applyChange(change, req.user);
-        if (result.conflict) conflicts.push(changeId);
+        if (result.conflict) {
+          const serverRow = result.serverRow;
+          conflicts.push({
+            id: changeId,
+            table: change && change.table,
+            serverUpdated: serverRow && serverRow.updated ? new Date(serverRow.updated).toISOString() : null,
+          });
+        }
         else applied.push(changeId);
       } catch (error) {
         console.error('[changes] rejected:', error.message);
-        conflicts.push(changeId);
+        conflicts.push({ id: changeId, table: change && change.table, error: 'rejected' });
       }
     }
     return res.json({ applied, conflicts });

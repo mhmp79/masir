@@ -38,7 +38,6 @@ function buildBackupPayload(){
     version: APP_VERSION,
     exportedAt: new Date().toISOString(),
     summary: {
-      profile: state.profile ? 1 : 0,
       subjects: customSubjects.length,
       activities: state.activities.length,
       exams: state.exams.length,
@@ -49,6 +48,7 @@ function buildBackupPayload(){
     },
     data: {
       ...state,
+      profile: undefined,
       subjects: customSubjects.map(subject=>
         withoutStaticSubjectCurriculum(subject,state.profile.field)
       ),
@@ -94,9 +94,7 @@ function validateBackup(parsed){
     throw new Error('فیلد «sessions» در فایل اشتباه است');
   }
   const checks = [];
-  if(typeof data.profile !== 'object' || data.profile === null){
-    checks.push('فیلد «profile» باید به صورت شیء باشد');
-  }
+  // Profile no longer required in manual/legacy backup.
   if(!Array.isArray(data.exams)){
     checks.push('فیلد «exams» باید آرایه باشد');
   }
@@ -251,7 +249,7 @@ function exportBackup(){
   }
 }
 
-function showImportPreview(summary, parsed, schema){
+function showImportPreview(summary, parsed, schema, mode){
   return new Promise((resolve) => {
     const s = summary || {};
     const exportedAt = parsed && parsed.exportedAt
@@ -261,6 +259,7 @@ function showImportPreview(summary, parsed, schema){
     const oldSchemaNote = isOldSchema
       ? `<div class="backup-schema-warn">⚠️ این پشتیبان از نسخه قدیمی (Schema ${fa(schema)}) است — به‌طور خودکار به نسخه جدید مهاجرت می‌شود.</div>`
       : '';
+    const isServer = mode === 'legacy-server';
     let sessionRow = '';
     if (s.sessions != null) {
       sessionRow = `<div class="setting-row"><div class="sr-label">📋 بازه‌های برنامه</div><div class="sr-control text-cyan fw-800">${fa(s.sessions || 0)}</div></div>`;
@@ -275,10 +274,11 @@ function showImportPreview(summary, parsed, schema){
       </div>
       <div class="muted mb-14 fs-11h lh-185">
         تاریخ ساخت فایل: <b class="text-soft">${esc(exportedAt)}</b><br>
-        با تأیید، <b class="text-rose">تمام داده‌های فعلی جایگزین می‌شوند</b>. این عملیات قابل بازگشت نیست.
+        ${isServer
+          ? 'با تأیید، داده‌های این بکاپ <b class="text-rose">به‌صورت کامل جایگزین اطلاعات حساب سرور و این دستگاه می‌شوند</b>. پروفایل حساب حفظ می‌شود.'
+          : 'با تأیید، داده‌های این بکاپ <b class="text-rose">روی این دستگاه جایگزین می‌شوند</b>.'}
       </div>
       ${oldSchemaNote}
-      <div class="setting-row"><div class="sr-label">👤 پروفایل</div><div class="sr-control text-cyan fw-800">${s.profile ? 'دارد' : '—'}</div></div>
       <div class="setting-row"><div class="sr-label">📚 ${schema>=10?'دروس افزوده‌شده':'دروس'}</div><div class="sr-control text-cyan fw-800">${fa(s.subjects || 0)}</div></div>
       <div class="setting-row"><div class="sr-label">📝 فعالیت‌ها</div><div class="sr-control text-cyan fw-800">${fa(s.activities || 0)}</div></div>
       <div class="setting-row"><div class="sr-label">📊 آزمون‌ها</div><div class="sr-control text-cyan fw-800">${fa(s.exams || 0)}</div></div>
@@ -288,7 +288,7 @@ function showImportPreview(summary, parsed, schema){
       <div class="setting-row"><div class="sr-label">🏷️ تگ‌های عمومی</div><div class="sr-control text-cyan fw-800">${fa(s.commonErrors || 0)}</div></div>
       <div class="row mt-16">
         <button class="btn ghost" id="ipCancel">انصراف</button>
-        <button class="btn danger" id="ipConfirm">🔄 جایگزینی کامل</button>
+        <button class="btn danger" id="ipConfirm">${isServer ? '🔄 جایگزینی سرور و دستگاه' : '📥 وارد کردن روی دستگاه'}</button>
       </div>
     `);
     document.getElementById('ipCancel').onclick = () => { closeModal(); resolve(false); };
@@ -296,7 +296,16 @@ function showImportPreview(summary, parsed, schema){
   });
 }
 
-async function importBackup(file){
+async function importBackup(file, options){
+  const opts = options || {};
+  const mode = opts.mode || 'legacy-server'; // 'legacy-server' | 'local'
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  if(mode === 'legacy-server'){
+    if(!loggedIn){ toast('برای وارد کردن بکاپ قدیمی به سرور ابتدا وارد حساب شوید.'); return false; }
+    if(!online){ toast('برای وارد کردن بکاپ قدیمی به سرور باید آنلاین باشید.'); return false; }
+  }
   try{
     const text = await file.text();
     let parsed;
@@ -304,30 +313,25 @@ async function importBackup(file){
     catch(e){ throw new Error('فایل JSON معتبر نیست'); }
 
     const { data, tracker, timer, summary, schema } = validateBackup(parsed);
-
-    const confirmed = await showImportPreview(summary, parsed, schema);
+    const confirmed = await showImportPreview(summary, parsed, schema, mode);
     if(!confirmed) return false;
 
     const normalized = normalizeImportedData(data,schema);
-    replaceTrackedState(normalized, true);
-
-    state.subjects.forEach(s => {
-      if(!state.classes[s.name]){
-        state.classes[s.name] = { total: s.sessions || 0, sessions: {} };
-      } else if(!state.classes[s.name].total){
-        state.classes[s.name].total = s.sessions || 0;
+    normalized.subjects.forEach(s => {
+      if(!normalized.classes[s.name]){
+        normalized.classes[s.name] = { total: s.sessions || 0, sessions: {} };
+      } else if(!normalized.classes[s.name].total){
+        normalized.classes[s.name].total = s.sessions || 0;
       }
     });
 
-    if(tracker){
-      if(tracker.counts && typeof tracker.counts === 'object'){
-        trkCounts = {
-          correct: Math.max(0, +tracker.counts.correct || 0),
-          wrong: Math.max(0, +tracker.counts.wrong || 0),
-          blank: Math.max(0, +tracker.counts.blank || 0)
-        };
-        try { saveTracker(); } catch(_) {}
-      }
+    replaceTrackedState(normalized, true);
+    if(tracker && tracker.counts && typeof tracker.counts === 'object'){
+      trkCounts = {
+        correct: Math.max(0, +tracker.counts.correct || 0),
+        wrong: Math.max(0, +tracker.counts.wrong || 0),
+        blank: Math.max(0, +tracker.counts.blank || 0)
+      };
       trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
       try { saveTracker(); } catch(_) {}
     }
@@ -337,12 +341,26 @@ async function importBackup(file){
 
     save();
     await flushStorage();
-    toast('✅ پشتیبان بازگردانی شد');
+
+    if(mode === 'legacy-server' && loggedIn){
+      await client.deleteAccountData();
+      try{
+        const uid = client.getLoggedInUserId ? client.getLoggedInUserId() : '';
+        if(uid) localStorage.removeItem(`konkur-sql-sync-meta-v1::${uid}`);
+      }catch(_){ }
+      const up = await client.uploadAllData();
+      if(!up || up.ok === false){
+        throw new Error((up && up.error) || 'جایگزینی اطلاعات روی سرور ناموفق بود');
+      }
+      toast('✅ بکاپ وارد و روی سرور جایگزین شد');
+    } else {
+      toast('✅ بکاپ روی این دستگاه وارد شد');
+    }
     setTimeout(() => location.reload(), 800);
     return true;
   }catch(err){
     console.error('[backup] import failed:', err);
-    toast('❌ ' + (err.message || 'خطا در بازگردانی'));
+    toast('❌ ' + (err.message || 'خطا در وارد کردن بکاپ'));
     return false;
   }
 }
@@ -350,9 +368,14 @@ async function importBackup(file){
 async function clearAllData(){
   const client = window.sqlSync || window.masirSqlSync || null;
   const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  if(loggedIn && !online){
+    toast('برای پاک کردن کامل سرور و دستگاه باید آنلاین باشید.');
+    return;
+  }
   const message = loggedIn
     ? 'دادههای حساب روی سرور و تمام اطلاعات این دستگاه پاک میشود. این عملیات قابل بازگشت نیست؛ ادامه میدهید؟'
-    : 'تمام اطلاعات این دستگاه پاک میشود؛ حسابی متصل نیست تا داده سرور حذف شود. ادامه میدهید؟';
+    : 'تمام اطلاعات این دستگاه پاک میشود. ادامه میدهید؟';
   if(!confirm(message)) return;
   if(loggedIn){
     try{
@@ -393,16 +416,66 @@ async function clearAllData(){
   setTimeout(() => location.reload(), 500);
 }
 
+function refreshBackupUiState(){
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
+  const imp = document.getElementById('importInput');
+  const impLabel = document.getElementById('legacyImportLabel');
+  const impStatus = document.getElementById('legacyImportStatus');
+  const localImp = document.getElementById('localImportInput');
+  const localImpLabel = document.getElementById('localImportLabel');
+  const clr = document.getElementById('clearDataBtn');
+  const backupLink = document.getElementById('backupSettingsLink');
+
+  if(backupLink) backupLink.style.display = '';
+  if(localImp) localImp.disabled = false;
+  if(localImpLabel){ localImpLabel.classList.remove('is-disabled'); localImpLabel.setAttribute('aria-disabled','false'); }
+  if(imp){ imp.disabled = !(loggedIn && online); }
+  if(impLabel){
+    impLabel.classList.toggle('is-disabled', !(loggedIn && online));
+    impLabel.setAttribute('aria-disabled', (!(loggedIn && online)) ? 'true' : 'false');
+  }
+  if(impStatus){
+    impStatus.textContent = !loggedIn
+      ? 'جایگزینی سرور: ابتدا وارد حساب شوید.'
+      : (!online ? 'جایگزینی سرور: برای این کار باید آنلاین باشید.' : 'وارد حساب هستید؛ می‌توانید بکاپ قدیمی را جایگزین سرور کنید.');
+  }
+  if(clr){
+    const canClear = !loggedIn || online;
+    clr.disabled = !canClear;
+    clr.classList.toggle('is-disabled', !canClear);
+    clr.title = (!loggedIn || online) ? '' : 'برای پاک کردن کامل سرور و دستگاه باید آنلاین باشید.';
+  }
+  try{
+    if(window.legacyPbSync && typeof window.legacyPbSync.renderSyncUI === 'function') window.legacyPbSync.renderSyncUI();
+  }catch(e){}
+}
+
 (function wireBackupEvents(){
   const exp = document.getElementById('exportBtn');
   if(exp) exp.onclick = exportBackup;
+  const localImp = document.getElementById('localImportInput');
+  if(localImp) localImp.onchange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    await importBackup(f, { mode: 'local' });
+  };
   const imp = document.getElementById('importInput');
   if(imp) imp.onchange = async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = '';
     if(!f) return;
-    await importBackup(f);
+    refreshBackupUiState();
+    if(imp.disabled) return;
+    await importBackup(f, { mode: 'legacy-server' });
   };
   const clr = document.getElementById('clearDataBtn');
   if(clr) clr.onclick = clearAllData;
+  window.addEventListener('online', refreshBackupUiState);
+  window.addEventListener('offline', refreshBackupUiState);
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshBackupUiState(); });
+  setTimeout(refreshBackupUiState, 0);
 })();
+window.refreshBackupUiState = refreshBackupUiState;

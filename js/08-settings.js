@@ -2,7 +2,7 @@
 
 /* ============================================================
    SETTINGS — paged: home → profile / subjects / exam / sync / backup / danger
-   Sync UI is rendered by 12-pocketbase.js → renderSyncUI()
+   Sync UI is rendered by 12-sql-sync.js → renderSyncUI()
    ============================================================ */
 
 /* ============ PAGED NAVIGATION ============ */
@@ -108,10 +108,9 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
     }
   }
   
-  // Preserve id and email from existing profile
+  // Keep the local profile identity; accounts use phone numbers, not e-mail.
   state.profile = {
     id: state.profile.id || '',
-    email: state.profile.email || '',
     role:'student',
     firstName, lastName, field, grade
   };
@@ -813,7 +812,7 @@ function openSettingsOverlay(){
   try{renderSettingsPanel();}catch(e){console.error(e);}
   try{renderCommonErrors();}catch(e){console.error(e);}
   try{renderSubjectErrorsSection();}catch(e){console.error(e);}
-  // Sync UI is rendered by 12-pocketbase.js via onSettingsOpen
+  // Sync UI is rendered by 12-sql-sync.js via onSettingsOpen
   try{ if(typeof onSettingsOpen === 'function') onSettingsOpen(); }catch(e){console.error(e);}
   const verEl = document.getElementById('appVersionDisplay');
   if(verEl) verEl.textContent = APP_VERSION;

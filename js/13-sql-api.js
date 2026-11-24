@@ -1,12 +1,12 @@
 'use strict';
 
 /* ============================================================
-   MASIR SQL API — browser groundwork for the typed PostgreSQL backend.
+   MASIR SQL API — the only browser transport for the SQL backend.
    - No external SDK: only fetch, WebSocket and AbortController.
-   - Access tokens are requested through getToken(); this file never
+   - Access tokens are supplied through getToken(); this file never
      writes them anywhere.
-   - GROUNDWORK ONLY: this file is loaded for future use and the running
-     app still uses PocketBase until cutover.
+   - Auth, sync snapshots, changes, advisor links and admin tools all
+     go through MasirSqlClient.
    ============================================================ */
 
 (function (factory) {
@@ -57,35 +57,36 @@
      Keys are local field names; values are typed SQL column names. */
   const FIELD_MAPS = Object.freeze({
     app_meta: Object.freeze({ value: 'value' }),
-    subjects: Object.freeze({ name: 'name', color: 'color', type: 'type', field: 'field', config: 'config' }),
+    subjects: Object.freeze({ name: 'name', color: 'color', type: 'type', field: 'field', config: 'config', localOrder: 'local_order' }),
     sessions: Object.freeze({
       subject: 'subject', topic: 'topic', durMin: 'dur_min', date: 'date',
       startMin: 'start_min', done: 'done', doneAt: 'done_at',
-      activityId: 'activity_id', examId: 'exam_id', ts: 'ts'
+      activityId: 'activity_id', examId: 'exam_id', ts: 'ts', localOrder: 'local_order'
     }),
     activities: Object.freeze({
       subject: 'subject', topic: 'topic', minutes: 'minutes', date: 'date',
-      startMin: 'start_min', endMin: 'end_min', note: 'note'
+      startMin: 'start_min', endMin: 'end_min', note: 'note', localOrder: 'local_order'
     }),
-    classes: Object.freeze({ subject: 'subject', total: 'total', sessions: 'sessions' }),
+    classes: Object.freeze({ subject: 'subject', total: 'total', sessions: 'sessions', localOrder: 'local_order' }),
     sleeps: Object.freeze({
       date: 'date', endDate: 'end_date', startMin: 'start_min',
-      endMin: 'end_min', nap: 'nap'
+      endMin: 'end_min', nap: 'nap', localOrder: 'local_order'
     }),
     phones: Object.freeze({
       date: 'date', startMin: 'start_min', endMin: 'end_min',
-      subject: 'subject', note: 'note'
+      subject: 'subject', note: 'note', localOrder: 'local_order'
     }),
     exams: Object.freeze({
       name: 'name', date: 'date', hasResults: 'has_results',
       totalTaraz: 'total_taraz', subjects: 'subjects',
-      questionsCount: 'questions_count'
+      questionsCount: 'questions_count', localOrder: 'local_order'
     }),
     questions: Object.freeze({
       examId: 'exam_id', number: 'number', subject: 'subject', topic: 'topic',
       status: 'status', note: 'note', questionText: 'question_text',
       answerText: 'answer_text', options: 'options', tags: 'tags',
-      starred: 'starred', figureRef: 'figure_ref', noteHidden: 'note_hidden', ts: 'ts'
+      starred: 'starred', figureRef: 'figure_ref', noteHidden: 'note_hidden',
+      ts: 'ts', localOrder: 'local_order'
     }),
     tracker: Object.freeze({ correct: 'correct', wrong: 'wrong', blank: 'blank', coef: 'coef' }),
     timer: Object.freeze({
@@ -112,6 +113,20 @@
     const value = englishDigits(code == null ? '' : code).trim();
     if (!/^[0-9]{4,8}$/.test(value)) {
       throw new Error('Invalid verification code. Enter the 4 to 8 digit code from the SMS.');
+    }
+    return value;
+  }
+  function normalizePassword(password) {
+    const value = String(password == null ? '' : password);
+    if (value.length < 8) {
+      throw new Error('Password must be at least 8 characters long.');
+    }
+    return value;
+  }
+  function normalizePurpose(purpose) {
+    const value = String(purpose == null ? '' : purpose).trim().toLowerCase();
+    if (value !== 'signup' && value !== 'reset') {
+      throw new Error('Invalid OTP purpose.');
     }
     return value;
   }
@@ -186,6 +201,8 @@
     const source = sourceRecord(store, record);
     if (table === 'app_meta') {
       if (Object.prototype.hasOwnProperty.call(source, 'value')) out.value = source.value;
+      const order = record.localOrder !== undefined ? record.localOrder : record.order;
+      if (order !== undefined && order !== null) out.local_order = Number(order) || 0;
       return out;
     }
     const fields = FIELD_MAPS[table];
@@ -196,6 +213,10 @@
       if (value === undefined) return;
       out[fields[localKey]] = value;
     });
+    if (out.local_order === undefined) {
+      const order = record.localOrder !== undefined ? record.localOrder : record.order;
+      if (order !== undefined && order !== null) out.local_order = Number(order) || 0;
+    }
     if (table === 'tracker') out.coef = FIXED_TRACKER_COEF;
     return out;
   }
@@ -208,6 +229,7 @@
     const source = row && typeof row === 'object' && !Array.isArray(row) ? row : {};
     if (store === 'app-meta' || name === 'app_meta') {
       if (Object.prototype.hasOwnProperty.call(source, 'value')) out.value = source.value;
+      if (source.local_order !== undefined) out.localOrder = Number(source.local_order) || 0;
       return out;
     }
     const fields = FIELD_MAPS[name] || FIELD_MAPS[store];
@@ -352,18 +374,75 @@
       }
     }
 
-    /** Public endpoint: SMS code request. The returned token is not stored here. */
-    requestOtp(phone) {
+    /** Public endpoint: SMS code for signup or password reset. */
+    requestOtp(phone, purpose) {
+      const body = { phone: normalizePhone(phone) };
+      if (purpose !== undefined && purpose !== null && String(purpose).trim()) {
+        body.purpose = normalizePurpose(purpose);
+      }
       return this._request('/api/auth/request-otp', {
-        method: 'POST', auth: false, body: { phone: normalizePhone(phone) }
+        method: 'POST', auth: false, body
       });
     }
 
-    /** Public endpoint: exchange the SMS code for a bearer token. */
-    verifyOtp(phone, code) {
+    /** Public endpoint: exchange the SMS code for a short-lived purpose token. */
+    verifyOtp(phone, code, purpose) {
+      const body = { phone: normalizePhone(phone), code: normalizeCode(code) };
+      if (purpose !== undefined && purpose !== null && String(purpose).trim()) {
+        body.purpose = normalizePurpose(purpose);
+      }
       return this._request('/api/auth/verify-otp', {
+        method: 'POST', auth: false, body
+      });
+    }
+
+    completeSignup(token, password, displayName) {
+      const body = { token: String(token == null ? '' : token).trim(), password: normalizePassword(password) };
+      if (displayName !== undefined && displayName !== null && String(displayName).trim()) {
+        body.displayName = String(displayName).trim();
+      }
+      if (!body.token) throw new Error('The signup code is missing. Request a new SMS code.');
+      return this._request('/api/auth/complete-signup', { method: 'POST', auth: false, body });
+    }
+
+    login(phone, password) {
+      return this._request('/api/auth/login', {
         method: 'POST', auth: false,
-        body: { phone: normalizePhone(phone), code: normalizeCode(code) }
+        body: { phone: normalizePhone(phone), password: normalizePassword(password) }
+      });
+    }
+
+    resetPassword(token, password) {
+      const value = String(token == null ? '' : token).trim();
+      if (!value) throw new Error('The reset code is missing. Request a new SMS code.');
+      return this._request('/api/auth/reset-password', {
+        method: 'POST', auth: false,
+        body: { token: value, password: normalizePassword(password) }
+      });
+    }
+
+    changePassword(currentPassword, newPassword) {
+      return this._request('/api/auth/change-password', {
+        method: 'POST',
+        body: {
+          currentPassword: String(currentPassword == null ? '' : currentPassword),
+          newPassword: normalizePassword(newPassword)
+        }
+      });
+    }
+
+    createUser(phone, password, options) {
+      const opts = options || {};
+      const body = { phone: normalizePhone(phone), password: normalizePassword(password) };
+      if (opts.role) body.role = String(opts.role).trim();
+      if (opts.displayName) body.displayName = String(opts.displayName).trim();
+      return this._request('/api/admin/users', { method: 'POST', body });
+    }
+
+    resetUserPassword(phone, password) {
+      return this._request('/api/admin/users/reset-password', {
+        method: 'POST',
+        body: { phone: normalizePhone(phone), password: normalizePassword(password) }
       });
     }
 
@@ -401,9 +480,13 @@
       return this._request('/api/advisors/links', { method: 'GET' });
     }
 
-    assignStudent(phone) {
+    assignStudent(advisorPhone, studentPhone) {
       return this._request('/api/admin/advisor-links', {
-        method: 'POST', body: { phone: normalizePhone(phone) }
+        method: 'POST',
+        body: {
+          advisor: normalizePhone(advisorPhone),
+          student: normalizePhone(studentPhone)
+        }
       });
     }
 

@@ -29,6 +29,7 @@
 <link rel="stylesheet" href="css/13-reports.css">
 <link rel="stylesheet" href="css/14-desktop.css">
 <link rel="stylesheet" href="css/15-utilities.css">
+<link rel="stylesheet" href="css/16-auth.css">
 </head>
 <body>
   <div class="app">
@@ -684,11 +685,15 @@
   </div>
 </div>
 
+<!-- ===== AUTH OVERLAY — app-designed sign in / signup / account tools ===== -->
+<div class="auth-overlay" id="authOverlay" hidden>
+  <div id="authContent" aria-live="polite"></div>
+</div>
+
 <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modalContent"></div></div>
 <div class="toast" id="toast"></div>
 <div id="storageLoading" role="status" aria-live="polite">در حال بارگذاری اطلاعات…</div>
 
-<script src="js/00-pocketbase.js"></script>
 <script src="js/00-utils.js"></script>
 <script src="js/00-localstate.js"></script>
 <script src="js/01-core.js"></script>
@@ -702,8 +707,9 @@
 <script src="js/09-reports.js"></script>
 <script src="js/10-timer.js"></script>
 <script src="js/11-backup.js"></script>
-<script src="js/12-pocketbase.js"></script>
 <script src="js/13-sql-api.js"></script>
+<script src="js/12-sql-sync.js"></script>
+<script src="js/14-auth-ui.js"></script>
 <script src="js/99-init.js"></script>
 
 <script>

@@ -312,9 +312,18 @@ function compactUser(user) {
 
 async function resolveUser(body, prefix) {
   const userColumns = await requireColumn('users', ['id'], 'id');
-  const id = firstDefined(body[`${prefix}Id`], body[`${prefix}_id`]);
+  /* Accept both the documented `*Phone`/`*Id` keys and the short
+     `advisor`/`student` keys used by the single SQL browser adapter. */
+  const shorthand = body[prefix];
+  const explicitId = firstDefined(body[`${prefix}Id`], body[`${prefix}_id`]);
+  const shorthandId = /^[0-9a-f-]{36}$/i.test(String(shorthand == null ? '' : shorthand))
+    ? shorthand
+    : null;
+  const id = explicitId || shorthandId;
   if (id) return getUserById(id);
-  const phone = normalizePhone(firstDefined(body[`${prefix}Phone`], body[`${prefix}_phone`]));
+  const phone = normalizePhone(firstDefined(
+    body[`${prefix}Phone`], body[`${prefix}_phone`], shorthand,
+  ));
   if (!phone) return null;
   const { rows } = await query(`SELECT ${userColumns} AS id FROM users WHERE phone = $1 LIMIT 1`, [phone]);
   return rows.length ? getUserById(rows[0].id) : null;

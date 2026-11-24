@@ -19,22 +19,26 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;  -- gen_random_uuid()
    ========================================================================== */
 
 CREATE TABLE IF NOT EXISTS users (
-    id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-    phone        text        NOT NULL UNIQUE,
-    role         text        NOT NULL DEFAULT 'student'
-                             CHECK (role IN ('student', 'advisor', 'admin')),
-    display_name text,
-    created_at   timestamptz NOT NULL DEFAULT now()
+    id                  uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone               text        NOT NULL UNIQUE,
+    role                text        NOT NULL DEFAULT 'student'
+                                    CHECK (role IN ('student', 'advisor', 'admin')),
+    display_name        text,
+    password_hash       text,
+    password_updated_at timestamptz,
+    created_at          timestamptz NOT NULL DEFAULT now()
 );
 
 COMMENT ON TABLE users IS
-    'Phone-first identities. Replaced PocketBase users/auth; ids are stable uuid5 values computed by scripts/import_pocketbase.py.';
+    'Phone-first identities. Ids from a legacy export are preserved when present by the one-time import tool.';
 COMMENT ON COLUMN users.phone IS 'Normalized Iranian mobile number, always +989xxxxxxxxx.';
 COMMENT ON COLUMN users.role IS 'Server-enforced: student sees own rows, advisor sees linked students, admin can assign advisor-student links.';
 
 CREATE TABLE IF NOT EXISTS otp_codes (
     id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     phone       text,
+    purpose     text        NOT NULL DEFAULT 'signup'
+                            CHECK (purpose IN ('signup', 'reset')),
     code_hash   text,
     expires_at  timestamptz,
     consumed_at timestamptz,
@@ -75,6 +79,7 @@ CREATE TABLE IF NOT EXISTS subjects (
     field          text,
     config         jsonb       NOT NULL DEFAULT '{}'::jsonb,
     sessions_count int         NOT NULL DEFAULT 0,
+    local_order    int,
     updated        timestamptz NOT NULL DEFAULT now(),
     deleted        boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -94,6 +99,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     activity_id text,
     exam_id     text,
     ts          bigint,
+    local_order int,
     updated     timestamptz NOT NULL DEFAULT now(),
     deleted     boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -113,6 +119,7 @@ CREATE TABLE IF NOT EXISTS activities (
     start_min int,
     end_min   int,
     note      text,
+    local_order int,
     updated   timestamptz NOT NULL DEFAULT now(),
     deleted   boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -125,6 +132,7 @@ CREATE TABLE IF NOT EXISTS classes (
     subject  text,
     total    int,
     sessions jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    local_order int,
     updated  timestamptz NOT NULL DEFAULT now(),
     deleted  boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -139,6 +147,7 @@ CREATE TABLE IF NOT EXISTS sleeps (
     start_min int,
     end_min   int,
     nap       boolean,
+    local_order int,
     updated   timestamptz NOT NULL DEFAULT now(),
     deleted   boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -153,6 +162,7 @@ CREATE TABLE IF NOT EXISTS phones (
     end_min   int,
     subject   text,
     note      text,
+    local_order int,
     updated   timestamptz NOT NULL DEFAULT now(),
     deleted   boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -168,6 +178,7 @@ CREATE TABLE IF NOT EXISTS exams (
     total_taraz     numeric,
     subjects        jsonb       NOT NULL DEFAULT '{}'::jsonb,
     questions_count int         NOT NULL DEFAULT 0,
+    local_order     int,
     updated         timestamptz NOT NULL DEFAULT now(),
     deleted         boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -191,6 +202,7 @@ CREATE TABLE IF NOT EXISTS questions (
     figure_ref    text,
     note_hidden   boolean     NOT NULL DEFAULT false,
     ts            bigint,
+    local_order   int,
     updated       timestamptz NOT NULL DEFAULT now(),
     deleted       boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -201,6 +213,7 @@ CREATE TABLE IF NOT EXISTS app_meta (
     owner_id uuid        NOT NULL REFERENCES users(id),
     local_id text        NOT NULL,
     value    jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    local_order int,
     updated  timestamptz NOT NULL DEFAULT now(),
     deleted  boolean     NOT NULL DEFAULT false,
     UNIQUE (owner_id, local_id)
@@ -243,6 +256,26 @@ CREATE TABLE IF NOT EXISTS changes (
     data      jsonb,
     actor_id  uuid
 );
+
+/* ---- idempotent add-ons (also applied by server/sql/003_password_auth.sql)
+   Old databases re-run this file, so every new column is added defensively. */
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash text;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_updated_at timestamptz;
+ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'signup';
+
+ALTER TABLE subjects    ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE sessions    ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE activities  ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE classes     ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE sleeps      ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE phones      ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE exams       ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE questions   ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE app_meta    ADD COLUMN IF NOT EXISTS local_order int;
+
+COMMENT ON COLUMN users.password_hash IS 'scrypt$salt$hash; never returned by the API.';
+COMMENT ON COLUMN otp_codes.purpose IS 'OTP scope: signup or reset; hashed into code_hash.';
+COMMENT ON COLUMN subjects.local_order IS 'Local index from the browser; typed as localOrder in the adapter.';
 
 /* ==========================================================================
    Indexes

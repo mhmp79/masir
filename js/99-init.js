@@ -26,6 +26,11 @@ function setupBackExitGuard(){
     if(exitConfirmed) return;
 
     /* ۱) لایه‌های باز */
+    const auth=document.getElementById('authOverlay');
+    if(auth && auth.classList.contains('show') && !auth.hidden){
+      try{ window.masirAuth.dismissForOffline(); }catch(_){}
+      rearm(); return;
+    }
     const settings=document.getElementById('settingsOverlay');
     if(settings && settings.classList.contains('show')){
       try{ closeSettingsOverlay(); }catch(_){}
@@ -112,6 +117,8 @@ function init(){
     init();
     try{ if(typeof startAutoSync==='function') startAutoSync(); }
     catch(error){ console.error('[sync] auto sync start failed:',error); }
+    try{ if(window.masirAuth && typeof window.masirAuth.startup==='function') window.masirAuth.startup(); }
+    catch(error){ console.error('[auth] startup failed:',error); }
     const loading=document.getElementById('storageLoading');
     if(loading)loading.remove();
   }

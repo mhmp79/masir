@@ -220,11 +220,22 @@ test('BUGFIX: question notes/questions/answers survive sync store rebuilds', () 
   assert.strictEqual(rebuilt.exams[0].questions[0].answerText, 'جواب');
 
   const coreSource = read('js/01-core.js');
-  const pb = read('js/12-pocketbase.js');
+  const sync = read('js/12-sql-sync.js');
+  const api = read('js/13-sql-api.js');
   assert.ok(/const NORMALIZED_STORES=.*'questions'\]/.test(coreSource), 'questions must be a normalized store');
-  assert.ok(/questions: 'questions'/.test(pb), 'questions must map to the remote questions collection');
-  assert.ok(/const PB_UPLOAD_STORES = \[[^\]]*'questions'\]/.test(pb), 'auto upload must include questions');
-  assert.ok(/if \(record\.examId\) data\.examId = record\.examId/.test(pb), 'question rows must carry examId');
+  const storeList = /const SYNC_UPLOAD_STORES = Object\.freeze\(\[([^\]]+)\]\)/.exec(sync);
+  assert.ok(storeList, 'SYNC_UPLOAD_STORES must be declared and frozen');
+  const uploadStores = Array.from(storeList[1].matchAll(/'([^']+)'/g), (m) => m[1]);
+  assert.deepStrictEqual(uploadStores, [
+    'app-meta', 'subjects', 'activities', 'classes', 'sessions',
+    'sleeps', 'phones', 'exams', 'questions'
+  ], 'all nine stores, including questions, must be uploaded');
+  assert.ok(/localStoreForTable\(table\) \|\| table/.test(sync),
+    'downloaded rows must decode through the SQL adapter');
+  assert.ok(/questions: 'questions'/.test(api), 'questions must map to the SQL questions table');
+  assert.ok(/examId: 'exam_id'/.test(api), 'question rows must carry examId');
+  assert.ok(/if \(data\.exam_id\) record\.examId = String\(data\.exam_id\)/.test(sync),
+    'downloaded question rows must restore examId');
 });
 
 test('BUGFIX: note/question/answer edits are tracked as question sync mutations', () => {
@@ -358,17 +369,22 @@ test('REWORK: activity heading is gone and test penalty is fixed at 1/3', () => 
   assert.strictEqual(JSON.parse(timerWritten.value).mode, 'pomodoro');
 
   const activity = read('js/04-activity.js');
+  const sync = read('js/12-sql-sync.js');
   assert.ok(activity.includes('const TRK_COEF=1/3;'), 'the app must define one fixed penalty constant');
   assert.ok(!activity.includes('trkCoef=+d.coef') && !activity.includes("getElementById('trkCoef')"),
     'no loader or select can change the penalty');
   assert.ok(!read('js/11-backup.js').includes('trkCoef = +tracker.coef'),
     'backup restore must not bring back a custom penalty');
-  assert.ok(!read('js/12-pocketbase.js').includes('trkCoef = +remoteTracker.coef'),
-    'sync must not apply a remote custom penalty');
+  assert.ok(sync.includes("trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);"),
+    'sync must apply only the fixed penalty from a remote tracker');
+  assert.ok(sync.includes("coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)"),
+    'tracker uploads must force the fixed coefficient');
+  assert.ok(!/trkCoef\s*=\s*\+/.test(sync), 'remote custom coefficients must never be parsed');
   const legacyTrackerKey = 'konkur-' + 'trk-v1';
   const legacyTimerKey = 'konkur-' + 'timer-v1';
   ['js/00-localstate.js', 'js/01-core.js', 'js/04-activity.js',
-    'js/10-timer.js', 'js/11-backup.js', 'js/12-pocketbase.js'].forEach(file => {
+    'js/10-timer.js', 'js/11-backup.js', 'js/12-sql-sync.js',
+    'js/13-sql-api.js', 'js/14-auth-ui.js'].forEach(file => {
       const source = read(file);
       assert.ok(!source.includes(legacyTrackerKey), `${file} must not use the legacy tracker key`);
       assert.ok(!source.includes(legacyTimerKey), `${file} must not use the legacy timer key`);
@@ -869,11 +885,55 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache is bumped for returning users', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r44', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r42'));
-  assert.ok(sw.includes("'./js/00-localstate.js'"), 'local state helper must be in the offline shell');
-  assert.ok(sw.includes("'./js/13-sql-api.js'"), 'SQL adapter must be in the offline shell');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r44'), 'cache name must match the API bypass release');
+  assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r43'), 'the previous cache name must be gone');
+  assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
+  assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
+    'same-origin /api/ requests must bypass the cache');
+  [
+    './js/00-localstate.js', './css/16-auth.css', './js/12-sql-sync.js',
+    './js/13-sql-api.js', './js/14-auth-ui.js'
+  ].forEach(path => assert.ok(sw.includes(`'${path}'`), `${path} must be precached`));
+  assert.ok(!/12-pocketbase|00-pocketbase|pocketbase/i.test(sw),
+    'the offline shell must not precache the retired transport');
+});
+
+test('REWORK: phone auth UI and SQL runtime are wired into the app', () => {
+  const html = read('index.html');
+  const auth = read('js/14-auth-ui.js');
+  const sync = read('js/12-sql-sync.js');
+  assert.ok(html.includes('<link rel="stylesheet" href="css/16-auth.css">'), 'auth styles must load');
+  assert.ok(html.includes('<div class="auth-overlay" id="authOverlay" hidden>'));
+  assert.ok(html.includes('<div id="authContent" aria-live="polite"></div>'));
+  assert.ok(!html.includes('id="syncNowBtn"') && !html.includes('id="syncAutoToggle"'),
+    'sync is automatic-only: status, never a button or toggle');
+
+  const scripts = Array.from(html.matchAll(/<script src="([^"]+)"><\/script>/g), (m) => m[1]);
+  const apiIndex = scripts.indexOf('js/13-sql-api.js');
+  const syncIndex = scripts.indexOf('js/12-sql-sync.js');
+  const authIndex = scripts.indexOf('js/14-auth-ui.js');
+  const initIndex = scripts.indexOf('js/99-init.js');
+  assert.ok(apiIndex >= 0 && apiIndex < syncIndex &&
+    syncIndex < authIndex && authIndex < initIndex,
+  'SQL API, sync, auth UI and init must load in that order');
+
+  assert.ok(auth.includes('window.masirAuth = {') && /\bshow,/.test(auth),
+    'masirAuth.show must be public');
+  const modes = ['login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'];
+  modes.forEach(mode => assert.ok(auth.includes(`'${mode}'`), `auth mode ${mode} is missing`));
+  assert.ok(!/type="email"|email\s*:/i.test(auth), 'auth is phone/password only, with no email inputs');
+  assert.ok(sync.includes('window.sqlSync = {') && sync.includes('window.masirSqlSync = window.sqlSync;'));
+
+  const activeJs = fs.readdirSync(path.join(ROOT, 'js')).filter(name => name.endsWith('.js'));
+  activeJs.forEach(name => {
+    assert.ok(!/pocketbase/i.test(read(path.join('js', name))),
+      `${name} must not reference the retired runtime`);
+  });
+  ['index.html', 'sw.js', 'build.py'].forEach(file => {
+    assert.ok(!/pocketbase/i.test(read(file)), `${file} must not reference the retired runtime`);
+  });
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -1072,7 +1132,7 @@ test('REWORK: settings stays inside the app shell with visible active tabs', () 
 test('REWORK: settings is paged, with merged sync/account and automatic sync only', () => {
   const html = read('index.html');
   const settings = read('js/08-settings.js');
-  const sync = read('js/12-pocketbase.js');
+  const sync = read('js/12-sql-sync.js');
   const overlays = read('css/05-overlays.css');
   const body = html.slice(html.indexOf('<main class="wr-body" id="settingsBody">'), html.indexOf('</main>', html.indexOf('<main class="wr-body" id="settingsBody">')));
   const pages = ['home', 'profile', 'subjects', 'exam', 'sync', 'backup', 'danger'];
@@ -1097,8 +1157,14 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
   assert.ok(!settings.includes('_homeSyncNowBtn'), 'home manual-sync handler is gone');
   assert.ok(!sync.includes('id="syncNowBtn"'), 'settings manual-sync button is gone');
   assert.ok(!sync.includes('id="syncAutoToggle"'), 'auto-sync toggle is gone');
-  assert.ok(sync.includes('function readAutoSyncEnabled() { return true; }'), 'automatic sync is always on');
+  assert.ok(!/function readAutoSyncEnabled\(/.test(sync), 'the old auto-sync toggle reader is gone');
+  assert.ok(sync.includes('const autoSyncEnabled = true;'), 'automatic sync is always on');
+  assert.ok(sync.includes('همگامسازی خودکار فعال است'), 'sync page shows status only');
   assert.ok(!settings.includes("editFields.hidden"), 'profile fields no longer toggle hidden inline');
+  const profileStart = settings.indexOf('state.profile = {');
+  const profileBlock = settings.slice(profileStart, settings.indexOf('};', profileStart));
+  assert.ok(!/email\s*:/.test(profileBlock) && !profileBlock.includes('state.profile.email'),
+    'saving a profile must not preserve an email address');
 });
 
 test('REWORK: weekly totals show correct/wrong/blank and plan images have a preview', () => {
@@ -1217,15 +1283,19 @@ test('FIX: exam compare stays inside the app shell with active bottom tabs', () 
 });
 
 test('FIX: first sync downloads before uploading so a new device cannot wipe an account', () => {
-  const pb = read('js/12-pocketbase.js');
-  assert.ok(/if \(firstSync\) \{[\s\S]{0,120}performDownload/.test(pb),
-    'first sync must read the account before writing local records');
-  assert.ok(!/firstSync && !hasLocalStudyData\(\)/.test(pb),
+  const sync = read('js/12-sql-sync.js');
+  assert.ok(/if \(firstSync\) \{\s*outcome = await performDownload/.test(sync),
+    'first sync must read the SQL account before writing local records');
+  assert.ok(!/firstSync && !hasLocalStudyData\(\)/.test(sync),
     'local study data must not turn the first sync into an upload');
-  assert.ok(pb.includes('if (accountSwitchPending) {'));
-  assert.ok(pb.includes('replaceTrackedState(defaultState(), true)'),
+  assert.ok(sync.includes('if (outcome.empty) {'),
+    'uploading is only a fallback for an empty downloaded account');
+  assert.ok(sync.includes('performUpload({ silent: true, all: true });'),
+    'seeding an empty account must use a full upload');
+  assert.ok(sync.includes('if (accountSwitchPending) {'));
+  assert.ok(sync.includes('replaceTrackedState(defaultState(), true)'),
     'a different account must be seeded from clean defaults, not the previous account');
-  assert.ok(pb.includes('accountSwitchPending = false;'));
+  assert.ok(sync.includes('accountSwitchPending = false;'));
 });
 
 console.log('TASK SPEC v1.2.0 — all phase checks');

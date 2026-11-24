@@ -12,6 +12,8 @@ const vm = require('vm');
 const ROOT = path.resolve(__dirname, '..');
 const SOURCE = fs.readFileSync(path.join(ROOT, 'js/13-sql-api.js'), 'utf8');
 const INDEX = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const ORDER_TABLES = ['subjects', 'sessions', 'activities', 'classes', 'sleeps',
+  'phones', 'exams', 'questions', 'app_meta'];
 
 function harness(options) {
   const opts = options || {};
@@ -103,15 +105,17 @@ const results = [];
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 
-test('GROUNDWORK: source exposes the browser API without a live app rewire', () => {
+test('TRANSPORT: SQL adapter is the single active transport', () => {
   const h = harness();
   assert.ok(h.api && typeof h.api.MasirSqlClient === 'function');
   assert.ok(/window\.MasirSqlApi/.test(SOURCE));
-  assert.ok(/running\s+app still uses PocketBase/.test(SOURCE), 'live app stays on PocketBase until cutover');
+  assert.ok(!/cdn|jsdelivr|unpkg/i.test(SOURCE), 'adapter must not load external runtime scripts');
   assert.ok(INDEX.includes('<script src="js/13-sql-api.js"></script>'), 'adapter is available to the source app');
   assert.ok(INDEX.includes('<script src="js/00-localstate.js"></script>'), 'local state helper is available to the source app');
-  ['requestOtp', 'verifyOtp', 'me', 'snapshot', 'sendChanges', 'inviteAdvisor',
-    'acceptAdvisor', 'advisorLinks', 'assignStudent', 'connect', 'disconnect']
+  ['requestOtp', 'verifyOtp', 'login', 'completeSignup', 'resetPassword',
+    'changePassword', 'createUser', 'resetUserPassword', 'me', 'snapshot',
+    'sendChanges', 'inviteAdvisor', 'acceptAdvisor', 'advisorLinks',
+    'assignStudent', 'connect', 'disconnect']
     .forEach((name) => assert.strictEqual(typeof h.client[name], 'function', name));
 });
 
@@ -204,8 +208,12 @@ test('CONVERTERS: every declared field maps in both directions', () => {
     tracker: ['correct', 'wrong', 'blank', 'coef'],
     timer: ['running', 'started_at', 'elapsed_ms', 'mode']
   };
+  /* Local row order is a first-class typed field on every non-singleton table. */
+  ORDER_TABLES.forEach((store) => typedNames[store].push('local_order'));
   Object.keys(samples).forEach((store) => {
-    const typed = toTypedRow(store, { id: 'r1', value: samples[store], junk: true });
+    const input = { id: 'r1', value: samples[store], junk: true };
+    if (ORDER_TABLES.includes(store)) input.localOrder = 7;
+    const typed = toTypedRow(store, input);
     const roundTrip = fromTypedRow(h.api.localStoreForTable(store), typed);
     /* app_meta is stored locally as { value: <payload> }; every other store
        keeps the payload fields directly on the normalized record. */
@@ -217,6 +225,16 @@ test('CONVERTERS: every declared field maps in both directions', () => {
     Object.keys(expectedLocal).forEach((key) => {
       assert.deepStrictEqual(roundTrip[key], expectedLocal[key], store + '.' + key);
     });
+  });
+});
+
+test('ORDER: local order maps through localOrder to typed local_order', () => {
+  const h = harness();
+  ORDER_TABLES.forEach((store) => {
+    const typed = h.api.toTypedRow(store, { id: 'r1', order: 4, localOrder: 4 });
+    assert.strictEqual(typed.local_order, 4, store + ' must persist local_order');
+    const local = h.api.fromTypedRow(h.api.localStoreForTable(store), typed);
+    assert.ok(local.localOrder === 4 || local.order === 4, store + ' must restore local order');
   });
 });
 
@@ -253,8 +271,14 @@ test('HTTP: Bearer token, JSON headers and OTP/snapshot/changes endpoints', asyn
     assert.strictEqual(call.init.headers['Content-Type'], 'application/json');
     assert.ok(call.init.signal, 'each request needs an abort signal for timeouts');
   });
-  assert.deepStrictEqual(JSON.parse(h.calls[0].init.body), { phone: '09123456789' });
-  assert.deepStrictEqual(JSON.parse(h.calls[1].init.body), { phone: '09123456789', code: '1234' });
+  const otpRequest = JSON.parse(h.calls[0].init.body);
+  const otpVerify = JSON.parse(h.calls[1].init.body);
+  assert.strictEqual(otpRequest.phone, '09123456789');
+  assert.strictEqual(otpVerify.phone, '09123456789');
+  assert.strictEqual(otpVerify.code, '1234');
+  /* Purpose is optional in the browser adapter; the server defaults to signup. */
+  if ('purpose' in otpRequest) assert.ok(['signup', 'reset'].includes(otpRequest.purpose));
+  if ('purpose' in otpVerify) assert.ok(['signup', 'reset'].includes(otpVerify.purpose));
   const sent = JSON.parse(h.calls[4].init.body).changes[0];
   assert.strictEqual(sent.table, 'questions');
   assert.strictEqual(sent.updated, '2026-01-02T00:00:00Z');
@@ -267,7 +291,7 @@ test('HTTP: advisor and admin endpoints use the agreed paths', async () => {
   await h.client.inviteAdvisor();
   await h.client.acceptAdvisor('ABC-123');
   await h.client.advisorLinks();
-  await h.client.assignStudent('09123456789');
+  await h.client.assignStudent('09123456789', '09123456780');
   assert.deepStrictEqual(h.calls.map((call) => call.url.replace('https://sql.example.test', '')), [
     '/api/advisors/invite',
     '/api/advisors/accept',
@@ -275,6 +299,9 @@ test('HTTP: advisor and admin endpoints use the agreed paths', async () => {
     '/api/admin/advisor-links'
   ]);
   assert.strictEqual(h.calls[3].init.headers.Authorization, 'Bearer test-token');
+  assert.deepStrictEqual(JSON.parse(h.calls[3].init.body), {
+    advisor: '09123456789', student: '09123456780'
+  });
 });
 
 test('HTTP: server errors and timeouts produce clear English messages', async () => {

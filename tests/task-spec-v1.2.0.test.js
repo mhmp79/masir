@@ -220,11 +220,22 @@ test('BUGFIX: question notes/questions/answers survive sync store rebuilds', () 
   assert.strictEqual(rebuilt.exams[0].questions[0].answerText, 'جواب');
 
   const coreSource = read('js/01-core.js');
-  const pb = read('js/12-pocketbase.js');
+  const sync = read('js/12-sql-sync.js');
+  const api = read('js/13-sql-api.js');
   assert.ok(/const NORMALIZED_STORES=.*'questions'\]/.test(coreSource), 'questions must be a normalized store');
-  assert.ok(/questions: 'questions'/.test(pb), 'questions must map to the remote questions collection');
-  assert.ok(/const PB_UPLOAD_STORES = \[[^\]]*'questions'\]/.test(pb), 'auto upload must include questions');
-  assert.ok(/if \(record\.examId\) data\.examId = record\.examId/.test(pb), 'question rows must carry examId');
+  const storeList = /const SYNC_UPLOAD_STORES = Object\.freeze\(\[([^\]]+)\]\)/.exec(sync);
+  assert.ok(storeList, 'SYNC_UPLOAD_STORES must be declared and frozen');
+  const uploadStores = Array.from(storeList[1].matchAll(/'([^']+)'/g), (m) => m[1]);
+  assert.deepStrictEqual(uploadStores, [
+    'app-meta', 'subjects', 'activities', 'classes', 'sessions',
+    'sleeps', 'phones', 'exams', 'questions'
+  ], 'all nine stores, including questions, must be uploaded');
+  assert.ok(/localStoreForTable\(table\) \|\| table/.test(sync),
+    'downloaded rows must decode through the SQL adapter');
+  assert.ok(/questions: 'questions'/.test(api), 'questions must map to the SQL questions table');
+  assert.ok(/examId: 'exam_id'/.test(api), 'question rows must carry examId');
+  assert.ok(/if \(data\.exam_id\) record\.examId = String\(data\.exam_id\)/.test(sync),
+    'downloaded question rows must restore examId');
 });
 
 test('BUGFIX: note/question/answer edits are tracked as question sync mutations', () => {
@@ -358,17 +369,22 @@ test('REWORK: activity heading is gone and test penalty is fixed at 1/3', () => 
   assert.strictEqual(JSON.parse(timerWritten.value).mode, 'pomodoro');
 
   const activity = read('js/04-activity.js');
+  const sync = read('js/12-sql-sync.js');
   assert.ok(activity.includes('const TRK_COEF=1/3;'), 'the app must define one fixed penalty constant');
   assert.ok(!activity.includes('trkCoef=+d.coef') && !activity.includes("getElementById('trkCoef')"),
     'no loader or select can change the penalty');
   assert.ok(!read('js/11-backup.js').includes('trkCoef = +tracker.coef'),
     'backup restore must not bring back a custom penalty');
-  assert.ok(!read('js/12-pocketbase.js').includes('trkCoef = +remoteTracker.coef'),
-    'sync must not apply a remote custom penalty');
+  assert.ok(sync.includes("trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);"),
+    'sync must apply only the fixed penalty from a remote tracker');
+  assert.ok(sync.includes("coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)"),
+    'tracker uploads must force the fixed coefficient');
+  assert.ok(!/trkCoef\s*=\s*\+/.test(sync), 'remote custom coefficients must never be parsed');
   const legacyTrackerKey = 'konkur-' + 'trk-v1';
   const legacyTimerKey = 'konkur-' + 'timer-v1';
   ['js/00-localstate.js', 'js/01-core.js', 'js/04-activity.js',
-    'js/10-timer.js', 'js/11-backup.js', 'js/12-pocketbase.js'].forEach(file => {
+    'js/10-timer.js', 'js/11-backup.js', 'js/12-sql-sync.js',
+    'js/13-sql-api.js', 'js/14-auth-ui.js'].forEach(file => {
       const source = read(file);
       assert.ok(!source.includes(legacyTrackerKey), `${file} must not use the legacy tracker key`);
       assert.ok(!source.includes(legacyTimerKey), `${file} must not use the legacy timer key`);
@@ -869,11 +885,62 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache is bumped for returning users', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r45', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r42'));
-  assert.ok(sw.includes("'./js/00-localstate.js'"), 'local state helper must be in the offline shell');
-  assert.ok(sw.includes("'./js/13-sql-api.js'"), 'SQL adapter must be in the offline shell');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r45'), 'cache name must match the UI redesign release');
+  assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
+  assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
+  assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
+    'same-origin /api/ requests must bypass the cache');
+  [
+    './js/00-localstate.js', './css/16-auth.css', './js/12-sql-sync.js',
+    './js/13-sql-api.js', './js/14-auth-ui.js'
+  ].forEach(path => assert.ok(sw.includes(`'${path}'`), `${path} must be precached`));
+  assert.ok(!/12-pocketbase|00-pocketbase|pocketbase/i.test(sw),
+    'the offline shell must not precache the retired transport');
+});
+
+test('REWORK: phone auth UI and SQL runtime are wired into the app', () => {
+  const html = read('index.html');
+  const auth = read('js/14-auth-ui.js');
+  const sync = read('js/12-sql-sync.js');
+  assert.ok(html.includes('<link rel="stylesheet" href="css/16-auth.css">'), 'auth styles must load');
+  assert.ok(html.includes('<div class="auth-overlay" id="authOverlay" hidden>'));
+  assert.ok(html.includes('<div id="authContent" aria-live="polite"></div>'));
+  assert.ok(!html.includes('id="syncNowBtn"') && !html.includes('id="syncAutoToggle"'),
+    'sync is automatic-only: status, never a button or toggle');
+  const authCss = read('css/16-auth.css');
+  assert.ok(/\.auth-overlay\{\s*position:fixed;inset:0/.test(authCss), 'auth must be a full-screen page');
+  assert.ok(authCss.includes('.auth-shell') && authCss.includes('.auth-hero') && authCss.includes('.auth-panel'));
+  assert.ok(!/auth-footnote|auth-advanced|auth-close-link/.test(authCss), 'sync-only auth extras are gone');
+
+  const scripts = Array.from(html.matchAll(/<script src="([^"]+)"><\/script>/g), (m) => m[1]);
+  const apiIndex = scripts.indexOf('js/13-sql-api.js');
+  const syncIndex = scripts.indexOf('js/12-sql-sync.js');
+  const authIndex = scripts.indexOf('js/14-auth-ui.js');
+  const initIndex = scripts.indexOf('js/99-init.js');
+  assert.ok(apiIndex >= 0 && apiIndex < syncIndex &&
+    syncIndex < authIndex && authIndex < initIndex,
+  'SQL API, sync, auth UI and init must load in that order');
+
+  assert.ok(auth.includes('window.masirAuth = {') && /\bshow,/.test(auth),
+    'masirAuth.show must be public');
+  const modes = ['login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'];
+  modes.forEach(mode => assert.ok(auth.includes(`'${mode}'`), `auth mode ${mode} is missing`));
+  assert.ok(!/type="email"|email\s*:/i.test(auth), 'auth is phone/password only, with no email inputs');
+  assert.ok(!/authServerUrl|saveServerUrl|dismissForOffline|SESSION_DISMISSED|ادامه آفلاین/.test(auth),
+    'login is the app entry point: no offline option and no sync server field');
+  assert.ok(!/dismissForOffline/.test(read('js/99-init.js')), 'Android back no longer dismisses login');
+  assert.ok(sync.includes('window.sqlSync = {') && sync.includes('window.masirSqlSync = window.sqlSync;'));
+
+  const activeJs = fs.readdirSync(path.join(ROOT, 'js')).filter(name => name.endsWith('.js'));
+  activeJs.forEach(name => {
+    assert.ok(!/pocketbase/i.test(read(path.join('js', name))),
+      `${name} must not reference the retired runtime`);
+  });
+  ['index.html', 'sw.js', 'build.py'].forEach(file => {
+    assert.ok(!/pocketbase/i.test(read(file)), `${file} must not reference the retired runtime`);
+  });
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -918,6 +985,7 @@ test('REWORK: exam comparison text stays above the image-export button', () => {
 
 test('REWORK: exam compare uses the app shell and a desktop chart side column', () => {
   const exam = read('js/05-exam.js');
+  const html = read('index.html');
   const overlays = read('css/05-overlays.css');
   const reports = read('css/13-reports.css');
   const desktop = read('css/14-desktop.css');
@@ -927,33 +995,39 @@ test('REWORK: exam compare uses the app shell and a desktop chart side column', 
   assert.ok(exam.includes('exam-compare-charts-card'), 'charts need an app-style card');
   assert.ok(!/class="card exam-compare-summary">[\s\S]*?exam-charts-row/.test(exam),
     'charts must leave the old summary card');
-  assert.ok(/#examCompareOverlay \.wr-top\{/.test(overlays), 'compare header must match the app topbar');
-  assert.ok(/backdrop-filter:blur\(18px\) saturate\(150%\)/.test(overlays.slice(overlays.indexOf('#examCompareOverlay .wr-top{'), overlays.indexOf('#examCompareOverlay .wr-logo{'))),
-    'compare header needs the app glass treatment');
+  assert.ok(!/#examCompareOverlay \.wr-top/.test(overlays), 'compare has no app-within-app header');
+  assert.ok(!html.includes('id="examCompareClose"') && !html.includes('id="examCompareSub"'),
+    'the dead compare header is gone');
+  const topbar = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>'));
+  assert.ok(topbar.includes('id="compareBackBtn"'), 'compare needs a back action in the app topbar');
+  assert.ok(topbar.includes('id="compareTitle"') && topbar.includes('>بخش مقایسه آزمونها<'),
+    'topbar must name the comparison section');
+  assert.ok(/function setCompareChrome\(open\)\{[\s\S]*?compareTitle\.classList\.toggle\('hidden',!open\)/.test(exam),
+    'compare chrome must swap the shared topbar title');
+  assert.ok(/function setCompareChrome\(open\)\{[\s\S]*?compareBackBtn\.classList\.toggle\('hidden',!open\)/.test(exam),
+    'compare chrome must reveal its back action');
+  assert.ok(/closeExamCompare\(true\);\s*if\(typeof switchView==='function'\)switchView\('exam'\)/.test(exam),
+    'back must land on the Exams section');
+  assert.ok(/\.app\.compare-open \.settings-btn\{display:none\}/.test(overlays));
   assert.ok(/\.exam-compare-layout\{display:flex;flex-direction:column/.test(reports), 'compare layout stacks on mobile');
   assert.ok(/#examCompareOverlay \.exam-compare-layout \{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) 340px/.test(desktop),
     'desktop must place charts beside the details');
   assert.ok(/#examCompareOverlay \.exam-compare-side \{ position: sticky/.test(desktop), 'desktop chart column must stay in view');
 });
 
-test('REWORK: exam compare top section matches the app topbar dimensions', () => {
+test('REWORK: compare topbar shares the settings rail on mobile and desktop', () => {
   const overlays = read('css/05-overlays.css');
   const desktop = read('css/14-desktop.css');
-  const header = overlays.slice(overlays.indexOf('#examCompareOverlay .wr-top{'), overlays.indexOf('#examCompareOverlay .wr-logo{'));
-  assert.ok(/rgba\(11,16,34,\.76\)/.test(header), 'compare header must use the app topbar glass base');
-  assert.ok(/top:10px/.test(header), 'compare header sticky offset must match the app topbar');
-  assert.ok(/#examCompareOverlay \.wr-close\{width:38px;height:38px;border-radius:14px\}/.test(overlays),
-    'compare close button must match the app icon button size');
-  assert.ok(/#examCompareOverlay \.wr-shell \{ padding: 16px 24px 80px; \}/.test(desktop),
-    'tablet compare shell must match the app side padding');
-  assert.ok(/#examCompareOverlay \.wr-top \{ margin: 0 0 14px; padding: 13px 16px; \}/.test(desktop),
-    'tablet compare header padding/margin must match the app topbar');
-  assert.ok(/#examCompareOverlay \.wr-shell \{ max-width: 100%; padding: 8px 14px 60px; \}/.test(desktop),
-    'desktop compare header must span the same full-width inset as the app topbar');
-  assert.ok(/#examCompareOverlay \.wr-top \{ margin: 0 0 14px; padding: 12px 18px; position: relative; top: auto; \}/.test(desktop),
-    'desktop compare header must use the app topbar padding and flow');
-  assert.ok(/#examCompareOverlay \.wr-logo \{ width: 38px; height: 38px; border-radius: 12px; font-size: 16px; \}/.test(desktop),
-    'desktop compare logo must shrink like the app logo');
+  const topbarCss = overlays.slice(overlays.indexOf('.topbar{'), overlays.indexOf('.brand{'));
+  assert.ok(/padding:12px 14px;margin:0 0 12px/.test(topbarCss), 'shared topbar uses the 14px mobile rail');
+  assert.ok(/#examCompareOverlay \.wr-shell\{[\s\S]*?padding:96px 14px/.test(overlays),
+    'compare content uses the same 14px side padding as the topbar');
+  assert.ok(/\.icon-btn\.settings-back-btn,\.icon-btn\.compare-back-btn\{/.test(overlays), 'back buttons share sizing');
+  assert.ok(/\.icon-btn\.settings-back-btn,\.icon-btn\.compare-back-btn svg\{/.test(overlays), 'back icons share styling');
+  assert.ok(/#examCompareOverlay \{ left: 0; right: var\(--sidebar-w\); top: var\(--topbar-h\); bottom: 0; \}/.test(desktop),
+    'desktop compare uses the same inset as the settings page');
+  assert.ok(/\.icon-btn\.settings-back-btn,\s*\.icon-btn\.compare-back-btn \{ width: 38px; height: 38px; \}/.test(desktop),
+    'desktop compare back button matches the app logo width');
 });
 
 test('REWORK: classes are merged into the renamed overview as a third segment', () => {
@@ -1058,37 +1132,50 @@ test('REWORK: settings stays inside the app shell with visible active tabs', () 
   assert.ok(/#settingsOverlay \.wr-top\{display:none\}/.test(settingsCss), 'no separate app-within-app header');
   assert.ok(/\.app\.settings-open > main\{display:none\}/.test(settingsCss));
   assert.ok(!/\.app\.settings-open \.nav-btn\{pointer-events:none/.test(settingsCss), 'tabs must remain active');
-  assert.ok(/\.icon-btn\.settings-back-btn svg/.test(settingsCss));
-  assert.ok(/\.icon-btn\.settings-back-btn\{\s*width:44px;height:44px/.test(settingsCss), 'settings back button matches the 44px logo');
+  assert.ok(/\.icon-btn\.settings-back-btn,\.icon-btn\.compare-back-btn svg/.test(settingsCss),
+    'settings and compare back icons share the same styling');
+  assert.ok(/\.icon-btn\.settings-back-btn,\.icon-btn\.compare-back-btn\{\s*width:44px;height:44px/.test(settingsCss),
+    'back buttons match the 44px logo');
   assert.ok(settings.includes('setSettingsChrome(true)') && settings.includes('setSettingsChrome(false)'));
   assert.ok(settings.includes("app.classList.toggle('settings-open',open)"));
   assert.ok(settings.includes("document.getElementById('settingsBackBtn').onclick=closeSettingsOverlay"));
   assert.ok(!settings.includes("aria-disabled"), 'no disabled tab state remains');
   assert.ok(/#settingsOverlay \{/.test(desktop), 'desktop settings must use the app grid');
   assert.ok(/#settingsOverlay \.wr-shell \{ max-width: 1120px/.test(desktop));
-  assert.ok(/\.icon-btn\.settings-back-btn \{ width: 38px; height: 38px; \}/.test(desktop), 'desktop back button matches the desktop logo');
+  assert.ok(/\.icon-btn\.settings-back-btn,\s*\.icon-btn\.compare-back-btn \{ width: 38px; height: 38px; \}/.test(desktop),
+    'desktop back buttons match the desktop logo');
 });
 
 test('REWORK: settings is paged, with merged sync/account and automatic sync only', () => {
   const html = read('index.html');
   const settings = read('js/08-settings.js');
-  const sync = read('js/12-pocketbase.js');
+  const sync = read('js/12-sql-sync.js');
   const overlays = read('css/05-overlays.css');
   const body = html.slice(html.indexOf('<main class="wr-body" id="settingsBody">'), html.indexOf('</main>', html.indexOf('<main class="wr-body" id="settingsBody">')));
-  const pages = ['home', 'profile', 'subjects', 'exam', 'sync', 'backup', 'danger'];
+  const pages = ['home', 'account', 'subjects', 'exam', 'backup', 'danger'];
   pages.forEach(p => assert.ok(body.includes(`data-page="${p}"`), `${p} page is missing`));
+  assert.ok(!body.includes('data-page="profile"') && !body.includes('data-page="sync"'),
+    'profile and sync pages are merged into one account page');
   assert.ok(!body.includes('data-acc-toggle'), 'settings sections must not collapse');
   assert.ok(!body.includes('acc-chevron'), 'accordion chevrons are gone');
-  assert.ok(body.includes('id="editProfileBtn"') && body.includes('>پروفایل<'), 'profile card uses a profile button instead of a pencil');
+  assert.ok(body.includes('id="editProfileBtn"') && body.includes('>ویرایش حساب<'),
+    'home profile card opens the merged account page');
   assert.ok(!body.includes('✎'), 'pencil is gone');
   assert.ok(body.includes('id="accountUI"') && body.includes('id="syncUI"'), 'account and sync settings are merged');
-  const syncPage = body.slice(body.indexOf('data-page="sync"'), body.indexOf('data-page="backup"'));
-  assert.ok(syncPage.indexOf('id="accountUI"') < syncPage.indexOf('id="syncUI"'), 'login UI lives inside the sync page');
-  const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="profile"'));
+  const accountPage = body.slice(body.indexOf('data-page="account"'), body.indexOf('data-page="subjects"'));
+  assert.ok(accountPage.indexOf('class="card account-profile-card"') < accountPage.indexOf('id="accountUI"'),
+    'professional profile card comes before the account tools');
+  assert.ok(accountPage.indexOf('id="accountUI"') < accountPage.indexOf('id="syncUI"'),
+    'login UI and sync status share the account page');
+  assert.ok(accountPage.includes('id="profileHeroName"') && accountPage.includes('id="accountProfileBadge"'),
+    'profile identity and connection badge live on the account page');
+  assert.ok(settings.includes("_editProfileBtn.onclick = () => setSettingsPage('account')"),
+    'edit profile must open the merged account page');
+  const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="account"'));
   assert.ok(!homePage.includes('id="homeSyncNowBtn"'), 'home manual-sync button is gone');
   assert.ok(homePage.includes('class="card settings-link sync-link-row"'), 'sync row remains');
   assert.ok(!homePage.includes('sync-mini-card'), 'separate manual-sync card is gone');
-  assert.ok(homePage.includes('data-go="sync"'), 'sync row opens the sync page');
+  assert.ok(homePage.includes('data-go="account"'), 'sync row opens the merged account page');
   assert.ok(/#settingsBody \.card\{margin-bottom:0\}/.test(overlays), 'settings cards drop the global bottom margin');
   assert.ok(/#settingsBody\{display:flex;flex-direction:column;gap:8px\}/.test(overlays), 'settings gaps are compact');
   assert.ok(/#settingsOverlay\{[\s\S]*?overflow-x:hidden/.test(overlays), 'settings overlay cannot scroll sideways');
@@ -1097,8 +1184,14 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
   assert.ok(!settings.includes('_homeSyncNowBtn'), 'home manual-sync handler is gone');
   assert.ok(!sync.includes('id="syncNowBtn"'), 'settings manual-sync button is gone');
   assert.ok(!sync.includes('id="syncAutoToggle"'), 'auto-sync toggle is gone');
-  assert.ok(sync.includes('function readAutoSyncEnabled() { return true; }'), 'automatic sync is always on');
+  assert.ok(!/function readAutoSyncEnabled\(/.test(sync), 'the old auto-sync toggle reader is gone');
+  assert.ok(sync.includes('const autoSyncEnabled = true;'), 'automatic sync is always on');
+  assert.ok(sync.includes('همگامسازی خودکار فعال است'), 'sync page shows status only');
   assert.ok(!settings.includes("editFields.hidden"), 'profile fields no longer toggle hidden inline');
+  const profileStart = settings.indexOf('state.profile = {');
+  const profileBlock = settings.slice(profileStart, settings.indexOf('};', profileStart));
+  assert.ok(!/email\s*:/.test(profileBlock) && !profileBlock.includes('state.profile.email'),
+    'saving a profile must not preserve an email address');
 });
 
 test('REWORK: weekly totals show correct/wrong/blank and plan images have a preview', () => {
@@ -1205,7 +1298,7 @@ test('FIX: exam compare stays inside the app shell with active bottom tabs', () 
   const init = read('js/99-init.js');
   const shellCss = overlays.slice(overlays.indexOf('/* EXAM COMPARE — lives inside the app shell'));
   assert.ok(/#examCompareOverlay\{\s*position:fixed;inset:0;z-index:0/.test(shellCss));
-  assert.ok(/#examCompareOverlay \.wr-top\{display:none\}/.test(shellCss), 'no app-within-app header');
+  assert.ok(!/#examCompareOverlay \.wr-top/.test(overlays), 'no app-within-app header');
   assert.ok(/\.app\.compare-open \.nav\{pointer-events:auto\}/.test(shellCss), 'tabs stay tappable');
   assert.ok(/\.app\.compare-open > main\{display:none\}/.test(shellCss));
   assert.ok(exam.includes("app.classList.toggle('compare-open',open)"));
@@ -1217,15 +1310,19 @@ test('FIX: exam compare stays inside the app shell with active bottom tabs', () 
 });
 
 test('FIX: first sync downloads before uploading so a new device cannot wipe an account', () => {
-  const pb = read('js/12-pocketbase.js');
-  assert.ok(/if \(firstSync\) \{[\s\S]{0,120}performDownload/.test(pb),
-    'first sync must read the account before writing local records');
-  assert.ok(!/firstSync && !hasLocalStudyData\(\)/.test(pb),
+  const sync = read('js/12-sql-sync.js');
+  assert.ok(/if \(firstSync\) \{\s*outcome = await performDownload/.test(sync),
+    'first sync must read the SQL account before writing local records');
+  assert.ok(!/firstSync && !hasLocalStudyData\(\)/.test(sync),
     'local study data must not turn the first sync into an upload');
-  assert.ok(pb.includes('if (accountSwitchPending) {'));
-  assert.ok(pb.includes('replaceTrackedState(defaultState(), true)'),
+  assert.ok(sync.includes('if (outcome.empty) {'),
+    'uploading is only a fallback for an empty downloaded account');
+  assert.ok(sync.includes('performUpload({ silent: true, all: true });'),
+    'seeding an empty account must use a full upload');
+  assert.ok(sync.includes('if (accountSwitchPending) {'));
+  assert.ok(sync.includes('replaceTrackedState(defaultState(), true)'),
     'a different account must be seeded from clean defaults, not the previous account');
-  assert.ok(pb.includes('accountSwitchPending = false;'));
+  assert.ok(sync.includes('accountSwitchPending = false;'));
 });
 
 console.log('TASK SPEC v1.2.0 — all phase checks');

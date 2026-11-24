@@ -10,7 +10,7 @@ requires updating index.html (or using the same numeric prefix convention).
     python build.py --open     -> also opens the result
     python build.py --out X    -> custom output path
 
-External CDN scripts (PocketBase) are intentionally left untouched.
+There are no external runtime scripts; every CSS/JS asset is local and inlined.
 """
 
 from __future__ import annotations

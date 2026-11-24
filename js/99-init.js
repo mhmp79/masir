@@ -112,6 +112,8 @@ function init(){
     init();
     try{ if(typeof startAutoSync==='function') startAutoSync(); }
     catch(error){ console.error('[sync] auto sync start failed:',error); }
+    try{ if(window.masirAuth && typeof window.masirAuth.startup==='function') window.masirAuth.startup(); }
+    catch(error){ console.error('[auth] startup failed:',error); }
     const loading=document.getElementById('storageLoading');
     if(loading)loading.remove();
   }

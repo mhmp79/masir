@@ -66,14 +66,13 @@ const FIELDS = ['تجربی', 'ریاضی', 'انسانی'];
 const PROFILE_GRADES = ['دهم', 'یازدهم', 'دوازدهم'];
 
 function defaultProfile() {
-  return { id: '', email: '', role: 'student', firstName: '', lastName: '', field: 'تجربی', grade: 'دوازدهم' };
+  return { id: '', role: 'student', firstName: '', lastName: '', field: 'تجربی', grade: 'دوازدهم' };
 }
 
 function normalizeProfile(p) {
   if (!p || typeof p !== 'object') return defaultProfile();
   return {
     id: String(p.id || ''),
-    email: String(p.email || '').trim().toLowerCase().slice(0, 100),
     role: 'student',
     firstName: String(p.firstName || '').trim().slice(0, 40),
     lastName: String(p.lastName || '').trim().slice(0, 40),

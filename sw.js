@@ -1,7 +1,7 @@
 /* ============================================================
    SERVICE WORKER — مسیر کنکور
    همهٔ فایل‌های برنامه از قبل ذخیره می‌شوند تا بعد از نصب،
-   اجرای کامل آفلاین باشد. درخواست‌های PocketBase و دامنه‌های
+   اجرای کامل آفلاین باشد. درخواستهای سرور SQL و دامنههای
    بیرونی اصلاً کش نمی‌شوند و مستقیم به شبکه می‌روند.
 
    بعد از هر تغییر در فایل‌های برنامه، CACHE_NAME را یک نسخه
@@ -10,7 +10,7 @@
 
 'use strict';
 
-const CACHE_NAME = 'konkur-shell-v1-0-9-5-r42';
+const CACHE_NAME = 'konkur-shell-v1-0-9-5-r45';
 const ROOT_URL = new URL('./', self.location.href).href;
 const OFFLINE_URL = new URL('index.html', ROOT_URL).href;
 
@@ -40,7 +40,7 @@ const APP_SHELL = [
   './css/13-reports.css',
   './css/14-desktop.css',
   './css/15-utilities.css',
-  './js/00-pocketbase.js',
+  './css/16-auth.css',
   './js/00-utils.js',
   './js/00-localstate.js',
   './js/01-core.js',
@@ -54,8 +54,9 @@ const APP_SHELL = [
   './js/09-reports.js',
   './js/10-timer.js',
   './js/11-backup.js',
-  './js/12-pocketbase.js',
+  './js/12-sql-sync.js',
   './js/13-sql-api.js',
+  './js/14-auth-ui.js',
   './js/99-init.js'
 ];
 
@@ -86,8 +87,9 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   const url = new URL(request.url);
-  /* PocketBase و هر دامنهٔ بیرونی: بدون کش، فقط شبکه */
+  /* سرور SQL و هر دامنهٔ بیرونی: بدون کش، فقط شبکه */
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/api/')) return;
   if (url.pathname.endsWith('/sw.js')) return;
 
   /* باز کردن برنامه: همیشه پوستهٔ ذخیره‌شده، حتی بدون اینترنت */

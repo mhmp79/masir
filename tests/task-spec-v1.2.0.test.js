@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r49', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r50', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r49'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r50'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1386,10 +1386,14 @@ test('AUTH UI: original dark palette, circular logo and three dedicated layouts'
     'desktop card must keep the original dark surface');
   assert.ok(/\.auth-logo\{[\s\S]*?border-radius:50%/.test(css),
     'the app icon must stay cropped into a circular logo');
-  assert.ok(/\.auth-panel\{[\s\S]*?margin-left:-46px/.test(css),
-    'desktop card must still overlap the branded header');
-  assert.ok(/\.auth-hero\{[\s\S]*?padding:44px 86px 44px 38px/.test(css),
+  assert.ok(/\.auth-panel\{[\s\S]*?margin-left:-30px/.test(css),
+    'desktop card must keep a subtle overlap with the branded header');
+  assert.ok(/\.auth-hero\{[\s\S]*?padding:44px 92px 44px 38px/.test(css),
     'desktop hero text must stay clear of the overlapping card');
+  assert.ok(/\.auth-hero-copy h2\{[\s\S]*?line-height:1\.7/.test(css) &&
+    /\.auth-hero-copy p\{[\s\S]*?margin:14px 0 0/.test(css) &&
+    /\.auth-hero-features\{[\s\S]*?margin-top:18px/.test(css),
+    'desktop hero lines must keep an explicit gap so no copy overlaps');
   assert.ok(css.includes('@media(min-width:1025px)'), 'desktop needs its own breakpoint');
   assert.ok(css.includes('@media(min-width:761px) and (max-width:1024px)'), 'tablet needs its own breakpoint');
   assert.ok(css.includes('@media(max-width:760px)'), 'mobile needs its own breakpoint');
@@ -1401,6 +1405,10 @@ test('AUTH UI: original dark palette, circular logo and three dedicated layouts'
     'auth content must fill the overlay so the card has no empty side gutters');
   assert.ok(/\.auth-card \.auth-field\{margin-inline:-14px\}/.test(mobile),
     'mobile inputs must reach the card edges without an empty side gap');
+  assert.ok(/\.auth-panel\{[\s\S]*?margin:0;max-width:none;width:100%/.test(mobile),
+    'mobile card must reset the desktop overlap so nothing spills off screen');
+  assert.ok(/\.auth-overlay\{[\s\S]*?overflow-x:hidden/.test(mobile),
+    'the mobile auth overlay must clip any accidental horizontal overflow');
   assert.ok(/\.auth-input\{[\s\S]*?border-radius:14px/.test(css) &&
     /\.auth-input\{[\s\S]*?min-height:42px/.test(css) &&
     /min-height:42px;padding:9px 12px;font-size:13px/.test(mobile),
@@ -1411,6 +1419,24 @@ test('AUTH UI: original dark palette, circular logo and three dedicated layouts'
   assert.ok(auth.includes('data-auth-toggle='), 'password fields render a visibility control');
   assert.ok(auth.includes("field.type = revealed ? 'text' : 'password'"),
     'visibility control toggles the existing password input');
+});
+
+test('AUTH UI: guest entry defers sign in until the user asks for it', () => {
+  const auth = read('js/14-auth-ui.js');
+  const css = read('css/16-auth.css');
+
+  assert.ok(auth.includes("data-auth-action=\"guest\""), 'login form must expose a guest entry point');
+  assert.ok(auth.includes('ورود مهمان'), 'the guest entry point must be labelled in Persian');
+  assert.ok(css.includes('.auth-link.auth-guest{'), 'the guest entry point must be styled distinctly');
+  assert.ok(auth.includes("const AUTH_DEFER_KEY = 'konkur-auth-guest-deferred-v1'"),
+    'guest choice must be stored under a dedicated key');
+  assert.ok(auth.includes('if (loginDeferred()) return;'),
+    'startup must not force the login overlay after a guest visit');
+  assert.ok(/if \(action === 'guest'\) \{[\s\S]*?deferLogin\(\);[\s\S]*?hide\(\);/.test(auth),
+    'choosing guest must close the overlay and remember the choice');
+  assert.ok(auth.includes('clearDeferredLogin();'),
+    'a later successful sign in must clear the deferred guest state');
+  assert.ok(auth.includes("show('login')"), 'manual login must remain available after deferring');
 });
 
 test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {

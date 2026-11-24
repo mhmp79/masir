@@ -6907,17 +6907,17 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 .auth-hero-kicker{color:#f3f4ff;font-size:16px;font-weight:900;letter-spacing:.2px}
 .auth-hero-copy{position:relative;z-index:1}
 .auth-hero-copy h2{
-  margin:0;color:#fff;font-size:27px;font-weight:900;line-height:1.55;
+  margin:0;color:#fff;font-size:26px;font-weight:900;line-height:1.7;
 }
 .auth-hero-copy p{
-  margin:10px 0 0;color:#aab3ca;font-size:12.5px;font-weight:600;line-height:2;
+  margin:14px 0 0;color:#aab3ca;font-size:12.5px;font-weight:600;line-height:2.05;
 }
-.auth-hero-features{position:relative;z-index:1;display:flex;flex-direction:column;gap:8px}
+.auth-hero-features{position:relative;z-index:1;display:flex;flex-direction:column;gap:8px;margin-top:18px}
 .auth-hero-features span{
-  display:inline-flex;align-items:center;gap:8px;width:fit-content;
+  display:inline-flex;align-items:center;gap:8px;width:fit-content;max-width:100%;
   padding:8px 12px;border-radius:999px;
   border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.045);
-  color:#cbd3e8;font-size:11px;font-weight:700;
+  color:#cbd3e8;font-size:11px;font-weight:700;line-height:1.6;
 }
 .auth-hero-features span::first-letter{color:#6ee7b7}
 
@@ -7031,6 +7031,12 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 .auth-link:hover{color:#c7bfff;background:rgba(124,92,255,.10)}
 .auth-link:active{transform:scale(.98)}
 .auth-link:focus-visible{outline:3px solid rgba(124,92,255,.18);outline-offset:1px}
+.auth-link.auth-guest{
+  border:1px solid rgba(124,92,255,.32);
+  background:rgba(124,92,255,.10);
+  color:#c7bfff;
+}
+.auth-link.auth-guest:hover{background:rgba(124,92,255,.20);color:#fff}
 
 .auth-message,.auth-error{
   display:none;margin-top:12px;padding:11px 13px;
@@ -7091,9 +7097,11 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 
 @media(min-width:1025px){
   .auth-shell{grid-template-columns:.92fr 1.08fr}
-  .auth-panel{margin-left:-46px}
+  .auth-panel{margin-left:-30px}
   .auth-card{padding:34px 38px 30px}
-  .auth-hero{padding:44px 86px 44px 38px}
+  /* Keep every line of hero copy well clear of the overlapping card. */
+  .auth-hero{padding:44px 92px 44px 38px}
+  .auth-hero-copy,.auth-hero-features{padding-right:12px}
 }
 
 /* ---------- tablet: stacked header with the card overlapping its base ---------- */
@@ -7118,15 +7126,15 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
 /* ---------- mobile: compact header + original dark bottom card ---------- */
 @media(max-width:760px){
   .auth-overlay{
-    align-items:stretch;padding:0;
+    align-items:stretch;padding:0;overflow-x:hidden;
     min-height:100vh;min-height:100dvh;
     background:#070b18;
   }
   .auth-overlay.show{display:block}
-  .auth-shell{display:block;max-width:none;min-height:100vh;min-height:100dvh}
+  .auth-shell{display:block;width:100%;max-width:none;margin:0;min-height:100vh;min-height:100dvh}
   .auth-hero{display:none}
   .auth-panel{
-    max-width:none;max-height:none;min-height:100vh;min-height:100dvh;
+    margin:0;max-width:none;width:100%;max-height:none;min-height:100vh;min-height:100dvh;
     display:flex;flex-direction:column;justify-content:flex-start;gap:0;
     padding:0;border:0;border-radius:0;box-shadow:none;overflow:visible;
     background:
@@ -23234,6 +23242,7 @@ readSession();
     'login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'
   ]);
   const AUTH_REQUIRED_MODES = Object.freeze(['password', 'admin', 'advisor-code']);
+  const AUTH_DEFER_KEY = 'konkur-auth-guest-deferred-v1';
 
   let mode = 'login';
   let phase = 'form';
@@ -23300,6 +23309,15 @@ readSession();
   function unlockBody() {
     if (!bodyIsLocked()) document.body.style.overflow = '';
   }
+  function deferLogin() {
+    try { localStorage.setItem(AUTH_DEFER_KEY, String(Date.now())); } catch (e) {}
+  }
+  function clearDeferredLogin() {
+    try { localStorage.removeItem(AUTH_DEFER_KEY); } catch (e) {}
+  }
+  function loginDeferred() {
+    try { return !!localStorage.getItem(AUTH_DEFER_KEY); } catch (e) { return false; }
+  }
 
   function show(nextMode, options) {
     const opts = options || {};
@@ -23345,6 +23363,8 @@ readSession();
   function startup() {
     const client = sync();
     if (!client || client.isLoggedIn()) return;
+    /* A guest may postpone sign in; manual login buttons still open the overlay. */
+    if (loginDeferred()) return;
     show('login');
   }
 
@@ -23471,6 +23491,7 @@ readSession();
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-mode="signup">ثبت نام</button>
         <button type="button" class="auth-link" data-auth-mode="reset">فراموشی رمز عبور</button>
+        <button type="button" class="auth-link auth-guest" data-auth-action="guest">ورود مهمان</button>
       </div>
       `;
   }
@@ -23717,6 +23738,7 @@ readSession();
 
   async function finishLogin() {
     const client = sync();
+    clearDeferredLogin();
     try { if (client && client.startAutoSync) client.startAutoSync(); } catch (e) {}
     try { if (client && client.cycle) client.cycle({ reason: 'login' }); } catch (e) {}
     try { renderSyncUI(); } catch (e) {}
@@ -23975,6 +23997,12 @@ readSession();
     const action = button.dataset.authAction;
     if (!action) return;
     if (action === 'close') { hide(); return; }
+    if (action === 'guest') {
+      deferLogin();
+      hide();
+      notify('بهعنوان مهمان ادامه میدهید؛ هر وقت خواستید وارد شوید.');
+      return;
+    }
     if (action === 'login') return void doLogin();
     if (action === 'send-signup') return void sendOtp('signup');
     if (action === 'send-reset') return void sendOtp('reset');

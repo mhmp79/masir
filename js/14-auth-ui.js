@@ -11,6 +11,7 @@
     'login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'
   ]);
   const AUTH_REQUIRED_MODES = Object.freeze(['password', 'admin', 'advisor-code']);
+  const AUTH_DEFER_KEY = 'konkur-auth-guest-deferred-v1';
 
   let mode = 'login';
   let phase = 'form';
@@ -77,6 +78,15 @@
   function unlockBody() {
     if (!bodyIsLocked()) document.body.style.overflow = '';
   }
+  function deferLogin() {
+    try { localStorage.setItem(AUTH_DEFER_KEY, String(Date.now())); } catch (e) {}
+  }
+  function clearDeferredLogin() {
+    try { localStorage.removeItem(AUTH_DEFER_KEY); } catch (e) {}
+  }
+  function loginDeferred() {
+    try { return !!localStorage.getItem(AUTH_DEFER_KEY); } catch (e) { return false; }
+  }
 
   function show(nextMode, options) {
     const opts = options || {};
@@ -122,6 +132,8 @@
   function startup() {
     const client = sync();
     if (!client || client.isLoggedIn()) return;
+    /* A guest may postpone sign in; manual login buttons still open the overlay. */
+    if (loginDeferred()) return;
     show('login');
   }
 
@@ -248,6 +260,7 @@
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-mode="signup">ثبت نام</button>
         <button type="button" class="auth-link" data-auth-mode="reset">فراموشی رمز عبور</button>
+        <button type="button" class="auth-link auth-guest" data-auth-action="guest">ورود مهمان</button>
       </div>
       `;
   }
@@ -494,6 +507,7 @@
 
   async function finishLogin() {
     const client = sync();
+    clearDeferredLogin();
     try { if (client && client.startAutoSync) client.startAutoSync(); } catch (e) {}
     try { if (client && client.cycle) client.cycle({ reason: 'login' }); } catch (e) {}
     try { renderSyncUI(); } catch (e) {}
@@ -752,6 +766,12 @@
     const action = button.dataset.authAction;
     if (!action) return;
     if (action === 'close') { hide(); return; }
+    if (action === 'guest') {
+      deferLogin();
+      hide();
+      notify('بهعنوان مهمان ادامه میدهید؛ هر وقت خواستید وارد شوید.');
+      return;
+    }
     if (action === 'login') return void doLogin();
     if (action === 'send-signup') return void sendOtp('signup');
     if (action === 'send-reset') return void sendOtp('reset');

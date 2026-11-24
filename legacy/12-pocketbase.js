@@ -1,4 +1,6 @@
+(function(){
 'use strict';
+
 
 /* ============================================================
    POCKETBASE ΓÇö ┘ç┘à┌»╪º┘àΓÇî╪│╪º╪▓█î ╪«┘ê╪»┌⌐╪º╪▒ ╪»┘ê╪╖╪▒┘ü┘ç (┘å╪│╪«┘ç █┤.█▓.█▒█░)
@@ -2906,3 +2908,5 @@ window.pocketBaseSync = {
 
 // Temporary migration shim
 window.legacyPbSync = window.pocketBaseSync;
+
+})();

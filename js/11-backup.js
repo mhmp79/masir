@@ -57,8 +57,16 @@ function buildBackupPayload(){
     tracker: {
       counts: { ...trkCounts },
       coef: trkCoef
-    }
+    },
+    timer: readLocalTimer()
   };
+}
+
+function readLocalTimer(){
+  try{
+    const raw=localState.getSync('timer');
+    return raw?JSON.parse(raw):null;
+  }catch(e){ return null; }
 }
 
 function validateBackup(parsed){
@@ -101,6 +109,7 @@ function validateBackup(parsed){
   return {
     data,
     tracker: parsed.tracker || null,
+    timer: parsed.timer || null,
     summary: parsed.summary || null,
     schema
   };
@@ -294,7 +303,7 @@ async function importBackup(file){
     try{ parsed = JSON.parse(text); }
     catch(e){ throw new Error('فایل JSON معتبر نیست'); }
 
-    const { data, tracker, summary, schema } = validateBackup(parsed);
+    const { data, tracker, timer, summary, schema } = validateBackup(parsed);
 
     const confirmed = await showImportPreview(summary, parsed, schema);
     if(!confirmed) return false;
@@ -322,6 +331,9 @@ async function importBackup(file){
       trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
       try { saveTracker(); } catch(_) {}
     }
+    if(timer && typeof applyImportedTimerState === 'function'){
+      try { applyImportedTimerState(timer); } catch(e) { console.warn('[backup] timer import failed:', e); }
+    }
 
     save();
     await flushStorage();
@@ -340,10 +352,15 @@ async function clearAllData(){
   replaceTrackedState(defaultState(), true);
   trkCounts = { correct: 0, wrong: 0, blank: 0 };
   trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
+  if(typeof timerState !== 'undefined' && typeof defaultTimerState === 'function'){
+    timerState = defaultTimerState();
+    try{ updateTimerDisplay(); }catch(_){}
+  }
+  try{ localStorage.removeItem(LS_KEY); }catch(_){}
   try{
-    localStorage.removeItem(LS_KEY);
-    localStorage.removeItem(TRK_KEY);
-  }catch(_){}
+    localState.setSync('tracker',null);
+    localState.setSync('timer',null);
+  }catch(error){ console.warn('[backup] clearing local state failed:',error); }
   save();
   try{
     await flushStorage();

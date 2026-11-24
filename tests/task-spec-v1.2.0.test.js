@@ -319,24 +319,43 @@ test('REWORK: activity heading is gone and test penalty is fixed at 1/3', () => 
   assert.ok(!html.includes('ضریب نمره منفی</label>'), 'the old coefficient label must be removed');
   assert.ok(html.includes('۱/۳ نمره منفی (کنکور)'), 'the fixed Konkur penalty must be shown');
 
-  const stored = { coef: 1 };
+  const stored = { correct: 2, wrong: 1, blank: 0, coef: 1 };
   let written = null;
   const ctx = loadFunctions('js/04-activity.js', ['loadTracker', 'saveTracker'], {
-    TRK_KEY: 'konkur-trk-v1',
+    TRK_STATE_KEY: 'tracker',
     TRK_COEF: 1 / 3,
     trkCounts: { correct: 0, wrong: 0, blank: 0 },
     trkCoef: 1,
-    localStorage: {
-      getItem: () => JSON.stringify({ correct: 2, wrong: 1, blank: 0, coef: stored.coef }),
-      setItem: (key, value) => { written = { key, value }; }
+    localState: {
+      getSync: (key) => (key === 'tracker' ? JSON.stringify(stored) : null),
+      setSync: (key, value) => { written = { key, value }; }
     },
     window: {}
   });
   ctx.loadTracker();
   assert.strictEqual(ctx.trkCoef, 1 / 3, 'stored custom coefficients must not override 1/3');
   ctx.saveTracker();
+  assert.strictEqual(written.key, 'tracker', 'tracker must go through localState');
   assert.strictEqual(JSON.parse(written.value).coef, 1 / 3, 'saved tracker data must use 1/3');
   assert.deepStrictEqual(JSON.parse(written.value), { correct: 2, wrong: 1, blank: 0, coef: 1 / 3 });
+
+  let timerWritten = null;
+  const timerCtx = loadFunctions('js/10-timer.js',
+    ['defaultTimerState', 'loadTimerState', 'saveTimerState'], {
+      TIMER_STATE_KEY: 'timer',
+      localState: {
+        getSync: (key) => (key === 'timer' ? JSON.stringify({ mode: 'pomodoro', isRunning: true }) : null),
+        setSync: (key, value) => { timerWritten = { key, value }; }
+      },
+      window: {}
+    });
+  const loadedTimer = timerCtx.loadTimerState();
+  assert.strictEqual(loadedTimer.mode, 'pomodoro');
+  assert.strictEqual(loadedTimer.pomWork, 25, 'missing timer fields keep their defaults');
+  timerCtx.timerState = loadedTimer;
+  timerCtx.saveTimerState();
+  assert.strictEqual(timerWritten.key, 'timer', 'timer must go through localState');
+  assert.strictEqual(JSON.parse(timerWritten.value).mode, 'pomodoro');
 
   const activity = read('js/04-activity.js');
   assert.ok(activity.includes('const TRK_COEF=1/3;'), 'the app must define one fixed penalty constant');
@@ -346,6 +365,14 @@ test('REWORK: activity heading is gone and test penalty is fixed at 1/3', () => 
     'backup restore must not bring back a custom penalty');
   assert.ok(!read('js/12-pocketbase.js').includes('trkCoef = +remoteTracker.coef'),
     'sync must not apply a remote custom penalty');
+  const legacyTrackerKey = 'konkur-' + 'trk-v1';
+  const legacyTimerKey = 'konkur-' + 'timer-v1';
+  ['js/00-localstate.js', 'js/01-core.js', 'js/04-activity.js',
+    'js/10-timer.js', 'js/11-backup.js', 'js/12-pocketbase.js'].forEach(file => {
+      const source = read(file);
+      assert.ok(!source.includes(legacyTrackerKey), `${file} must not use the legacy tracker key`);
+      assert.ok(!source.includes(legacyTimerKey), `${file} must not use the legacy timer key`);
+    });
 });
 
 test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
@@ -844,7 +871,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r40'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r41'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -1040,9 +1067,10 @@ test('REWORK: settings stays inside the app shell with visible active tabs', () 
   assert.ok(/\.icon-btn\.settings-back-btn \{ width: 38px; height: 38px; \}/.test(desktop), 'desktop back button matches the desktop logo');
 });
 
-test('REWORK: settings is paged, with merged sync/account and a direct manual sync', () => {
+test('REWORK: settings is paged, with merged sync/account and automatic sync only', () => {
   const html = read('index.html');
   const settings = read('js/08-settings.js');
+  const sync = read('js/12-pocketbase.js');
   const overlays = read('css/05-overlays.css');
   const body = html.slice(html.indexOf('<main class="wr-body" id="settingsBody">'), html.indexOf('</main>', html.indexOf('<main class="wr-body" id="settingsBody">')));
   const pages = ['home', 'profile', 'subjects', 'exam', 'sync', 'backup', 'danger'];
@@ -1055,17 +1083,19 @@ test('REWORK: settings is paged, with merged sync/account and a direct manual sy
   const syncPage = body.slice(body.indexOf('data-page="sync"'), body.indexOf('data-page="backup"'));
   assert.ok(syncPage.indexOf('id="accountUI"') < syncPage.indexOf('id="syncUI"'), 'login UI lives inside the sync page');
   const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="profile"'));
-  assert.ok(homePage.includes('id="homeSyncNowBtn"'), 'manual sync must be available from the home page');
-  assert.ok(homePage.includes('class="card settings-link sync-link-row"'), 'manual sync lives on the sync row');
+  assert.ok(!homePage.includes('id="homeSyncNowBtn"'), 'home manual-sync button is gone');
+  assert.ok(homePage.includes('class="card settings-link sync-link-row"'), 'sync row remains');
   assert.ok(!homePage.includes('sync-mini-card'), 'separate manual-sync card is gone');
-  assert.ok(homePage.indexOf('id="homeSyncNowBtn"') > homePage.indexOf('data-go="sync"'), 'manual sync follows the sync link');
+  assert.ok(homePage.includes('data-go="sync"'), 'sync row opens the sync page');
   assert.ok(/#settingsBody \.card\{margin-bottom:0\}/.test(overlays), 'settings cards drop the global bottom margin');
   assert.ok(/#settingsBody\{display:flex;flex-direction:column;gap:8px\}/.test(overlays), 'settings gaps are compact');
   assert.ok(/#settingsOverlay\{[\s\S]*?overflow-x:hidden/.test(overlays), 'settings overlay cannot scroll sideways');
   assert.ok(settings.includes('function setSettingsPage('));
   assert.ok(settings.includes("setSettingsPage('home')"));
-  assert.ok(settings.includes('if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{'));
-  assert.ok(settings.includes("if(typeof syncNow==='function') syncNow();"));
+  assert.ok(!settings.includes('_homeSyncNowBtn'), 'home manual-sync handler is gone');
+  assert.ok(!sync.includes('id="syncNowBtn"'), 'settings manual-sync button is gone');
+  assert.ok(!sync.includes('id="syncAutoToggle"'), 'auto-sync toggle is gone');
+  assert.ok(sync.includes('function readAutoSyncEnabled() { return true; }'), 'automatic sync is always on');
   assert.ok(!settings.includes("editFields.hidden"), 'profile fields no longer toggle hidden inline');
 });
 

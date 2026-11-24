@@ -270,6 +270,7 @@ const PB_COLLECTIONS = {
 const PB_UPLOAD_STORES = ['app-meta', 'subjects', 'activities', 'classes', 'sessions', 'sleeps', 'phones', 'exams', 'questions'];
 const PB_DOWNLOAD_STORES = [...PB_UPLOAD_STORES, 'plan', 'reserved'];
 const POCKETBASE_TRACKER_ID = 'tracker';
+const POCKETBASE_TIMER_ID = 'timer';
 
 function pbCollectionName(store) {
   return PB_COLLECTIONS[store] || store;
@@ -558,7 +559,7 @@ function pbStoreForCollection(collection) {
 function pbCanonicalLocalId(store, localId) {
   const id = String(localId == null ? '' : localId);
   if (store !== 'app-meta') return id;
-  if (id === POCKETBASE_TRACKER_ID) return id;
+  if (id === POCKETBASE_TRACKER_ID || id === POCKETBASE_TIMER_ID) return id;
   return DB_STATE_ID;
 }
 
@@ -578,17 +579,29 @@ function pbManifestUpdatedMap(store, records) {
   return map;
 }
 
-/* شمارندهٔ تست بیرون از state است و جداگانه ارسال می‌شود */
+/* شمارنده و تایمر بیرون از state هستند و از localState خوانده میشوند */
 function currentTrackerPayload() {
-  if (typeof trkCounts === 'undefined') return null;
+  let source = null;
+  try {
+    const raw = localState.getSync('tracker');
+    if (raw) source = JSON.parse(raw);
+  } catch (e) {}
+  const counts = source || (typeof trkCounts !== 'undefined' ? trkCounts : null);
+  if (!counts) return null;
   return {
     counts: {
-      correct: Math.max(0, +trkCounts.correct || 0),
-      wrong: Math.max(0, +trkCounts.wrong || 0),
-      blank: Math.max(0, +trkCounts.blank || 0)
+      correct: Math.max(0, +counts.correct || 0),
+      wrong: Math.max(0, +counts.wrong || 0),
+      blank: Math.max(0, +counts.blank || 0)
     },
     coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)
   };
+}
+function currentTimerPayload() {
+  try {
+    const raw = localState.getSync('timer');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
 }
 function trackerSignatureOf(payload) {
   return payload ? JSON.stringify(payload) : null;
@@ -603,6 +616,11 @@ function applyRemoteTracker(remoteTracker) {
   };
   trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
   try { saveTracker(); } catch (e) { console.warn('[PB] saving tracker failed:', e); }
+}
+function applyRemoteTimer(remoteTimer) {
+  if (!remoteTimer || typeof applyImportedTimerState !== 'function') return;
+  try { applyImportedTimerState(remoteTimer); }
+  catch (e) { console.warn('[PB] saving timer failed:', e); }
 }
 
 async function readPendingChanges(limit = 100000) {
@@ -679,22 +697,23 @@ function buildUploadRecords() {
       });
     });
   });
-  /* شمارنده تست (خارج از state، در localStorage) */
-  if (typeof trkCounts !== 'undefined') {
+  /* شمارنده تست و تایمر (خارج از state، در localState) */
+  const trackerPayload = currentTrackerPayload();
+  if (trackerPayload) {
     items.push({
       store: 'app-meta',
       collection: pbCollectionName('app-meta'),
       localId: POCKETBASE_TRACKER_ID,
-      record: {
-        value: {
-          counts: {
-            correct: Math.max(0, +trkCounts.correct || 0),
-            wrong: Math.max(0, +trkCounts.wrong || 0),
-            blank: Math.max(0, +trkCounts.blank || 0)
-          },
-          coef: (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3)
-        }
-      }
+      record: { value: trackerPayload }
+    });
+  }
+  const timerPayload = currentTimerPayload();
+  if (timerPayload) {
+    items.push({
+      store: 'app-meta',
+      collection: pbCollectionName('app-meta'),
+      localId: POCKETBASE_TIMER_ID,
+      record: { value: timerPayload }
     });
   }
   return items;
@@ -870,9 +889,12 @@ async function performUpload(options = {}) {
     const trackerPayload = currentTrackerPayload();
     const trackerSignature = trackerSignatureOf(trackerPayload);
     const trackerChanged = !meta || meta.tracker !== trackerSignature;
+    const timerPayload = currentTimerPayload();
+    const timerSignature = timerPayload ? JSON.stringify(timerPayload) : null;
+    const timerChanged = !!timerPayload && (!meta || meta.timer !== timerSignature);
 
-    /* مسیر کم‌هزینه: نه تغییر محلی هست، نه شمارندهٔ تست عوض شده */
-    if (!fullSync && !(pending && pending.length) && !trackerChanged) {
+    /* مسیر کم‌هزینه: نه تغییر محلی هست، نه شمارندهٔ تست/تایمر عوض شده */
+    if (!fullSync && !(pending && pending.length) && !trackerChanged && !timerChanged) {
       const now = Date.now();
       saveSyncMeta(server, ownerId, { ...meta, lastSyncAt: now });
       setLastSyncTimestamp(now);
@@ -884,6 +906,7 @@ async function performUpload(options = {}) {
     const itemsByKey = new Map(items.map(item => [`${item.store}::${item.localId}`, item]));
     const collections = [...new Set(PB_UPLOAD_STORES.map(pbCollectionName))];
     const trackerItem = items.find(item => item.localId === POCKETBASE_TRACKER_ID);
+    const timerItem = items.find(item => item.localId === POCKETBASE_TIMER_ID);
 
     const ops = [];
     const skipped = [];
@@ -907,6 +930,7 @@ async function performUpload(options = {}) {
         else skipped.push(change);
       });
       if (trackerChanged && trackerItem) ops.push({ kind: 'put', item: trackerItem });
+      if (timerChanged && timerItem) ops.push({ kind: 'put', item: timerItem });
     }
 
     if (!ops.length) {
@@ -1098,6 +1122,7 @@ async function performUpload(options = {}) {
       countsAt: fullSync ? now : (meta.countsAt || 0),
       integrity: (meta && meta.integrity) || 0,
       tracker: trackerSignature,
+      timer: timerSignature,
       lastSyncAt: now
     });
     setLastSyncTimestamp(now);
@@ -1151,7 +1176,8 @@ function remoteToLocalRecords(store, remoteRecords) {
 
 function pbRemoteRecordToLocal(store, item, localSnapshot) {
   if (store === 'app-meta') {
-    if (pbCanonicalLocalId(store, item.localId) === POCKETBASE_TRACKER_ID) return null;
+    const canonical = pbCanonicalLocalId(store, item.localId);
+    if (canonical === POCKETBASE_TRACKER_ID || canonical === POCKETBASE_TIMER_ID) return null;
     return { id: DB_STATE_ID, value: item.value };
   }
   const id = String(item.localId == null ? '' : item.localId);
@@ -1396,6 +1422,7 @@ async function performDownload(options = {}) {
       const counts = { ...previousCounts };
       const nextStamps = { ...previousStamps };
       let remoteTracker = null;
+      let remoteTimer = null;
       let trackerChangedRemotely = false;
       let applied = 0;
 
@@ -1463,6 +1490,10 @@ async function performDownload(options = {}) {
             trackerChangedRemotely = true;
             return;
           }
+          if (entry.store === 'app-meta' && canonical === POCKETBASE_TIMER_ID) {
+            remoteTimer = item.value;
+            return;
+          }
           const record = pbRemoteRecordToLocal(entry.store, item, localSnapshot);
           if (!record) return;
           puts.push({ store: entry.store, record });
@@ -1503,6 +1534,12 @@ async function performDownload(options = {}) {
                 if (pbSameJsonValue(item.value, currentTrackerPayload())) return;
                 remoteTracker = item.value;
                 trackerChangedRemotely = true;
+                return;
+              }
+              if (canonical === POCKETBASE_TIMER_ID) {
+                checkedMap[canonical] = itemUpdated;
+                if (pbSameJsonValue(item.value, currentTimerPayload())) return;
+                remoteTimer = item.value;
                 return;
               }
               const localJson = localSnapshot.get('app-meta') &&
@@ -1603,7 +1640,7 @@ async function performDownload(options = {}) {
       if (pendingSkipped) scheduleAutoUpload(600);
       /* پیمایش چرخهای قدیمی جای خود را به بررسی کامل هر چرخه داد */
 
-      if (!applied && !trackerChangedRemotely) {
+      if (!applied && !trackerChangedRemotely && !remoteTimer) {
         saveSyncMeta(server, ownerId, {
           ...meta,
           remote: nextRemote,
@@ -1630,6 +1667,7 @@ async function performDownload(options = {}) {
         await flushStorage();
         await window.storageSync.applyRemoteChanges({ puts, deletes, acknowledge });
         if (trackerChangedRemotely && remoteTracker) applyRemoteTracker(remoteTracker);
+        if (remoteTimer) applyRemoteTimer(remoteTimer);
       } finally {
         autoSyncSuppressUpload--;
       }
@@ -1649,6 +1687,7 @@ async function performDownload(options = {}) {
         stamps: nextStamps,
         checked: nextChecked,
         tracker: trackerChangedRemotely && remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
+        timer: remoteTimer ? JSON.stringify(remoteTimer) : (meta.timer || null),
         lastSyncAt: now
       });
       setLastSyncTimestamp(now);
@@ -1690,6 +1729,7 @@ async function performDownload(options = {}) {
     const rawRecords = new Map();
     let done = 0;
     let remoteTracker = null;
+    let remoteTimer = null;
     const tick = amount => {
       done += amount;
       const percent = 5 + (Math.min(done, total) / total) * 95;
@@ -1706,6 +1746,8 @@ async function performDownload(options = {}) {
       if (entry.store === 'app-meta') {
         const trackerRecord = remoteRecords.find(record => String(record.localId || '') === POCKETBASE_TRACKER_ID);
         if (trackerRecord && trackerRecord.value) remoteTracker = trackerRecord.value;
+        const timerRecord = remoteRecords.find(record => String(record.localId || '') === POCKETBASE_TIMER_ID);
+        if (timerRecord && timerRecord.value) remoteTimer = timerRecord.value;
       }
       if (records[entry.store]) {
         records[entry.store] = remoteToLocalRecords(entry.store, remoteRecords);
@@ -1733,6 +1775,7 @@ async function performDownload(options = {}) {
       await flushStorage();
       replaceTrackedState(normalized, true);
       if (remoteTracker) applyRemoteTracker(remoteTracker);
+      if (remoteTimer) applyRemoteTimer(remoteTimer);
       save();
       await flushStorage();
       await acknowledgeAllPending();
@@ -1761,6 +1804,7 @@ async function performDownload(options = {}) {
       verify: { version: PB_SYNC_INTEGRITY_VERSION, mode: 'all', done: true },
       checked: nextRemote,
       tracker: remoteTracker ? JSON.stringify(remoteTracker) : null,
+      timer: remoteTimer ? JSON.stringify(remoteTimer) : null,
       lastSyncAt: now
     });
 
@@ -2103,6 +2147,7 @@ async function applyRealtimeHints() {
     const touchedCollections = new Set();
     let applied = 0;
     let remoteTracker = null;
+    let remoteTimer = null;
 
     groups.forEach(hint => {
       const { store, collection, canonical, action, localId } = hint;
@@ -2136,6 +2181,16 @@ async function applyRealtimeHints() {
         touchedCollections.add(collection);
         return;
       }
+      if (store === 'app-meta' && canonical === POCKETBASE_TIMER_ID) {
+        if (!pbSameJsonValue(item.value, currentTimerPayload())) remoteTimer = item.value;
+        if (updated) {
+          remoteMap[canonical] = updated;
+          checkedMap[canonical] = updated;
+          if (updated > (nextMeta.floor[collection] || '')) nextMeta.floor[collection] = updated;
+        }
+        touchedCollections.add(collection);
+        return;
+      }
       const record = pbRemoteRecordToLocal(store, item, localSnapshot);
       if (!record) { fallbackFull = true; return; }
       puts.push({ store, record });
@@ -2153,13 +2208,14 @@ async function applyRealtimeHints() {
       nextMeta.counts[collection] = Object.keys(nextMeta.remote[collection] || {}).length;
     });
 
-    if (applied || remoteTracker) {
+    if (applied || remoteTracker || remoteTimer) {
       autoSyncSuppressUpload++;
       try {
         save();
         await flushStorage();
         await window.storageSync.applyRemoteChanges({ puts, deletes, acknowledge });
         if (remoteTracker) applyRemoteTracker(remoteTracker);
+        if (remoteTimer) applyRemoteTimer(remoteTimer);
       } finally {
         autoSyncSuppressUpload--;
       }
@@ -2167,7 +2223,8 @@ async function applyRealtimeHints() {
       nextMeta.lastSyncAt = now;
       saveSyncMeta(server, ownerId, {
         ...nextMeta,
-        tracker: remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null)
+        tracker: remoteTracker ? JSON.stringify(remoteTracker) : (meta.tracker || null),
+        timer: remoteTimer ? JSON.stringify(remoteTimer) : (meta.timer || null)
       });
       setLastSyncTimestamp(now);
       syncNotice = `✓ ${fa(applied)} تغییر زنده اعمال شد`;
@@ -2229,17 +2286,14 @@ let lastAutoStatus = 'idle';
 let accountSwitchPending = false;
 let pendingBadgeToken = 0;
 
-function readAutoSyncEnabled() {
-  try {
-    const raw = localStorage.getItem(AUTO_SYNC_ENABLED_KEY);
-    return raw === null ? true : raw === '1';
-  } catch (e) { return true; }
-}
-function setAutoSyncEnabled(enabled) {
-  autoSyncEnabled = !!enabled;
-  try { localStorage.setItem(AUTO_SYNC_ENABLED_KEY, autoSyncEnabled ? '1' : '0'); } catch (e) {}
-  if (!autoSyncEnabled) { stopAutoSyncTimers(); stopRealtimePush(); }
-  else { scheduleAutoUpload(700); startRealtimePush(); }
+/* Automatic sync is mandatory: no visible toggle and no persisted off state
+   can leave a device disconnected after a reload. */
+function readAutoSyncEnabled() { return true; }
+function setAutoSyncEnabled() {
+  autoSyncEnabled = true;
+  try { localStorage.setItem(AUTO_SYNC_ENABLED_KEY, '1'); } catch (e) {}
+  scheduleAutoUpload(700);
+  startRealtimePush();
   renderSyncUI();
   refreshPendingBadge();
 }
@@ -2821,25 +2875,12 @@ function renderSyncUI() {
     <div class="sync-pending-row">
       <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
     </div>
-    <label class="toggle-card sync-auto-toggle ${autoSyncEnabled ? 'on' : ''}" for="syncAutoToggle">
-      <div class="sync-auto-info">
-        <div class="sync-auto-title">همگام‌سازی خودکار</div>
-        <div class="sync-auto-desc">ارسال فوری تغییرات و دریافت زنده.</div>
-      </div>
-      <span class="switch"><input type="checkbox" id="syncAutoToggle" ${autoSyncEnabled ? 'checked' : ''} ${busy ? 'disabled' : ''}><span></span></span>
-    </label>
-    <button class="btn primary sync-now-btn" id="syncNowBtn" ${busy ? 'disabled' : ''}>
-      ${busy ? '⏳ در حال همگام‌سازی…' : '🔄 همگام‌سازی و بررسی'}
-    </button>
+    <div class="sync-auto-note">همگام سازی خودکار فعال است؛ تغییرات به محض اتصال ارسال و دریافت می شوند.</div>
     ${syncProgressMarkup()}
     ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
   `;
 
   if (busy) setProgress(syncProgress.kind, syncProgress.percent, syncProgress.note, true);
-  const nowBtn = document.getElementById('syncNowBtn');
-  const toggle = document.getElementById('syncAutoToggle');
-  if (nowBtn) nowBtn.onclick = () => { syncNow(); };
-  if (toggle) toggle.onchange = () => setAutoSyncEnabled(!!toggle.checked);
   refreshPendingBadge();
 }
 

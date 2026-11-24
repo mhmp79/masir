@@ -32,11 +32,6 @@ function updateHomeSyncState(){
   const loggedIn=typeof isLoggedIn==='function'&&isLoggedIn();
   el.textContent=loggedIn?'همگام سازی فعال است':'برای همگام سازی وارد حساب شوید';
 }
-const _homeSyncNowBtn=document.getElementById('homeSyncNowBtn');
-if(_homeSyncNowBtn) _homeSyncNowBtn.onclick=()=>{
-  if(typeof syncNow==='function') syncNow();
-};
-
 /* ============ PROFILE ============ */
 function renderProfileSection(){
   const p = state.profile || {};

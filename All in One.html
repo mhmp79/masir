@@ -23231,6 +23231,8 @@ readSession();
       this.timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : DEFAULT_TIMEOUT_MS;
       this._auth = null; // {token, record}
       this._lastEventAt = 0;
+      this._collectionMeta = new Map();
+      this._usersCollection = '';
     }
 
     async _token(required) {
@@ -23282,6 +23284,50 @@ readSession();
     }
     async _pbUpdate(collection, id, body) {
       return this._request(`/api/collections/${encodeURIComponent(collection)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+    }
+
+    async _resolveDataCollection(table) {
+      const candidates = [TABLE_TO_COLLECTION[table], table].filter(Boolean);
+      for (const name of candidates) {
+        const meta = await this._collectionMetaFor(name);
+        if (meta) return name;
+      }
+      return TABLE_TO_COLLECTION[table] || table;
+    }
+
+    async _collectionMetaFor(name) {
+      const key = String(name || '');
+      if (!key) return null;
+      if (this._collectionMeta.has(key)) return this._collectionMeta.get(key);
+      try {
+        const info = await this._request(`/api/collections/${encodeURIComponent(key)}`, { method: 'GET' });
+        const fields = Array.isArray(info && (info.fields || info.schema)) ? (info.fields || info.schema) : [];
+        const meta = {
+          name: key,
+          fields: new Set(fields.map((f) => String(f && f.name || '')).filter(Boolean)),
+        };
+        meta.has = (field) => meta.fields.has(field);
+        meta.localIdField = meta.has('local_id') ? 'local_id' : (meta.has('localId') ? 'localId' : (meta.has('local_id') ? 'local_id' : 'local_id'));
+        meta.timeField = meta.has('updated') ? 'updated' : (meta.has('created') ? 'created' : '');
+        this._collectionMeta.set(key, meta);
+        return meta;
+      } catch (_) {
+        this._collectionMeta.set(key, null);
+        return null;
+      }
+    }
+
+    _localId(rec) {
+      return String(rec && (rec.local_id ?? rec.localId ?? rec.id ?? '') || '');
+    }
+
+    _timeValue(rec) {
+      return String(rec && (rec.updated || rec.created || new Date().toISOString()) || new Date().toISOString());
+    }
+
+    _filterForOwnerLocal(collectionMeta, ownerId, localId) {
+      const field = collectionMeta && collectionMeta.localIdField || 'local_id';
+      return `owner="${this._escape(ownerId)}" && ${field}="${this._escape(localId)}"`;
     }
 
     async _resolveUsersCollection() {
@@ -23396,19 +23442,29 @@ readSession();
     }
 
     async deleteAccountData() {
-      const token = await this._token(true);
+      await this._token(true);
       const me = await this.me();
       const ownerId = me.user.id;
       const cleared = [];
       for (const table of SQL_TABLES) {
-        const collection = TABLE_TO_COLLECTION[table];
+        const collection = await this._resolveDataCollection(table);
+        if (!collection) continue;
         let page = 1; let rows = 0;
         while (true) {
-          const res = await this._pbList(collection, { page, perPage: 200, filter: `owner="${this._escape(ownerId)}" && deleted=false`, skipTotal: 1 });
+          let res;
+          try {
+            res = await this._pbList(collection, { page, perPage: 200, filter: `owner="${this._escape(ownerId)}"`, skipTotal: 1 });
+          } catch (_) { break; }
           const items = res && Array.isArray(res.items) ? res.items : [];
           if (!items.length) break;
           for (const rec of items) {
-            await this._pbUpdate(collection, rec.id, { deleted: true, updated: new Date().toISOString(), data: { id: rec.local_id, deleted: true } });
+            if (rec.deleted) continue;
+            const localId = this._localId(rec);
+            const body = { deleted: true };
+            const meta = await this._collectionMetaFor(collection);
+            if (!meta || meta.has('data')) body.data = { id: localId, deleted: true };
+            if (meta && meta.has('value') && !meta.has('data')) body.value = { id: localId, deleted: true };
+            await this._pbUpdate(collection, rec.id, body);
             rows++;
           }
           if (items.length < 200) break;
@@ -23435,25 +23491,34 @@ readSession();
       const rawLimit = Number(opts.limit);
       const limit = rawLimit > 0 ? Math.min(5000, Math.floor(rawLimit)) : DEFAULT_SNAPSHOT_LIMIT;
       const since = String(opts.since || opts.cursor || '').trim();
+      await this._token(true);
       const me = await this.me();
       const ownerId = me.user.id;
       const changes = [];
       for (const table of SQL_TABLES) {
-        const collection = TABLE_TO_COLLECTION[table];
+        const collection = await this._resolveDataCollection(table);
+        if (!collection) continue;
         let page = 1;
         while (true) {
           const filterParts = [`owner="${this._escape(ownerId)}"`];
           if (since) filterParts.push(`updated>"${this._escape(since)}"`);
-          const res = await this._pbList(collection, {
-            page, perPage: 200, skipTotal: 1, sort: 'updated',
-            filter: filterParts.join(' && ')
-          });
+          let res;
+          try {
+            res = await this._pbList(collection, {
+              page, perPage: 200, skipTotal: 1, sort: 'updated',
+              filter: filterParts.join(' && ')
+            });
+          } catch (e) {
+            // Fallback for legacy/minimal schemas: no sort/filter quirks
+            res = await this._pbList(collection, { page, perPage: 200, skipTotal: 1, filter: `owner="${this._escape(ownerId)}"` });
+          }
           const items = res && Array.isArray(res.items) ? res.items : [];
           for (const rec of items) {
             const updated = String(rec.updated || rec.created || new Date().toISOString());
+            if (since && updated <= since) continue;
             changes.push({
               table,
-              id: String(rec.local_id || rec.id || ''),
+              id: this._localId(rec),
               op: rec.deleted ? 'delete' : 'upsert',
               updated,
               data: this._rowToData(table, rec)
@@ -23472,12 +23537,20 @@ readSession();
     }
 
     _rowToData(table, rec) {
-      const localId = String(rec.local_id || rec.id || '');
-      const updated = String(rec.updated || rec.created || new Date().toISOString());
+      const localId = this._localId(rec);
+      const updated = this._timeValue(rec);
       if (rec.deleted) return { id: localId, updated, deleted: true };
-      if (rec.data && typeof rec.data === 'object' && !Array.isArray(rec.data)) {
-        return Object.assign({ id: localId, updated }, rec.data);
+
+      const raw = (rec.data && typeof rec.data === 'object' && !Array.isArray(rec.data))
+        ? rec.data
+        : ((rec.value && typeof rec.value === 'object' && !Array.isArray(rec.value)) ? rec.value : null);
+      if (raw) {
+        const out = Object.assign({ id: localId, updated }, raw);
+        if (out.localOrder === undefined && out.order !== undefined) out.localOrder = out.order;
+        if (table === 'tracker') out.coef = FIXED_TRACKER_COEF;
+        return out;
       }
+
       const out = { id: localId, updated };
       const fields = FIELD_MAPS[table] || {};
       Object.keys(fields).forEach((localKey) => {
@@ -23485,6 +23558,7 @@ readSession();
         if (rec[col] !== undefined && rec[col] !== null && rec[col] !== '') out[localKey] = rec[col];
         if (rec[localKey] !== undefined && out[localKey] === undefined) out[localKey] = rec[localKey];
       });
+      if (rec.order !== undefined && out.localOrder === undefined) out.localOrder = rec.order;
       if (table === 'tracker') out.coef = FIXED_TRACKER_COEF;
       return out;
     }
@@ -23509,9 +23583,12 @@ readSession();
     }
 
     async _applyChange(ownerId, ch) {
-      const collection = TABLE_TO_COLLECTION[ch.table];
-      const filter = `owner="${this._escape(ownerId)}" && local_id="${this._escape(ch.id)}"`;
-      const existing = await this._pbFirst(collection, filter);
+      const collection = await this._resolveDataCollection(ch.table);
+      const meta = await this._collectionMetaFor(collection);
+      const filter = this._filterForOwnerLocal(meta, ownerId, ch.id);
+      let existing = null;
+      try { existing = await this._pbFirst(collection, filter); } catch (_) { existing = null; }
+
       if (existing) {
         const existingUpdated = new Date(existing.updated || existing.created || 0).toISOString();
         const clientUpdated = new Date(ch.clientUpdated || ch.updated || 0).toISOString();
@@ -23519,28 +23596,55 @@ readSession();
           return { conflict: true, serverUpdated: existingUpdated };
         }
       }
-      const body = this._bodyForChange(ownerId, ch);
-      if (existing) await this._pbUpdate(collection, existing.id, body);
-      else await this._pbCreate(collection, body);
+
+      const body = this._bodyForChange(ownerId, ch, meta);
+      try {
+        if (existing) await this._pbUpdate(collection, existing.id, body);
+        else await this._pbCreate(collection, body);
+      } catch (e) {
+        // Legacy schema fallback: store full record in value/data with localId
+        const legacyBody = this._legacyBodyForChange(ownerId, ch, meta);
+        if (existing) await this._pbUpdate(collection, existing.id, legacyBody);
+        else await this._pbCreate(collection, legacyBody);
+      }
       return { applied: true };
     }
 
-    _bodyForChange(ownerId, ch) {
+    _bodyForChange(ownerId, ch, meta) {
       const data = ch.op === 'delete' ? { id: ch.id, deleted: true } : Object.assign({ id: ch.id }, ch.data || {});
-      const body = {
-        owner: ownerId,
-        local_id: ch.id,
-        deleted: ch.op === 'delete',
-        updated: new Date().toISOString(),
-        data
-      };
+      const body = { owner: ownerId };
+
+      const localField = meta && meta.localIdField || 'local_id';
+      body[localField] = ch.id;
+
+      if (!meta || meta.has('deleted')) body.deleted = ch.op === 'delete';
+      if (!meta || meta.has('data')) body.data = data;
+      if ((!meta || meta.has('value')) && (!meta || !meta.has('data'))) body.value = data;
+
       const fields = FIELD_MAPS[ch.table] || {};
       Object.keys(fields).forEach((localKey) => {
         const col = fields[localKey];
+        if (meta && !meta.has(col)) return;
         if (ch.data && Object.prototype.hasOwnProperty.call(ch.data, col)) body[col] = ch.data[col];
-        if (ch.data && Object.prototype.hasOwnProperty.call(ch.data, localKey)) body[col] = ch.data[localKey];
+        else if (ch.data && Object.prototype.hasOwnProperty.call(ch.data, localKey)) body[col] = ch.data[localKey];
       });
-      if (ch.table === 'tracker') body.coef = FIXED_TRACKER_COEF;
+      if (ch.table === 'tracker' && (!meta || meta.has('coef'))) body.coef = FIXED_TRACKER_COEF;
+      if (!meta || meta.has('local_order')) {
+        const lo = ch.data && (ch.data.local_order ?? ch.data.localOrder ?? ch.data.order);
+        if (lo !== undefined) body.local_order = lo;
+      }
+      return body;
+    }
+
+    _legacyBodyForChange(ownerId, ch, meta) {
+      const data = ch.op === 'delete' ? { id: ch.id, deleted: true } : Object.assign({ id: ch.id }, ch.data || {});
+      const body = { owner: ownerId };
+      const localField = meta && meta.has('localId') ? 'localId' : (meta && meta.has('local_id') ? 'local_id' : 'localId');
+      body[localField] = ch.id;
+      if (!meta || meta.has('value')) body.value = data;
+      if (!meta || meta.has('data')) body.data = data;
+      if (!meta || meta.has('deleted')) body.deleted = ch.op === 'delete';
+      if (!meta || meta.has('order')) body.order = Number(data.localOrder ?? data.order ?? 0) || 0;
       return body;
     }
   }

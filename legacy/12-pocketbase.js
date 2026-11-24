@@ -2707,12 +2707,12 @@ function startAutoSync() {
   scheduleAutoCycle(4000, 'startup');
 }
 function refreshPendingBadge() {
-  const first = document.getElementById('syncPendingStatus');
+  const first = document.getElementById('legacyPbPendingStatus');
   if (!first) return;
   const token = ++pendingBadgeToken;
   readPendingChanges(2000).then(pending => {
     if (token !== pendingBadgeToken) return;
-    const el = document.getElementById('syncPendingStatus');
+    const el = document.getElementById('legacyPbPendingStatus');
     if (!el) return;
     let count = Array.isArray(pending)
       ? pending.filter(change => change && PB_UPLOAD_STORES.includes(change.store)).length
@@ -2776,9 +2776,9 @@ function renderLegacyPbAccountUI(loggedIn, email, online, busy, lastSync) {
           <div class="account-email" dir="ltr">${esc(email || 'حساب متصل')}</div>
           <div class="account-sub"><span class="sync-status-${online ? 'online' : 'offline'}">${online ? 'آنلاین' : 'آفلاین'}</span> · آخرین سینک: ${esc(lastSync)}</div>
         </div>
-        <button class="btn ghost account-btn" id="syncLogoutBtn" ${busy ? 'disabled' : ''}>خروج</button>
+        <button class="btn ghost account-btn" id="legacyPbLogoutBtn" ${busy ? 'disabled' : ''}>خروج</button>
       </div>`;
-    const logoutBtn = document.getElementById('syncLogoutBtn');
+    const logoutBtn = document.getElementById('legacyPbLogoutBtn');
     if (logoutBtn) logoutBtn.onclick = () => {
       if (busy) return;
       if (!confirm('از حساب PocketBase قدیمی خارج می‌شوید؟')) return;
@@ -2798,18 +2798,18 @@ function renderLegacyPbAccountUI(loggedIn, email, online, busy, lastSync) {
       </div>
     </div>
     <div class="account-login-form">
-      <input class="input" id="syncEmail" type="email" placeholder="ایمیل" dir="ltr" autocomplete="username" inputmode="email" aria-label="ایمیل">
-      <input class="input" id="syncPassword" type="password" placeholder="رمز عبور" autocomplete="current-password" aria-label="رمز عبور">
-      <button class="btn primary" id="syncLoginBtn">ورود PocketBase قدیمی</button>
-      <div id="syncLoginError" class="sync-login-error"></div>
+      <input class="input" id="legacyPbEmail" type="email" placeholder="ایمیل" dir="ltr" autocomplete="username" inputmode="email" aria-label="ایمیل">
+      <input class="input" id="legacyPbPassword" type="password" placeholder="رمز عبور" autocomplete="current-password" aria-label="رمز عبور">
+      <button class="btn primary" id="legacyPbLoginBtn">ورود PocketBase قدیمی</button>
+      <div id="legacyPbLoginError" class="sync-login-error"></div>
     </div>`;
-  const loginBtn = document.getElementById('syncLoginBtn');
-  const passwordEl = document.getElementById('syncPassword');
+  const loginBtn = document.getElementById('legacyPbLoginBtn');
+  const passwordEl = document.getElementById('legacyPbPassword');
   if (passwordEl) passwordEl.onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); if (loginBtn) loginBtn.click(); } };
   if (!loginBtn) return;
   loginBtn.onclick = async () => {
-    const emailEl = document.getElementById('syncEmail');
-    const errEl = document.getElementById('syncLoginError');
+    const emailEl = document.getElementById('legacyPbEmail');
+    const errEl = document.getElementById('legacyPbLoginError');
     const emailValue = (emailEl ? emailEl.value : '').trim();
     const password = passwordEl ? passwordEl.value : '';
     if (errEl) { errEl.textContent = ''; errEl.classList.remove('show'); }
@@ -2866,7 +2866,7 @@ function renderSyncUI() {
       <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
     </div>
     <div class="sync-pending-row">
-      <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
+      <span class="sync-pending" id="legacyPbPendingStatus">در حال بررسی تغییرات…</span>
     </div>
     <div class="sync-auto-note">برای انتقال تدریجی از ایمیل/رمز قدیمی استفاده کنید.</div>
     ${syncProgressMarkup()}

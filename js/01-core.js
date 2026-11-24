@@ -87,7 +87,7 @@ function profileLabel() {
   if (p.firstName) parts.push(p.firstName);
   if (p.grade) parts.push(p.grade);
   if (p.field) parts.push(p.field);
-  return parts.join(' • ') || 'مسیر کنکور';
+  return parts.join(' • ') || 'مسیر';
 }
 
 const FIELD_SPECIALIZED_SUBJECTS_BY_GRADE = {

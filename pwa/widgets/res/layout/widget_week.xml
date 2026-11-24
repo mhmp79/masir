@@ -1,0 +1,8 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/widget_card" android:padding="12dp">
+  <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="12sp" android:textStyle="bold" android:text="پیشرفت هفته" />
+  <TextView android:id="@+id/widget_pct" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="26sp" android:textStyle="bold" android:textColor="@color/widget_accent" android:layout_marginTop="2dp" />
+  <ProgressBar android:id="@+id/widget_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="8dp" android:max="100" />
+  <TextView android:id="@+id/widget_total" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="12sp" android:layout_marginTop="8dp" />
+  <TextView android:id="@+id/widget_goal" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="10.5sp" android:textColor="@color/widget_muted" />
+  <TextView android:id="@+id/widget_tests" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="10.5sp" android:textColor="@color/widget_muted" />
+</LinearLayout>

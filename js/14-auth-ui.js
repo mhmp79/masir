@@ -141,12 +141,22 @@
     else if (mode === 'pair-advisor') inner = renderPairAdvisor(role);
     else inner = renderLogin();
 
+    const mobileCopy = {
+      login: { title: 'خوش آمدید', text: 'با شماره تلفن و رمز عبور خود وارد شوید.' },
+      signup: { title: 'ثبت نام', text: 'حساب خود را بسازید و برنامهتان را شخصی کنید.' },
+      reset: { title: 'بازیابی رمز', text: 'رمز عبور خود را دوباره تنظیم کنید.' },
+      password: { title: 'تغییر رمز عبور', text: 'رمز حساب خود را بهروزرسانی کنید.' },
+      admin: { title: 'مدیریت کاربران', text: 'ایجاد حساب و بازنشانی رمز توسط مدیر.' },
+      'advisor-code': { title: 'دسترسی مشاور', text: 'کد دسترسی مخصوص خود را مدیریت کنید.' },
+      'pair-advisor': { title: 'اتصال مشاور', text: 'کد مشاور را تأیید کنید.' }
+    }[mode] || { title: 'مسیر', text: 'حساب شخصی تو' };
+
     box.innerHTML = `
       <div class="auth-shell">
         <aside class="auth-hero" aria-hidden="true">
           <div class="auth-hero-top">
-            <div class="auth-hero-mark">M</div>
-            <div class="auth-hero-kicker">مسیر کنکور</div>
+            <div class="auth-logo" role="img" aria-label="مسیر"></div>
+            <div class="auth-hero-kicker">مسیر</div>
           </div>
           <div class="auth-hero-copy">
             <h2>هر قدمی که برمیداری، حساب میشود</h2>
@@ -159,15 +169,23 @@
           </div>
         </aside>
         <section class="auth-panel">
-          <div class="auth-mobile-brand">
-            <div class="auth-hero-mark">M</div>
-            <div>
-              <div class="auth-hero-kicker">مسیر کنکور</div>
-              <div class="auth-mobile-tagline">حساب شخصی تو</div>
+          <div class="auth-mobile-top">
+            <div class="auth-mobile-brand">
+              <div class="auth-logo" role="img" aria-label="مسیر"></div>
+              <div>
+                <div class="auth-hero-kicker">مسیر</div>
+                <div class="auth-mobile-tagline">حساب شخصی تو</div>
+              </div>
+            </div>
+            <div class="auth-mobile-welcome">
+              <h1>${escapeHtml(mobileCopy.title)}</h1>
+              <p>${escapeHtml(mobileCopy.text)}</p>
             </div>
           </div>
-          ${role ? '<button type="button" class="auth-tool-close" data-auth-action="close" aria-label="بازگشت به تنظیمات">‹ بازگشت به تنظیمات</button>' : ''}
-          ${inner}
+          <div class="auth-card">
+            ${role ? '<button type="button" class="auth-tool-close" data-auth-action="close" aria-label="بازگشت به تنظیمات">‹ بازگشت به تنظیمات</button>' : ''}
+            ${inner}
+          </div>
         </section>
       </div>`;
   }
@@ -316,6 +334,7 @@
       <div class="auth-heading">
         <h1>مدیریت کاربران</h1>
         <p>ایجاد حساب و بازنشانی رمز توسط مدیر انجام میشود؛ کد پیامک تنها برای ثبت نام و بازیابی است.</p>
+        <p class="auth-path-hint">مسیر دسترسی: تنظیمات ← حساب و همگامسازی ← مدیریت کاربران ← ایجاد کاربر</p>
       </div>
       <div class="auth-tabs" role="tablist">
         <button type="button" role="tab" class="auth-tab ${createTab ? 'active' : ''}" data-auth-admin-tab="create">ایجاد کاربر</button>

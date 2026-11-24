@@ -1,0 +1,9 @@
+<resources>
+    <string name="widget_today_label">امروز - مسیر</string>
+    <string name="widget_week_label">پیشرفت هفته - مسیر</string>
+    <string name="widget_week_trend_label">روند مطالعه - مسیر</string>
+    <string name="widget_month_label">هیتمپ ماهانه - مسیر</string>
+    <string name="widget_subjects_label">سهم دروس - مسیر</string>
+    <string name="widget_exam_trend_label">تراز آزمونها - مسیر</string>
+    <string name="widget_exam_tags_label">تگهای اشتباه - مسیر</string>
+</resources>

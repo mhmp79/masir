@@ -1,0 +1,12 @@
+<resources>
+    <color name="widget_card">#F50B1024</color>
+    <color name="widget_text">#FFF7F8FF</color>
+    <color name="widget_muted">#FF9AA4BD</color>
+    <color name="widget_primary">#FF7C5CFF</color>
+    <color name="widget_accent">#FF22D3EE</color>
+    <color name="widget_level0">#FF202944</color>
+    <color name="widget_level1">#FF1E3A5F</color>
+    <color name="widget_level2">#FF245E83</color>
+    <color name="widget_level3">#FF2E8FB0</color>
+    <color name="widget_level4">#FF22D3EE</color>
+</resources>

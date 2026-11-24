@@ -126,38 +126,101 @@ function renderExamDashChart(){
   box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chart-svg"><defs><linearGradient id="examMiniGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#eab308"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>${grid}<polyline points="${pts}" fill="none" stroke="url(#examMiniGrad)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>${dots}${labels}</svg>`;
 }
 
-/* ============ DASHBOARD ============ */
-function renderDashboard(){
+/* ============ WIDGET SNAPSHOT ============ */
+function collectDashboardSnapshot(){
   const dayKey=jKey(d2j(dashDay));
   const dActs=dayActs(dayKey);const wActs=weekActs(dashDay);
   const dayMin=sumMinutes(dActs);const weekMin=sumMinutes(wActs);
   const daysLeft=Math.max(0,KONKUR_JDN-dashDay);
   const isToday=dashDay===TODAY_JDN;
   const dj=d2j(dashDay);
-  document.getElementById('dashDate').textContent=`${DOW[dowIndex(dashDay)]} ${fa(dj.jd)} ${MONTHS[dj.jm-1]}`;
-  document.getElementById('dashDayLabel').textContent=isToday?'امروز':(dashDay===TODAY_JDN-1?'دیروز':'روز انتخابی');
-  document.getElementById('daysLeft').textContent=fa(daysLeft);
-  document.getElementById('todayHours').textContent=hmTotalStr(dayMin);
-  document.getElementById('todayTests').textContent=fa(sumTests(dActs));
-  document.getElementById('weekHours').textContent=hmTotalStr(weekMin);
-  document.getElementById('weekTests').textContent=fa(sumTests(wActs));
-  document.getElementById('todayHoursLbl').textContent=isToday?'زمان فعالیت امروز':'زمان این روز';
-  document.getElementById('todayTestsLbl').textContent=isToday?'تست امروز':'تست این روز';
-  document.getElementById('dashNextDay').disabled=isToday;
-  const weeksLeft=Math.max(0,Math.ceil(daysLeft/7));
-  document.getElementById('weekBadge').textContent=`${fa(weeksLeft)} هفته تا کنکور`;
-  const goalMin=(state.settings.goalHours||40)*60;
-  const pct=Math.min(100,Math.round(weekMin/goalMin*100));
+  const goalHours=state.settings.goalHours||40;
+  const pct=Math.min(100,Math.round(weekMin/(goalHours*60)*100));
+
+  const weekDays=weekKeysOf(dashDay).map((k,i)=>({label:DOW_SHORT[i],minutes:sumMinutes(dayActs(k))}));
+
+  const todayJ=d2j(TODAY_JDN);
+  const year=todayJ.jy,month=todayJ.jm;
+  const startCol=dowIndex(j2d(year,month,1));
+  const len=jMonthLength(year,month);
+  const monthDays=[];let monthMin=0,activeDays=0;
+  for(let d=1;d<=len;d++){
+    const mins=sumMinutes(dayActs(keyOf(year,month,d)));
+    const level=studyIntensityLevel(mins);
+    monthDays.push({d,level});
+    monthMin+=mins;if(mins>0)activeDays++;
+  }
+
+  const subs=[...subjectsForPie(),{name:EXAM_SUBJECT,color:EXAM_COLOR}];
+  let pieData;
+  if(currentPie==='study'){
+    pieData=subs.map((s)=>({name:s.name,color:s.color,value:sumMinutes(wActs.filter((a)=>a.subject===s.name))})).filter((x)=>x.value>0);
+  }else{
+    pieData=subs.map((s)=>({name:s.name,color:s.color,value:wActs.filter((a)=>a.subject===s.name).reduce((sum,a)=>{if(a.tests)sum+=(+a.tests.correct||0)+(+a.tests.wrong||0)+(+a.tests.blank||0);return sum;},0)})).filter((x)=>x.value>0);
+  }
+  const pieTotal=pieData.reduce((s,x)=>s+x.value,0);
+  const subjectRows=pieData.map((x)=>({name:x.name,color:x.color,value:x.value,pct:pieTotal?Math.round(x.value/pieTotal*100):0}));
+
+  const exams=state.exams
+    .filter((e)=>e.hasResults&&(e.totalTaraz!=null||(e.subjects&&Object.keys(e.subjects).length)))
+    .sort((a,b)=>jdnFromKey(a.date)-jdnFromKey(b.date))
+    .slice(-6)
+    .map((e)=>{const jd=parseKey(e.date);return {label:`${fa(jd.jd)} ${MONTHS[jd.jm-1].slice(0,4)}`,taraz:+e.totalTaraz||0};});
+  let tags=[];
+  try{
+    const insight=typeof examInsights==='function'?examInsights():{tags:[]};
+    tags=(insight.tags||[]).slice(0,4).map((t)=>({label:t.label,count:t.count}));
+  }catch(e){}
+
+  return {
+    v:1,generatedAt:Date.now(),app:'مسیر',
+    day:{
+      label:isToday?'امروز':(dashDay===TODAY_JDN-1?'دیروز':'روز انتخابی'),
+      date:`${DOW[dowIndex(dashDay)]} ${fa(dj.jd)} ${MONTHS[dj.jm-1]}`,
+      daysLeft,weeksLeft:Math.max(0,Math.ceil(daysLeft/7)),
+      minutes:dayMin,hours:Math.round(dayMin/60*100)/100,tests:sumTests(dActs)
+    },
+    week:{
+      pct,totalMinutes:weekMin,totalHours:Math.round(weekMin/60*100)/100,
+      goalHours,tests:sumTests(wActs),days:weekDays
+    },
+    month:{
+      title:`${MONTHS[month-1]} ${fa(year)}`,startCol,
+      totalMinutes:monthMin,totalHours:Math.round(monthMin/60*100)/100,
+      activeDays,days:monthDays
+    },
+    subjects:{mode:currentPie,total:pieTotal,rows:subjectRows},
+    exams:{enabled:!!state.settings.examsEnabled,count:exams.length,points:exams,tags}
+  };
+}
+
+/* ============ DASHBOARD ============ */
+function renderDashboard(){
+  const s=collectDashboardSnapshot();
+  document.getElementById('dashDate').textContent=s.day.date;
+  document.getElementById('dashDayLabel').textContent=s.day.label;
+  document.getElementById('daysLeft').textContent=fa(s.day.daysLeft);
+  document.getElementById('todayHours').textContent=hmTotalStr(s.day.minutes);
+  document.getElementById('todayTests').textContent=fa(s.day.tests);
+  document.getElementById('weekHours').textContent=hmTotalStr(s.week.totalMinutes);
+  document.getElementById('weekTests').textContent=fa(s.week.tests);
+  document.getElementById('todayHoursLbl').textContent=s.day.label==='امروز'?'زمان فعالیت امروز':'زمان این روز';
+  document.getElementById('todayTestsLbl').textContent=s.day.label==='امروز'?'تست امروز':'تست این روز';
+  document.getElementById('dashNextDay').disabled=s.day.label==='امروز';
+  document.getElementById('weekBadge').textContent=`${fa(s.day.weeksLeft)} هفته تا کنکور`;
   const donut=document.getElementById('donut');
-  donut.style.background=`conic-gradient(#7c5cff 0% ${pct}%, #22d3ee ${pct}% ${pct}%, rgba(255,255,255,.08) ${pct}% 100%)`;
-  document.getElementById('donutPct').textContent=fa(pct)+'٪';
-  document.getElementById('weekTotal').textContent=hmTotalStr(weekMin);
-  document.getElementById('weekGoal').textContent=fa(state.settings.goalHours||40);
+  donut.style.background=`conic-gradient(#7c5cff 0% ${s.week.pct}%, #22d3ee ${s.week.pct}% ${s.week.pct}%, rgba(255,255,255,.08) ${s.week.pct}% 100%)`;
+  document.getElementById('donutPct').textContent=fa(s.week.pct)+'٪';
+  document.getElementById('weekTotal').textContent=hmTotalStr(s.week.totalMinutes);
+  document.getElementById('weekGoal').textContent=fa(s.week.goalHours);
   renderLineChart();
   renderMonthlyHeatmap();
   renderPie();
   renderExamDashChart();
   try{ renderExamInsights(); }catch(e){ console.warn('[dashboard] exam insights failed:',e); }
+  try{
+    if(window.masirWidgets&&typeof window.masirWidgets.update==='function') window.masirWidgets.update(s);
+  }catch(e){}
 }
 document.getElementById('dashPrevDay').onclick=()=>{dashDay--;renderDashboard();};
 document.getElementById('dashNextDay').onclick=()=>{if(dashDay>=TODAY_JDN)return;dashDay++;renderDashboard();};
@@ -443,7 +506,7 @@ function drawReportTitleSection(x,W,pad,y,d){
   const R=W-pad;
   x.fillStyle='rgba(255,255,255,.5)';
   x.font='600 30px Vazirmatn, Tahoma, sans-serif';
-  x.fillText('مسیر کنکور  •  کارنامه مطالعه',R,pad+26);
+  x.fillText('مسیر  •  کارنامه مطالعه',R,pad+26);
   x.fillStyle='#fff';
   x.font='800 68px Vazirmatn, Tahoma, sans-serif';
   x.fillText(d.title,R,pad+100);

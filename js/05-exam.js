@@ -2211,7 +2211,7 @@ async function exportExamCompareImage(){
       });
     });
     ctx.fillStyle='rgba(203,211,232,.5)';ctx.font='500 15px Vazirmatn,Tahoma,sans-serif';
-    ctx.textAlign='right';ctx.fillText('مسیر کنکور',1340,canvas.height-28);
+    ctx.textAlign='right';ctx.fillText('مسیر',1340,canvas.height-28);
     ctx.textAlign='left';ctx.fillText('Made by MH.Mahdipanah',60,canvas.height-28);
     const link=document.createElement('a');
     link.href=canvas.toDataURL('image/png');link.download='moghayese-azmoon.png';

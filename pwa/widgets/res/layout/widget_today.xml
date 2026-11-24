@@ -1,0 +1,10 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/widget_card" android:padding="12dp">
+  <TextView android:id="@+id/widget_app" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="12sp" android:textStyle="bold" android:textColor="@color/widget_primary" android:text="مسیر" />
+  <TextView android:id="@+id/widget_day" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="12sp" android:textColor="@color/widget_muted" android:layout_marginTop="2dp" />
+  <TextView android:id="@+id/widget_countdown" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="17sp" android:textStyle="bold" android:layout_marginTop="8dp" />
+  <TextView android:id="@+id/widget_days_left" android:layout_width="match_parent" android:layout_height="wrap_content"  android:textSize="11sp" android:textColor="@color/widget_accent" />
+  <LinearLayout android:orientation="horizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp">
+    <TextView android:id="@+id/widget_hours" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="13sp" android:textStyle="bold" />
+    <TextView android:id="@+id/widget_tests" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:textColor="@color/widget_text" android:textSize="13sp" android:textStyle="bold" android:gravity="end" />
+  </LinearLayout>
+</LinearLayout>

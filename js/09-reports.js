@@ -392,7 +392,7 @@ async function generateWeeklyReportCanvas(){
   cx.textAlign='right';
   cx.fillStyle='rgba(255,255,255,.55)';
   cx.font='600 26px Vazirmatn, Tahoma, sans-serif';
-  cx.fillText('مسیر کنکور — گزارش هفتگی جامع دروس', R, pad+26);
+  cx.fillText('مسیر — گزارش هفتگی جامع دروس', R, pad+26);
 
   cx.fillStyle='#fff';
   cx.font='800 54px Vazirmatn, Tahoma, sans-serif';

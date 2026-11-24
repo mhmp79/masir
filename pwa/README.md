@@ -1,4 +1,4 @@
-# آماده‌سازی PWA و TWA — مسیر کنکور
+# آماده‌سازی PWA و TWA — مسیر
 
 این پوشه تنظیمات بسته‌بندی اندروید (TWA) را نگه می‌دارد. خودِ اپلیکیشن PWA در ریشهٔ پروژه است:
 
@@ -12,7 +12,10 @@
 | `js/13-sql-api.js` | تنها انتقالدهندهٔ محلی API سرور SQL (بدون CDN) |
 | `js/12-sql-sync.js` | همگامسازی خودکار و نشست ورود |
 | `js/14-auth-ui.js` | رابط ورود، ثبت نام، بازیابی و ابزار حساب |
+| `js/15-widget-bridge.js` | ارسال عکس لحظهای داشبورد به ویجتهای بومی اندروید |
 | `pwa/twa-manifest.json` | تنظیمات ساخت اپ اندروید با Bubblewrap |
+| `pwa/widgets/` | منبع ویجتهای بومی (Java، XML و receiverها) |
+| `pwa/install_widgets.py` | کپی منبع ویجتها به پروژهٔ تولیدشده توسط Bubblewrap |
 | `pwa/assetlinks.json` | نمونهٔ Digital Asset Links برای Play Store |
 
 ---
@@ -38,7 +41,7 @@ http://127.0.0.1:8765/
 
 - **Manifest**: بدون خطا، آیکون ۱۹۲ و ۵۱۲ و maskable دیده شود.
 - **Service Workers**: وضعیت `activated` و `running`.
-- **Cache Storage**: کش `konkur-shell-v1-0-9-5-r45` شامل همهٔ فایل‌ها باشد.
+- **Cache Storage**: کش `konkur-shell-v1-0-9-5-r46` شامل همهٔ فایل‌ها باشد.
 
 بعد از یک‌بار آنلاین شدن، **همهٔ امکانات برنامه آفلاین کار می‌کند**؛ فقط همگام‌سازی ابری به اینترنت نیاز دارد و در حالت آفلاین بی‌صدا صبر می‌کند.
 
@@ -87,15 +90,16 @@ npm i -g @bubblewrap/cli
 
 ### گام ۱: تنظیم دامنه
 
-در `pwa/twa-manifest.json` این مقادیر را عوض کنید:
+تولید اکنون روی `https://masir.ir` است و `pwa/twa-manifest.json` و `pwa/app/build.gradle` با همان دامنه تنظیم شدهاند. API سرور SQL نیز همانمنشأ است و از مسیر `/api` فراخوانی میشود؛ مقداری در تنظیمات کاربر برای آدرس سرور وجود ندارد و اگر مقدار قدیمی ذخیرهای موجود باشد، روی `masir.ir` خودبهخود حذف میشود.
 
-- `host`: دامنهٔ بدون `https://` — مثلاً `app.example.com`
-- `packageId`: شناسهٔ یکتای اپ — مثلاً `ir.example.konkur`
+اگر دامنه را عوض کردید، این مقادیر را در `pwa/twa-manifest.json` بهروز کنید:
+
+- `host`: دامنهٔ بدون `https://`
 - `iconUrl` و `maskableIconUrl`
 - `webManifestUrl`
 - `fullScopeUrl`
 
-اگر `packageId` را عوض کردید، همان را در `pwa/assetlinks.json` هم بگذارید.
+همچنان باید همان دامنه را در `pwa/app/build.gradle` (`hostName`, `webManifestUrl`, `fullScopeUrl`) و `.well-known/assetlinks.json` منتشر کنید. اگر `packageId` را عوض کردید، همان را در `pwa/assetlinks.json` و `.well-known/assetlinks.json` هم بگذارید.
 
 ### گام ۲: کلید امضا
 
@@ -137,7 +141,7 @@ keytool -list -v -keystore android.keystore -alias android
 مقدار `SHA256:` را در `pwa/assetlinks.json` و همچنین نسخهٔ منتشرشدهٔ `.well-known/assetlinks.json` در ریشهٔ پروژه جایگزین کنید. محل انتشار باید دقیقاً این باشد:
 
 ```
-https://masir-konkour.vercel.app/.well-known/assetlinks.json
+https://masir.ir/.well-known/assetlinks.json
 ```
 
 فایل `pwa/assetlinks.json` فقط نسخهٔ مرجع است؛ چیزی که اندروید می‌خواند همان مسیر `.well-known` در ریشهٔ سایت است.
@@ -145,7 +149,7 @@ https://masir-konkour.vercel.app/.well-known/assetlinks.json
 باید بدون ریدایرکت و با Content-Type برابر `application/json` باز شود. برای بررسی:
 
 ```
-https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://masir-konkour.vercel.app&relation=delegate_permission/common.handle_all_urls
+https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://masir.ir&relation=delegate_permission/common.handle_all_urls
 ```
 
 ### گام ۴: ساخت
@@ -154,6 +158,7 @@ https://digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=http
 
 ```powershell
 bubblewrap update --skipVersionUpgrade
+python install_widgets.py
 bubblewrap build
 ```
 
@@ -161,7 +166,7 @@ bubblewrap build
 
 نکته‌های این محیط:
 
-- پروژهٔ اندرویدِ تولیدشده (`app/`، `gradle/`، `build.gradle`، `gradlew` و…) در `.gitignore` است و هر بار با `bubblewrap update` از نو ساخته می‌شود.
+- پروژهٔ اندرویدِ تولیدشده (`app/`، `gradle/`، `build.gradle`، `gradlew` و…) در `.gitignore` است و هر بار با `bubblewrap update` از نو ساخته می‌شود. بعد از هر `bubblewrap update` حتماً `python install_widgets.py` را اجرا کنید تا هفت ویجت بومی دوباره نصب شوند.
 - `minSdkVersion` روی ۲۴ است چون کتابخانهٔ `androidbrowserhelper:2.7.4` حداقل اندروید ۷ را می‌خواهد.
 - اگر اینترنت این سیستم فقط از طریق پروکسی کار می‌کند، در `gradle.properties` این خطوط لازم است:
 
@@ -179,8 +184,26 @@ systemProp.https.proxyPort=10808
 - `app-release-signed.apk` برای تست روی گوشی
 - `app-release-bundle.aab` برای Play Store
 
-آخرین بیلد موفق: نسخهٔ `0.9.4` (versionCode 1)، بستهٔ `app.masirkonkur.twa`، امضاشده با کلید `android` و اثر انگشت
+آخرین بیلد موفق: نسخهٔ `0.9.5` (versionCode 2)، بستهٔ `app.masirkonkur.twa`، امضاشده با کلید `android` و اثر انگشت
 `EE:E3:95:43:...:00:26:E7`.
+
+### گام ۴ب: ویجتهای صفحهٔ اصلی اندروید
+
+هفت ویجت بومی در پروژهٔ TWA تعریف شدهاند و هرکدام متناظر با یکی از کارتهای داشبورد وب است:
+
+| ویجت | منبع داده |
+|---|---|
+| امروز و شمارش معکوس | آمار روز، روزهای مانده تا کنکور |
+| پیشرفت هفته | درصد هدف هفتگی، ساعت و تست |
+| روند مطالعه هفته | نمودار خطی هفت روز |
+| هیتـمپ ماهانه | تقویم مطالعه ماه و روزهای فعال |
+| سهم دروس | نمودار دایرهای دروس/آزمون |
+| تراز آزمونها | روند تراز آخرین آزمونها |
+| تگهای اشتباه | پراکندهترین تگهای اشتباه آزمونها |
+
+دادهها از `collectDashboardSnapshot()` در `js/02-dashboard.js` میآیند و توسط `js/15-widget-bridge.js` در یک عکس لحظهای فشرده نگه داشته میشوند. داخل TWA، دکمهٔ «ویجتهای اندروید» در تنظیمات ← حساب و همگامسازی، این عکس را با یک Chrome intent به `WidgetSyncActivity` میفرستد؛ activity آن را در `SharedPreferences` ذخیره و همهٔ providerها را بهروزرسانی میکند. دادهها از IndexedDB میآیند و هیچ کپی ابری یا درخواست خارجی برای ویجتها وجود ندارد.
+
+فایلهای پشتیبانی بومی در `pwa/widgets/` نگهداری میشوند و `python install_widgets.py` آنها را دوباره به `pwa/app/` کپی میکند و receiverهای مربوطه را بدون تکرار در manifest ثبت مینماید. بعد از هر تغییر در منبع وب، `python build.py` و بهروزرسانی کش `sw.js` را فراموش نکنید.
 
 نکتهٔ ویندوز: مسیر JDK نباید فاصله داشته باشد، چون Bubblewrap دستور `apksigner` را بدون کوتیشن اجرا می‌کند و مسیرهایی مثل `C:\Program Files\...` شکست می‌خورند. راه‌حل: یک junction بسازید و همان را به Bubblewrap بدهید:
 

@@ -1,5 +1,5 @@
 /* ============================================================
-   SERVICE WORKER — مسیر کنکور
+   SERVICE WORKER — مسیر
    همهٔ فایل‌های برنامه از قبل ذخیره می‌شوند تا بعد از نصب،
    اجرای کامل آفلاین باشد. درخواستهای سرور SQL و دامنههای
    بیرونی اصلاً کش نمی‌شوند و مستقیم به شبکه می‌روند.
@@ -10,7 +10,7 @@
 
 'use strict';
 
-const CACHE_NAME = 'konkur-shell-v1-0-9-5-r45';
+const CACHE_NAME = 'konkur-shell-v1-0-9-5-r46';
 const ROOT_URL = new URL('./', self.location.href).href;
 const OFFLINE_URL = new URL('index.html', ROOT_URL).href;
 
@@ -57,6 +57,7 @@ const APP_SHELL = [
   './js/12-sql-sync.js',
   './js/13-sql-api.js',
   './js/14-auth-ui.js',
+  './js/15-widget-bridge.js',
   './js/99-init.js'
 ];
 

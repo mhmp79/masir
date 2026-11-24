@@ -81,21 +81,12 @@ function defaultSqlBaseUrl() {
   try {
     if (window.MASIR_SQL_API_URL) return normalizeSqlBaseUrl(window.MASIR_SQL_API_URL);
   } catch (e) {}
-  try {
-    if (window.location && /^https?:$/.test(window.location.protocol)) {
-      return normalizeSqlBaseUrl(window.location.origin);
-    }
-  } catch (e) {}
-  return 'http://localhost:4000';
+  // Temporary default: use existing PocketBase server with Masir compatibility hooks.
+  return 'https://masir-69623a.dockhold.app';
 }
 
 function sqlBaseUrl() {
   try {
-    /* On the production domain the SQL API lives behind the same origin at /api.
-       Drop any stale URL saved on an older domain so sync never targets it. */
-    if (!window.MASIR_SQL_API_URL && window.location && /^masir\.ir$/i.test(window.location.hostname || '')) {
-      localStorage.removeItem(SQL_API_URL_KEY);
-    }
     const saved = localStorage.getItem(SQL_API_URL_KEY);
     if (saved) return normalizeSqlBaseUrl(saved);
   } catch (e) {}

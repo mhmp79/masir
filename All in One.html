@@ -23328,7 +23328,16 @@ readSession();
     async login(phone, password) {
       const p = normalizePhone(phone);
       const pass = normalizePassword(password);
-      const identities = [p, phoneUsername(p), englishDigits(phone == null ? '' : phone).replace(/[\s\-()+]/g, '')].filter(Boolean);
+      const digits = englishDigits(phone == null ? '' : phone).replace(/[\s\-()+]/g, '');
+      const localDigits = digits.replace(/^0098/, '0').replace(/^98/, '0');
+      const identities = [
+        p,
+        phoneUsername(p),
+        digits,
+        localDigits,
+        `${localDigits}@masir.local`,
+        `${digits}@masir.local`,
+      ].filter(Boolean);
       const col = await this._resolveUsersCollection();
       let lastErr;
       for (const identity of [...new Set(identities)]) {

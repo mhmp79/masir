@@ -73,6 +73,26 @@ test('PASSWORD HASH: scrypt storage is salted and verification is exact', async 
   await assert.rejects(() => auth.hashPassword('short'), /8/);
 });
 
+test('CLI: offline provisioning exports and documentation are present', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.join(__dirname, '..');
+  for (const name of ['userColumns', 'findUser', 'upsertUser', 'setUserPassword']) {
+    assert.strictEqual(typeof auth[name], 'function', `${name} must be reusable by the CLI`);
+  }
+  const cli = path.join(root, 'server', 'scripts', 'create-user.js');
+  assert.ok(fs.existsSync(cli), 'offline user creation CLI must exist');
+  const code = fs.readFileSync(cli, 'utf8');
+  assert.ok(code.includes('--reset'), 'CLI must support password reset');
+  assert.ok(code.includes('hashPassword'), 'CLI must hash passwords exactly like the API');
+  assert.ok(code.includes('No OTP or SMS'), 'CLI help must explain that OTP is not required');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'server', 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.scripts['create-user'], 'node scripts/create-user.js');
+  const readme = fs.readFileSync(path.join(root, 'server', 'README.md'), 'utf8');
+  assert.ok(readme.includes('npm run create-user'), 'README must document manual provisioning');
+  assert.ok(readme.includes('--role admin'), 'README must show how to create the first admin');
+});
+
 test('JWT: login tokens stay valid; purpose tokens are bound to their scope', () => {
   const user = { id: '11111111-1111-4111-8111-111111111111', role: 'admin' };
   const login = auth.signToken(user);

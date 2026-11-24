@@ -29,6 +29,32 @@ outside local development**.
 (password columns, OTP purpose and `local_order`). Checksums are recorded in `app_migrations`,
 so re-running is safe. If a migration file changes, it runs again. No columns or data are dropped.
 
+## Manual user provisioning (no OTP / SMS needed)
+
+Until an SMS provider is configured you can create accounts directly in the database.
+The CLI uses the exact same `scrypt` hash format as the API, so users can log in with
+phone + password immediately:
+
+```bash
+# first admin (create this before you can use the in-app user manager)
+npm run create-user -- --phone 09123456789 --password 'StrongPass123' --role admin
+
+# students / advisors
+npm run create-user -- --phone 09123456780 --password 'StudentPass123' --role student
+npm run create-user -- --phone 09123456781 --password 'AdvisorPass123' --role advisor --name 'مشاور'
+
+# change an existing user's password
+npm run create-user -- --phone 09123456780 --password 'NewPass123' --reset
+```
+
+`--phone` accepts `09xxxxxxxxx`, `989xxxxxxxxx` or `+989xxxxxxxxx`; passwords need at
+least 8 characters. Creating an existing phone fails with a clear error, so no data is
+overwritten unless `--reset` is passed explicitly. For consistency also add the admin
+phone to `ADMIN_PHONES` in `server/.env`.
+
+Once logged in as admin, the same operations are available in the app at
+**Settings → Account & Profile → مدیریت کاربران → ایجاد کاربر / بازنشانی رمز**.
+
 ## API summary
 
 | Method | Path | Auth | Purpose |

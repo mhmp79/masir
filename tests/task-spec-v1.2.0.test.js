@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r46', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r47', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r46'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r47'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1400,7 +1400,7 @@ test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {
 test('ADMIN: user creation guidance and controls are discoverable', () => {
   const auth = read('js/14-auth-ui.js');
   const sync = read('js/12-sql-sync.js');
-  assert.ok(auth.includes('تنظیمات ← حساب و همگامسازی ← مدیریت کاربران ← ایجاد کاربر'));
+  assert.ok(auth.includes('تنظیمات ← حساب و پروفایل ← مدیریت کاربران ← ایجاد کاربر'));
   assert.ok(sync.includes("accountActionButton('accountAdminBtn', 'مدیریت کاربران'"));
   assert.ok(sync.includes("role === 'admin'"));
   assert.ok(auth.includes("action === 'admin-create'"));

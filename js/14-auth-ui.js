@@ -334,7 +334,7 @@
       <div class="auth-heading">
         <h1>مدیریت کاربران</h1>
         <p>ایجاد حساب و بازنشانی رمز توسط مدیر انجام میشود؛ کد پیامک تنها برای ثبت نام و بازیابی است.</p>
-        <p class="auth-path-hint">مسیر دسترسی: تنظیمات ← حساب و همگامسازی ← مدیریت کاربران ← ایجاد کاربر</p>
+        <p class="auth-path-hint">مسیر دسترسی: تنظیمات ← حساب و پروفایل ← مدیریت کاربران ← ایجاد کاربر</p>
       </div>
       <div class="auth-tabs" role="tablist">
         <button type="button" role="tab" class="auth-tab ${createTab ? 'active' : ''}" data-auth-admin-tab="create">ایجاد کاربر</button>

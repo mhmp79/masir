@@ -2757,8 +2757,8 @@ function syncStateBadge(online, loggedIn, busy) {
 
 /* ┘ç┘ê█î╪¬ ╪¡╪│╪º╪¿ ┘ê ┘╛╪▒┘ê┘ü╪º█î┘ä ╪»╪▒ █î┌⌐ ┘å┘é╪╖┘ç ╪»█î╪»┘ç ┘à█î╪┤┘ê╪»: ┘å╪º┘à ┘ê ╪▒╪┤╪¬┘ç ╪»╪▒ ╪¿╪º┘ä╪º╪î ╪º█î┘à█î┘ä ┘ê
    ┘ê╪▒┘ê╪»/╪«╪▒┘ê╪¼ ╪¿┘ä╪º┘ü╪º╪╡┘ä┘ç ╪▓█î╪▒ ┘ç┘à╪º┘å ┌⌐╪º╪▒╪¬. */
-function renderAccountUI(loggedIn, email, online, busy, lastSync) {
-  const box = document.getElementById('accountUI');
+function renderLegacyPbAccountUI(loggedIn, email, online, busy, lastSync) {
+  const box = document.getElementById('legacyPbAccountUI');
   if (!box) return;
   const stateKey = loggedIn ? `in|${email}|${online}|${busy}|${lastSync}` : 'out';
   const active = document.activeElement;
@@ -2846,7 +2846,7 @@ function renderSyncUI() {
   const badge = syncStateBadge(online, loggedIn, busy);
 
   /* ╪¡╪│╪º╪¿ ┌⌐╪º╪▒╪¿╪▒█î ╪¿╪«╪┤█î ╪º╪▓ ┘ç┘à╪º┘å ┌⌐╪º╪▒╪¬ ┘╛╪▒┘ê┘ü╪º█î┘ä ╪º╪│╪¬╪î ┘å┘ç ╪¿╪«╪┤ ╪¼╪»╪º┌»╪º┘å┘ç ╪¬┘å╪╕█î┘à╪º╪¬. */
-  renderAccountUI(loggedIn, email, online, busy, lastSync);
+  renderLegacyPbAccountUI(loggedIn, email, online, busy, lastSync);
 
   if (!loggedIn) {
     box.innerHTML = `

@@ -193,24 +193,38 @@
   function phoneField(value, readonly, id) {
     const inputId = id || 'authPhone';
     return `
-      <label class="auth-label" for="${inputId}">شماره تلفن</label>
-      <input class="input auth-input" id="${inputId}" type="tel" dir="ltr" inputmode="numeric"
-        autocomplete="tel-national" maxlength="15" placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-        value="${escapeHtml(value || '')}" ${readonly ? 'readonly' : ''}>`;
+      <div class="auth-field">
+        <label class="auth-label" for="${inputId}">شماره تلفن</label>
+        <input class="input auth-input" id="${inputId}" type="tel" dir="ltr" inputmode="numeric"
+          autocomplete="tel-national" maxlength="15" placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+          value="${escapeHtml(value || '')}" ${readonly ? 'readonly' : ''}>
+      </div>`;
   }
 
   function passwordField(id, label, autocomplete) {
     return `
-      <label class="auth-label" for="${id}">${label}</label>
-      <input class="input auth-input" id="${id}" type="password" autocomplete="${autocomplete}" placeholder="••••••••">`;
+      <div class="auth-field">
+        <label class="auth-label" for="${id}">${label}</label>
+        <div class="auth-password">
+          <input class="input auth-input" id="${id}" type="password" autocomplete="${autocomplete}" placeholder="••••••••">
+          <button type="button" class="auth-eye" data-auth-toggle="${id}" aria-pressed="false" aria-label="نمایش رمز عبور">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="M2.5 12S6 6.5 12 6.5 21.5 12 21.5 12 18 17.5 12 17.5 2.5 12 2.5 12Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="2.6" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      </div>`;
   }
 
   function codeField(value) {
     return `
-      <label class="auth-label" for="authCode">کد پیامک</label>
-      <input class="input auth-input auth-code" id="authCode" type="text" dir="ltr"
-        inputmode="numeric" autocomplete="one-time-code" maxlength="6"
-        placeholder="------" value="${escapeHtml(value || '')}">`;
+      <div class="auth-field">
+        <label class="auth-label" for="authCode">کد پیامک</label>
+        <input class="input auth-input auth-code" id="authCode" type="text" dir="ltr"
+          inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+          placeholder="------" value="${escapeHtml(value || '')}">
+      </div>`;
   }
 
   function feedback() {
@@ -248,8 +262,10 @@
         ${codeField('')}
         ${passwordField('authNewPassword', 'رمز عبور جدید', 'new-password')}
         ${passwordField('authConfirmPassword', 'تکرار رمز عبور', 'new-password')}
-        <label class="auth-label" for="authDisplayName">نام نمایشی (اختیاری)</label>
-        <input class="input auth-input" id="authDisplayName" type="text" maxlength="60" placeholder="مثلاً: متین">
+        <div class="auth-field">
+          <label class="auth-label" for="authDisplayName">نام نمایشی (اختیاری)</label>
+          <input class="input auth-input" id="authDisplayName" type="text" maxlength="60" placeholder="مثلاً: متین">
+        </div>
         ${feedback()}
         <button type="button" class="btn primary auth-submit" data-auth-action="complete-signup" ${busy ? 'disabled' : ''}>
           ${busy ? 'در حال ایجاد حساب…' : 'ایجاد حساب'}
@@ -351,14 +367,18 @@
   function renderAdminCreate() {
     return `
       ${phoneField('')}
-      <label class="auth-label" for="authRole">نقش</label>
-      <select class="input auth-input" id="authRole">
-        <option value="student">دانشآموز</option>
-        <option value="advisor">مشاور</option>
-        <option value="admin">مدیر</option>
-      </select>
-      <label class="auth-label" for="authDisplayName">نام نمایشی</label>
-      <input class="input auth-input" id="authDisplayName" type="text" maxlength="60" placeholder="اختیاری">
+      <div class="auth-field">
+        <label class="auth-label" for="authRole">نقش</label>
+        <select class="input auth-input" id="authRole">
+          <option value="student">دانشآموز</option>
+          <option value="advisor">مشاور</option>
+          <option value="admin">مدیر</option>
+        </select>
+      </div>
+      <div class="auth-field">
+        <label class="auth-label" for="authDisplayName">نام نمایشی</label>
+        <input class="input auth-input" id="authDisplayName" type="text" maxlength="60" placeholder="اختیاری">
+      </div>
       ${passwordField('authPassword', 'رمز عبور', 'new-password')}
       <button type="button" class="btn primary auth-submit" data-auth-action="admin-create" ${busy ? 'disabled' : ''}>
         ${busy ? 'در حال ایجاد…' : 'ایجاد کاربر'}
@@ -377,9 +397,11 @@
   function renderAdminLink() {
     return `
       ${phoneField('', false, 'authAdvisorPhone')}
-      <label class="auth-label" for="authStudentPhone">شماره دانشآموز</label>
-      <input class="input auth-input" id="authStudentPhone" type="tel" dir="ltr" inputmode="numeric"
-        autocomplete="off" maxlength="15" placeholder="۰۹۱۲۳۴۵۶۷۸۹">
+      <div class="auth-field">
+        <label class="auth-label" for="authStudentPhone">شماره دانشآموز</label>
+        <input class="input auth-input" id="authStudentPhone" type="tel" dir="ltr" inputmode="numeric"
+          autocomplete="off" maxlength="15" placeholder="۰۹۱۲۳۴۵۶۷۸۹">
+      </div>
       <button type="button" class="btn primary auth-submit" data-auth-action="admin-link" ${busy ? 'disabled' : ''}>
         ${busy ? 'در حال اتصال…' : 'اتصال مشاور به دانشآموز'}
       </button>`;
@@ -429,9 +451,11 @@
         <h1>اتصال مشاور</h1>
         <p>کدی را که مشاور به شما داده وارد کنید تا دسترسی به دادههایتان تأیید شود.</p>
       </div>
-      <label class="auth-label" for="authAdvisorCode">کد مشاور</label>
-      <input class="input auth-input auth-code" id="authAdvisorCode" type="text" dir="ltr"
-        inputmode="text" autocomplete="off" maxlength="16" placeholder="XXXXXXXX">
+      <div class="auth-field">
+        <label class="auth-label" for="authAdvisorCode">کد مشاور</label>
+        <input class="input auth-input auth-code" id="authAdvisorCode" type="text" dir="ltr"
+          inputmode="text" autocomplete="off" maxlength="16" placeholder="XXXXXXXX">
+      </div>
       ${feedback()}
       <button type="button" class="btn primary auth-submit" data-auth-action="accept-advisor" ${busy ? 'disabled' : ''}>
         ${busy ? 'در حال تأیید…' : 'تأیید اتصال'}
@@ -446,6 +470,7 @@
       const button = document.querySelector(`[data-auth-action="${action}"]`);
       if (button) {
         button.disabled = true;
+        button.classList.add('is-busy');
         button.textContent = '⏳…';
       }
     }
@@ -695,6 +720,19 @@
   }
 
   function handleClick(event) {
+    const toggle = event.target && event.target.closest
+      ? event.target.closest('[data-auth-toggle]') : null;
+    if (toggle) {
+      event.preventDefault();
+      const field = document.getElementById(toggle.dataset.authToggle);
+      if (field) {
+        const revealed = field.type === 'password';
+        field.type = revealed ? 'text' : 'password';
+        toggle.setAttribute('aria-pressed', String(revealed));
+        toggle.setAttribute('aria-label', revealed ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور');
+      }
+      return;
+    }
     const button = event.target.closest('[data-auth-mode],[data-auth-action],[data-auth-admin-tab]');
     if (!button) return;
     event.preventDefault();

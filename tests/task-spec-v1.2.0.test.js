@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r47', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r48', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r47'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r48'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1361,17 +1361,54 @@ test('MOBILE: login card sits at the bottom with a compact welcome above it', ()
   assert.ok(auth.includes('class="auth-mobile-welcome"'));
   assert.ok(auth.includes('class="auth-card"'));
   assert.ok(auth.includes("login: { title: 'خوش آمدید'"));
-  assert.ok(/justify-content:space-between/.test(mobile), 'top copy and form use the full screen');
+  assert.ok(/justify-content:flex-start/.test(mobile), 'header and card sit together as one stacked composition');
   assert.ok(/\.auth-mobile-top\{[\s\S]*?padding:calc\(24px \+ env\(safe-area-inset-top\)\)/.test(mobile),
     'welcome area respects the mobile status bar');
-  assert.ok(/\.auth-card\{[\s\S]*?margin-top:auto/.test(mobile),
-    'form card is pushed to the bottom on phones');
+  assert.ok(/\.auth-mobile-top\{[\s\S]*?margin-bottom:-36px/.test(mobile) &&
+    /\.auth-card\{[\s\S]*?flex:1 0 auto/.test(mobile),
+    'form card overlaps the header and fills the remaining phone height');
   assert.ok(/\.auth-card::before\{[\s\S]*?width:38px;height:4px/.test(mobile),
     'bottom card has a drag-handle style affordance');
   assert.ok(/\.auth-card\{[\s\S]*?border-radius:26px 26px 0 0/.test(mobile),
     'bottom sheet only rounds the top corners');
   assert.ok(/\.auth-mobile-welcome h1\{[\s\S]*?font-size:32px/.test(mobile));
   assert.ok(/\.auth-heading\{display:none\}/.test(mobile), 'duplicate desktop heading is hidden');
+});
+
+test('AUTH UI: branded header, overlapping white card and three dedicated layouts', () => {
+  const css = read('css/16-auth.css');
+  const auth = read('js/14-auth-ui.js');
+  const mobile = css.slice(css.indexOf('@media(max-width:760px)'));
+
+  assert.ok(/\.auth-hero\{[\s\S]*?linear-gradient\(158deg,#2b1e63/.test(css),
+    'header must keep the dark brand gradient');
+  assert.ok(/\.auth-logo\{[\s\S]*?border-radius:50%/.test(css),
+    'the square app icon must be cropped into a circular logo');
+  assert.ok(/\.auth-panel\{[\s\S]*?margin-left:-46px[\s\S]*?background:#fff/.test(css),
+    'desktop white card must overlap the branded header');
+  assert.ok(/\.auth-hero\{[\s\S]*?padding:44px 86px 44px 38px/.test(css),
+    'desktop hero text must stay clear of the overlapping card');
+  assert.ok(/\.auth-card\{[\s\S]*?border-radius:34px;background:#fff/.test(css),
+    'content card uses a large radius and a white surface');
+  assert.ok(css.includes('@media(min-width:1025px)'), 'desktop needs its own breakpoint');
+  assert.ok(css.includes('@media(min-width:761px) and (max-width:1024px)'), 'tablet needs its own breakpoint');
+  assert.ok(css.includes('@media(max-width:760px)'), 'mobile needs its own breakpoint');
+  assert.ok(/\.auth-mobile-top\{[\s\S]*?margin-bottom:-36px/.test(css),
+    'mobile card must visibly overlap the branded header');
+  assert.ok(/linear-gradient\(155deg,#2b1e63/.test(mobile),
+    'mobile header must stay dark instead of a light purple wash');
+  assert.ok(css.includes('.auth-overlay #authContent{width:100%;max-width:100%}'),
+    'auth content must fill the overlay so the card has no empty side gutters');
+  assert.ok(/\.auth-input\{[\s\S]*?border-radius:14px/.test(css) &&
+    /\.auth-input\{[\s\S]*?min-height:42px/.test(css) &&
+    /min-height:42px;padding:9px 12px;font-size:13px/.test(mobile),
+    'inputs are compact and consistently sized on every layout');
+  assert.ok(css.includes('.auth-eye{') && css.includes('.auth-submit.is-busy'),
+    'password toggle and loading state must be styled');
+  assert.ok(auth.includes('class="auth-field"'), 'fields share one consistent wrapper');
+  assert.ok(auth.includes('data-auth-toggle='), 'password fields render a visibility control');
+  assert.ok(auth.includes("field.type = revealed ? 'text' : 'password'"),
+    'visibility control toggles the existing password input');
 });
 
 test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {

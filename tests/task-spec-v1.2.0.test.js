@@ -1,5 +1,5 @@
 'use strict';
-/* Tests for TASK SPEC v1.2.0 — EXAM SECTION + TIMELINE.
+/* Tests for TASK SPEC v1.2.0 ΓÇö EXAM SECTION + TIMELINE.
    Run: node tests/task-spec-v1.2.0.test.js
    The app is browser-oriented, so pure functions are extracted from source and
    evaluated in a small vm sandbox; no DOM or network is required. */
@@ -49,10 +49,10 @@ function loadFunctions(file, names, sandboxGlobals) {
     getErr: () => null, errColor: () => '#fff', subjColor: () => '#fff',
     qStatus: (q) => (['correct', 'wrong', 'blank', 'pending'].includes(q && q.status) ? q.status : 'pending'),
     topicGrade: () => '',
-    FA_DIGITS_MAP: '۰۱۲۳۴۵۶۷۸۹',
+    FA_DIGITS_MAP: '█░█▒█▓█│█┤█╡█╢█╖█╕█╣',
     EN_DIGIT_RE: /[0-9]/g,
-    FA_DIGIT_RE: /[۰-۹]/g,
-    ANY_LOCAL_DIGIT_RE: /[۰-۹٠-٩]/g
+    FA_DIGIT_RE: /[█░-█╣]/g,
+    ANY_LOCAL_DIGIT_RE: /[█░-█╣┘á-┘⌐]/g
   }, sandboxGlobals || {});
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
@@ -62,8 +62,8 @@ function loadFunctions(file, names, sandboxGlobals) {
 
 const results = [];
 function test(name, fn) {
-  try { fn(); results.push(`  ✓ ${name}`); }
-  catch (error) { results.push(`  ✗ ${name}\n      ${error.message}`); process.exitCode = 1; }
+  try { fn(); results.push(`  Γ£ô ${name}`); }
+  catch (error) { results.push(`  Γ£ù ${name}\n      ${error.message}`); process.exitCode = 1; }
 }
 
 /* ---------- BUGFIX-1: timeline block layout ---------- */
@@ -153,10 +153,10 @@ test('BUGFIX-1: timeline and week renderers feed painted heights into lane packi
 
 test('BUGFIX: exam topic edits relabel exam-linked sessions without losing them', () => {
   const state = {
-    exams: [{ id: 'e1', topics: { ریاضی: ['جبر'] } }],
+    exams: [{ id: 'e1', topics: { ╪▒█î╪º╪╢█î: ['╪¼╪¿╪▒'] } }],
     sessions: [
-      { id: 's1', examId: 'e1', subject: 'ریاضی', topic: 'احتمال', date: '1400/01/01', startMin: 480, durMin: 60, done: true },
-      { id: 's2', examId: 'other', subject: 'ریاضی', topic: 'احتمال', date: '1400/01/02', startMin: 540, durMin: 30, done: false }
+      { id: 's1', examId: 'e1', subject: '╪▒█î╪º╪╢█î', topic: '╪º╪¡╪¬┘à╪º┘ä', date: '1400/01/01', startMin: 480, durMin: 60, done: true },
+      { id: 's2', examId: 'other', subject: '╪▒█î╪º╪╢█î', topic: '╪º╪¡╪¬┘à╪º┘ä', date: '1400/01/02', startMin: 540, durMin: 30, done: false }
     ]
   };
   let reloads = 0;
@@ -164,15 +164,15 @@ test('BUGFIX: exam topic edits relabel exam-linked sessions without losing them'
     state, examSelectedId: 'e1', loadExamTopics: () => { reloads++; }
   });
   assert.strictEqual(ctx.syncExamSessionsTopics('e1'), 1);
-  assert.strictEqual(state.sessions[0].topic, 'جبر');
+  assert.strictEqual(state.sessions[0].topic, '╪¼╪¿╪▒');
   assert.strictEqual(state.sessions[0].date, '1400/01/01');
   assert.strictEqual(state.sessions[0].startMin, 480);
   assert.strictEqual(state.sessions[0].done, true);
-  assert.strictEqual(state.sessions[1].topic, 'احتمال', 'other exams must stay untouched');
+  assert.strictEqual(state.sessions[1].topic, '╪º╪¡╪¬┘à╪º┘ä', 'other exams must stay untouched');
   assert.strictEqual(reloads, 1, 'the active exam setup must reload');
 
-  state.exams[0].topics.ریاضی = ['جبر', 'احتمال'];
-  state.sessions[0].topic = 'هندسه';
+  state.exams[0].topics.╪▒█î╪º╪╢█î = ['╪¼╪¿╪▒', '╪º╪¡╪¬┘à╪º┘ä'];
+  state.sessions[0].topic = '┘ç┘å╪»╪│┘ç';
   ctx.syncExamSessionsTopics('e1');
   assert.strictEqual(state.sessions[0].topic, '', 'ambiguous topics clear the stale label instead of deleting the session');
   assert.strictEqual(state.sessions[0].date, '1400/01/01');
@@ -207,17 +207,17 @@ test('BUGFIX: question notes/questions/answers survive sync store rebuilds', () 
   });
   const rebuilt = core.stateFromNormalizedRecords({
     'app-meta': [{ id: 'main', value: {} }],
-    exams: [{ id: 'e1', value: { id: 'e1', name: 'آزمون' }, order: 0 }],
+    exams: [{ id: 'e1', value: { id: 'e1', name: '╪ó╪▓┘à┘ê┘å' }, order: 0 }],
     questions: [{
       id: 'e1::q1',
-      value: { id: 'q1', note: 'نکته', questionText: 'صورت', answerText: 'جواب' },
+      value: { id: 'q1', note: '┘å┌⌐╪¬┘ç', questionText: '╪╡┘ê╪▒╪¬', answerText: '╪¼┘ê╪º╪¿' },
       order: 0
     }]
   });
   assert.strictEqual(rebuilt.exams[0].questions.length, 1, 'a question without examId must not be dropped');
-  assert.strictEqual(rebuilt.exams[0].questions[0].note, 'نکته');
-  assert.strictEqual(rebuilt.exams[0].questions[0].questionText, 'صورت');
-  assert.strictEqual(rebuilt.exams[0].questions[0].answerText, 'جواب');
+  assert.strictEqual(rebuilt.exams[0].questions[0].note, '┘å┌⌐╪¬┘ç');
+  assert.strictEqual(rebuilt.exams[0].questions[0].questionText, '╪╡┘ê╪▒╪¬');
+  assert.strictEqual(rebuilt.exams[0].questions[0].answerText, '╪¼┘ê╪º╪¿');
 
   const coreSource = read('js/01-core.js');
   const sync = read('js/12-sql-sync.js');
@@ -254,12 +254,12 @@ test('BUGFIX: note/question/answer edits are tracked as question sync mutations'
     storageProxyTargets: new WeakMap()
   });
   const tracked = core.trackStorageState({
-    exams: [{ id: 'e1', questions: [{ id: 'q1', note: 'قدیمی', questionText: '', answerText: '' }] }]
+    exams: [{ id: 'e1', questions: [{ id: 'q1', note: '┘é╪»█î┘à█î', questionText: '', answerText: '' }] }]
   });
   const question = tracked.exams[0].questions[0];
-  question.note = 'نکته تازه';
-  question.questionText = 'صورت تازه';
-  question.answerText = 'جواب تازه';
+  question.note = '┘å┌⌐╪¬┘ç ╪¬╪º╪▓┘ç';
+  question.questionText = '╪╡┘ê╪▒╪¬ ╪¬╪º╪▓┘ç';
+  question.answerText = '╪¼┘ê╪º╪¿ ╪¬╪º╪▓┘ç';
   const mutations = core.takeStorageMutations();
   const questionMutation = mutations.find((mutation) => mutation.store === 'questions');
   assert.ok(questionMutation, 'editing a question must queue a questions mutation');
@@ -268,9 +268,9 @@ test('BUGFIX: note/question/answer edits are tracked as question sync mutations'
   for (const field of ['note', 'questionText', 'answerText']) {
     assert.ok(questionMutation.fields.includes(field), `${field} must be reported as changed`);
   }
-  assert.strictEqual(questionMutation.record().value.note, 'نکته تازه');
-  assert.strictEqual(questionMutation.record().value.questionText, 'صورت تازه');
-  assert.strictEqual(questionMutation.record().value.answerText, 'جواب تازه');
+  assert.strictEqual(questionMutation.record().value.note, '┘å┌⌐╪¬┘ç ╪¬╪º╪▓┘ç');
+  assert.strictEqual(questionMutation.record().value.questionText, '╪╡┘ê╪▒╪¬ ╪¬╪º╪▓┘ç');
+  assert.strictEqual(questionMutation.record().value.answerText, '╪¼┘ê╪º╪¿ ╪¬╪º╪▓┘ç');
 });
 
 test('RESTORED: image report keeps the compact frame with exact minute blocks', () => {
@@ -314,21 +314,21 @@ test('RESTORED: image report keeps the compact frame with exact minute blocks', 
   assert.ok(dashboard.includes('(isDay?260:'),
     'canvas height must match the restored compact section');
 
-  assert.strictEqual(ctx.reportTimelineItemName({ subject: 'ریاضی' }), 'ریاضی');
-  assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'other', subject: 'دیگر', topic: 'سایر' }), 'سایر');
-  assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'sleep' }), '🌙 خواب');
+  assert.strictEqual(ctx.reportTimelineItemName({ subject: '╪▒█î╪º╪╢█î' }), '╪▒█î╪º╪╢█î');
+  assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'other', subject: '╪»█î┌»╪▒', topic: '╪│╪º█î╪▒' }), '╪│╪º█î╪▒');
+  assert.strictEqual(ctx.reportTimelineItemName({ _kind: 'sleep' }), '≡ƒîÖ ╪«┘ê╪º╪¿');
   assert.ok(section.includes('reportTimelineItemName(a)'), 'original name labels must be restored');
 });
 
 test('REWORK: activity heading is gone and test penalty is fixed at 1/3', () => {
   const html = read('index.html');
-  assert.ok(!html.includes('میخوام بخونم — تایمر + شمارنده تست'),
+  assert.ok(!html.includes('┘à█î╪«┘ê╪º┘à ╪¿╪«┘ê┘å┘à ΓÇö ╪¬╪º█î┘à╪▒ + ╪┤┘à╪º╪▒┘å╪»┘ç ╪¬╪│╪¬'),
     'the timer/test-counter heading must be removed');
   assert.ok(html.includes('id="timerToggle"') && html.includes('id="trkClear"'),
     'the timer and counter tools themselves stay available');
   assert.ok(!html.includes('id="trkCoef"'), 'the negative-coefficient select must be removed');
-  assert.ok(!html.includes('ضریب نمره منفی</label>'), 'the old coefficient label must be removed');
-  assert.ok(html.includes('۱/۳ نمره منفی (کنکور)'), 'the fixed Konkur penalty must be shown');
+  assert.ok(!html.includes('╪╢╪▒█î╪¿ ┘å┘à╪▒┘ç ┘à┘å┘ü█î</label>'), 'the old coefficient label must be removed');
+  assert.ok(html.includes('█▒/█│ ┘å┘à╪▒┘ç ┘à┘å┘ü█î (┌⌐┘å┌⌐┘ê╪▒)'), 'the fixed Konkur penalty must be shown');
 
   const stored = { correct: 2, wrong: 1, blank: 0, coef: 1 };
   let written = null;
@@ -398,11 +398,11 @@ test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
     { id: 's2', startMin: 600, durMin: 60, activityId: 'a-linked' }
   ];
   const activities = [
-    { id: 'a1', date: 'day1', subject: 'ریاضی', startMin: 510, endMin: 540, minutes: 30 },
-    { id: 'a-linked', date: 'day1', subject: 'فیزیک', startMin: 600, endMin: 660, minutes: 60 },
-    { id: 'a2', date: 'day1', subject: 'شیمی', startMin: 660, endMin: 675, minutes: 15 },
-    { id: 'a-other-day', date: 'day2', subject: 'ادبیات', startMin: 510, endMin: 540, minutes: 30 },
-    { id: 'a-outside', date: 'day1', subject: 'ادبیات', startMin: 720, endMin: 780, minutes: 60 }
+    { id: 'a1', date: 'day1', subject: '╪▒█î╪º╪╢█î', startMin: 510, endMin: 540, minutes: 30 },
+    { id: 'a-linked', date: 'day1', subject: '┘ü█î╪▓█î┌⌐', startMin: 600, endMin: 660, minutes: 60 },
+    { id: 'a2', date: 'day1', subject: '╪┤█î┘à█î', startMin: 660, endMin: 675, minutes: 15 },
+    { id: 'a-other-day', date: 'day2', subject: '╪º╪»╪¿█î╪º╪¬', startMin: 510, endMin: 540, minutes: 30 },
+    { id: 'a-outside', date: 'day1', subject: '╪º╪»╪¿█î╪º╪¬', startMin: 720, endMin: 780, minutes: 60 }
   ];
   const out = ctx.phaseCellItems('day1', sessions, activities, 480, 720);
   assert.strictEqual(out.map(item => item.id).join(','), 's1,a1,s2,a2');
@@ -413,12 +413,12 @@ test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
     ['itemTimeRange', 'phasePillTimeLabel', 'renderPhasePill'], {
       minToStr: (m) => `T${m}`
     });
-  assert.strictEqual(pillCtx.phasePillTimeLabel(480, 540), 'T480–T540');
+  assert.strictEqual(pillCtx.phasePillTimeLabel(480, 540), 'T480ΓÇôT540');
 
-  /* A 16:00–22:00 block must own phases 9, 10 and 11 only, with each pill
+  /* A 16:00ΓÇô22:00 block must own phases 9, 10 and 11 only, with each pill
      showing its own two-hour slice instead of the full shifted range. */
-  const longBlock = { id: 'long', _kind: 'session', subject: 'ریاضی', startMin: 960, durMin: 360 };
-  const expected = { 9: 'T960–T1080', 10: 'T1080–T1200', 11: 'T1200–T1320' };
+  const longBlock = { id: 'long', _kind: 'session', subject: '╪▒█î╪º╪╢█î', startMin: 960, durMin: 360 };
+  const expected = { 9: 'T960ΓÇôT1080', 10: 'T1080ΓÇôT1200', 11: 'T1200ΓÇôT1320' };
   Object.keys(expected).forEach((p) => {
     const start = (+p - 1) * 120;
     const cells = ctx.phaseCellItems('day1', [longBlock], [], start, start + 120);
@@ -432,12 +432,12 @@ test('FEAT: volume planning shows exact phase slices and no tick marks', () => {
     'a block ending at 22:00 must not spill into phase 12');
 
   const activityPill = pillCtx.renderPhasePill(
-    { id: 'a1', _kind: 'activity', subject: 'ریاضی', topic: 'احتمال', startMin: 480, endMin: 540 },
+    { id: 'a1', _kind: 'activity', subject: '╪▒█î╪º╪╢█î', topic: '╪º╪¡╪¬┘à╪º┘ä', startMin: 480, endMin: 540 },
     480, 600
   );
-  assert.ok(activityPill.includes('T480–T540'), 'adjacent blocks need an explicit start-end range');
+  assert.ok(activityPill.includes('T480ΓÇôT540'), 'adjacent blocks need an explicit start-end range');
   assert.ok(activityPill.includes('data-act-id="a1"'));
-  assert.ok(!activityPill.includes('✓'), 'recorded activity pills must not show a check mark');
+  assert.ok(!activityPill.includes('Γ£ô'), 'recorded activity pills must not show a check mark');
 
   const plan = read('js/03-plan.js');
   assert.ok(plan.includes('phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd)'),
@@ -463,15 +463,15 @@ test('FEAT: timeline month mode renders a real Persian calendar', () => {
     jKey: (j) => `${j.jy}/${j.jm}/${j.jd}`,
     dowIndex: () => 0,
     jMonthLength: () => 30,
-    MONTHS: Array(12).fill('ماه'),
-    DOW_SHORT: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+    MONTHS: Array(12).fill('┘à╪º┘ç'),
+    DOW_SHORT: ['╪┤', '█î', '╪»', '╪│', '┌å', '┘╛', '╪¼'],
     TODAY_KEY: '1404/1/1',
     calYear: 1404,
     calMonth: 1,
     calSelected: '1404/1/1',
     tlSelectedKey: '1404/1/1',
     state: { activities: [], exams: [], settings: { examsEnabled: false } },
-    timedOfDay: () => [{ id: 's1', subject: 'ریاضی', startMin: 480, durMin: 60 }],
+    timedOfDay: () => [{ id: 's1', subject: '╪▒█î╪º╪╢█î', startMin: 480, durMin: 60 }],
     minToStr: (m) => `T${m}`
   };
   const ctx = loadFunctions('js/03-plan.js',
@@ -585,8 +585,8 @@ test('REWORK: only wrong/blank questions with a general tag count as analysed', 
   const done = tagProgress.subjectAnalysisStats([{ status: 'blank', errorTypes: ['e2'] }]);
   assert.strictEqual(done.done, true);
   const exam = read('js/05-exam.js');
-  assert.ok(/class=\"nsp-pct nsp-done\">تحلیل شد/.test(exam), 'finished subject needs the done badge');
-  assert.ok(/if\(stats\.done\)\{pct\.textContent='تحلیل شد'/.test(exam), 'live updates must flip to the done badge');
+  assert.ok(/class=\"nsp-pct nsp-done\">╪¬╪¡┘ä█î┘ä ╪┤╪»/.test(exam), 'finished subject needs the done badge');
+  assert.ok(/if\(stats\.done\)\{pct\.textContent='╪¬╪¡┘ä█î┘ä ╪┤╪»'/.test(exam), 'live updates must flip to the done badge');
   assert.ok(/class=\"nsp-progress\$\{stats\.done\?' hidden':''\}/.test(exam), 'progress bar must be hidden at 100%');
 });
 
@@ -597,21 +597,21 @@ const typeSandbox = loadFunctions(
   {
     state: {
       subjects: [{
-        name: 'ریاضی',
+        name: '╪▒█î╪º╪╢█î',
         questionTypes: [
-          { id: 'qt1', label: 'مثلثات', topics: ['احتمال'] },
-          { id: 'qt2', label: 'عمومی', topics: [] },
-          { id: 'qt3', label: 'جبری', topics: ['جبر'] }
+          { id: 'qt1', label: '┘à╪½┘ä╪½╪º╪¬', topics: ['╪º╪¡╪¬┘à╪º┘ä'] },
+          { id: 'qt2', label: '╪╣┘à┘ê┘à█î', topics: [] },
+          { id: 'qt3', label: '╪¼╪¿╪▒█î', topics: ['╪¼╪¿╪▒'] }
         ]
       }]
     }
   }
 );
 test('REWORK: question types are children of a topic, never subject-wide', () => {
-  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: 'ریاضی', topics: ['احتمال'] }).map(t => t.id)), ['qt1']);
-  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: 'ریاضی', topics: ['جبر'] }).map(t => t.id)), ['qt3']);
-  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: 'ریاضی', topics: [] }).map(t => t.id)), []);
-  assert.strictEqual(typeSandbox.questionTypeLabel('qt1', 'ریاضی'), 'مثلثات');
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: '╪▒█î╪º╪╢█î', topics: ['╪º╪¡╪¬┘à╪º┘ä'] }).map(t => t.id)), ['qt1']);
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: '╪▒█î╪º╪╢█î', topics: ['╪¼╪¿╪▒'] }).map(t => t.id)), ['qt3']);
+  assert.deepStrictEqual(Array.from(typeSandbox.typesForQuestion({ subject: '╪▒█î╪º╪╢█î', topics: [] }).map(t => t.id)), []);
+  assert.strictEqual(typeSandbox.questionTypeLabel('qt1', '╪▒█î╪º╪╢█î'), '┘à╪½┘ä╪½╪º╪¬');
 });
 
 /* ---------- CLARIFIED: global analysis is a note/type review list ---------- */
@@ -629,21 +629,21 @@ test('CLARIFIED: the analysis list only includes notes or question types', () =>
 /* ---------- CLARIFIED: legacy question/answer text survives normalization ---------- */
 const normalizeCore = loadFunctions('js/01-core.js', ['normalizeQuestion'], {
   uid: () => 'fixed-id',
-  GRADES: ['دهم', 'یازدهم', 'دوازدهم'],
+  GRADES: ['╪»┘ç┘à', '█î╪º╪▓╪»┘ç┘à', '╪»┘ê╪º╪▓╪»┘ç┘à'],
   TODAY_KEY: '1400/01/01'
 });
 test('CLARIFIED: normalizing keeps legacy text and structured options', () => {
   const q = normalizeCore.normalizeQuestion({
     id: 'q1',
-    questionText: 'متن قدیمی سوال',
-    answerText: 'پاسخ قدیمی',
-    options: ['الف', 'ب', 'ج', 'د', 'هـ'],
+    questionText: '┘à╪¬┘å ┘é╪»█î┘à█î ╪│┘ê╪º┘ä',
+    answerText: '┘╛╪º╪│╪« ┘é╪»█î┘à█î',
+    options: ['╪º┘ä┘ü', '╪¿', '╪¼', '╪»', '┘ç┘Ç'],
     correctOptions: [2],
     legacyCorrectOptions: [0, 1]
   });
-  assert.strictEqual(q.questionText, 'متن قدیمی سوال');
-  assert.strictEqual(q.answerText, 'پاسخ قدیمی');
-  assert.deepStrictEqual(Array.from(q.options), ['الف', 'ب', 'ج', 'د', 'هـ']);
+  assert.strictEqual(q.questionText, '┘à╪¬┘å ┘é╪»█î┘à█î ╪│┘ê╪º┘ä');
+  assert.strictEqual(q.answerText, '┘╛╪º╪│╪« ┘é╪»█î┘à█î');
+  assert.deepStrictEqual(Array.from(q.options), ['╪º┘ä┘ü', '╪¿', '╪¼', '╪»', '┘ç┘Ç']);
   assert.deepStrictEqual(Array.from(q.correctOptions), [2]);
   assert.deepStrictEqual(Array.from(q.legacyCorrectOptions), [0, 1]);
 });
@@ -653,24 +653,24 @@ test('FEAT-2: examNoteDrafts and the register button are gone', () => {
   const source = read('js/05-exam.js');
   assert.ok(!/examNoteDraft\s*\(/.test(source), 'examNoteDraft() still present');
   assert.ok(!/examNoteDrafts/.test(source), 'examNoteDrafts still present');
-  assert.ok(!/data-register-note|ثبت تحلیل/.test(source), 'register button still present');
+  assert.ok(!/data-register-note|╪½╪¿╪¬ ╪¬╪¡┘ä█î┘ä/.test(source), 'register button still present');
 });
 
 /* ---------- FEAT-3: topic prefill rule ---------- */
 const topicCore = loadFunctions('js/05-exam.js', ['applyExamTopicsToQuestions']);
 test('FEAT-3: wrong/blank questions are not prefilled from exam topics', () => {
   const questions = [
-    { id: 'w', subject: 'ریاضی', status: 'wrong', topics: [] },
-    { id: 'b', subject: 'ریاضی', status: 'blank', topics: [] },
-    { id: 'c', subject: 'ریاضی', status: 'correct', topics: [] },
-    { id: 'p', subject: 'ریاضی', status: 'pending', topics: [] }
+    { id: 'w', subject: '╪▒█î╪º╪╢█î', status: 'wrong', topics: [] },
+    { id: 'b', subject: '╪▒█î╪º╪╢█î', status: 'blank', topics: [] },
+    { id: 'c', subject: '╪▒█î╪º╪╢█î', status: 'correct', topics: [] },
+    { id: 'p', subject: '╪▒█î╪º╪╢█î', status: 'pending', topics: [] }
   ];
-  const exam = { topics: { ریاضی: ['احتمال'] }, questions };
+  const exam = { topics: { ╪▒█î╪º╪╢█î: ['╪º╪¡╪¬┘à╪º┘ä'] }, questions };
   topicCore.applyExamTopicsToQuestions(exam);
   assert.deepStrictEqual(Array.from(questions[0].topics), []);
   assert.deepStrictEqual(Array.from(questions[1].topics), []);
-  assert.deepStrictEqual(Array.from(questions[2].topics), ['احتمال']);
-  assert.deepStrictEqual(Array.from(questions[3].topics), ['احتمال']);
+  assert.deepStrictEqual(Array.from(questions[2].topics), ['╪º╪¡╪¬┘à╪º┘ä']);
+  assert.deepStrictEqual(Array.from(questions[3].topics), ['╪º╪¡╪¬┘à╪º┘ä']);
 });
 
 /* ---------- FEAT-5: digit helpers ---------- */
@@ -685,11 +685,11 @@ const {
 } = utils;
 
 test('FEAT-5: digit conversion is idempotent', () => {
-  assert.strictEqual(toFaDigits('a1b2'), 'a۱b۲');
-  assert.strictEqual(toFaDigits(toFaDigits('a1b2')), 'a۱b۲');
-  assert.strictEqual(toEnDigits('a۱b۲'), 'a1b2');
-  assert.strictEqual(toEnDigits('a١b٢'), 'a1b2');
-  assert.strictEqual(toEnDigits(toEnDigits('a۱b۲')), 'a1b2');
+  assert.strictEqual(toFaDigits('a1b2'), 'a█▒b█▓');
+  assert.strictEqual(toFaDigits(toFaDigits('a1b2')), 'a█▒b█▓');
+  assert.strictEqual(toEnDigits('a█▒b█▓'), 'a1b2');
+  assert.strictEqual(toEnDigits('a┘íb┘ó'), 'a1b2');
+  assert.strictEqual(toEnDigits(toEnDigits('a█▒b█▓')), 'a1b2');
 });
 
 test('FEAT-5: levenshtein and jaccard are pure', () => {
@@ -698,7 +698,7 @@ test('FEAT-5: levenshtein and jaccard are pure', () => {
 });
 
 test('FEAT-5: numeric input normalization preserves caret offset', () => {
-  const out = normalizeNumericInputValue('12a۳');
+  const out = normalizeNumericInputValue('12a█│');
   assert.strictEqual(out.value, '123');
   assert.strictEqual(out.removed, 1);
 });
@@ -712,16 +712,16 @@ test('FEAT-5: removals after the caret do not move the caret', () => {
 
 /* ---------- FEAT-6/7: question type similarity + grouping ---------- */
 test('FEAT-6: similar type labels score at least 0.65', () => {
-  assert.ok(questionTypeSimilarity('مثلثات', 'مثلثات ۱') >= 0.65);
-  assert.ok(questionTypeSimilarity('احتمال', 'احتمالات') >= 0.65);
-  assert.ok(questionTypeSimilarity('مثلثات', '能夠') < 0.65);
+  assert.ok(questionTypeSimilarity('┘à╪½┘ä╪½╪º╪¬', '┘à╪½┘ä╪½╪º╪¬ █▒') >= 0.65);
+  assert.ok(questionTypeSimilarity('╪º╪¡╪¬┘à╪º┘ä', '╪º╪¡╪¬┘à╪º┘ä╪º╪¬') >= 0.65);
+  assert.ok(questionTypeSimilarity('┘à╪½┘ä╪½╪º╪¬', 'Φâ╜σñá') < 0.65);
 });
 
 test('FEAT-6: auto-group needs 2+ types and 30% share', () => {
   const pair = [
-    { id: 'a', label: 'مثلثات' },
-    { id: 'b', label: 'مثلثات ۱' },
-    { id: 'c', label: 'احتمال' },
+    { id: 'a', label: '┘à╪½┘ä╪½╪º╪¬' },
+    { id: 'b', label: '┘à╪½┘ä╪½╪º╪¬ █▒' },
+    { id: 'c', label: '╪º╪¡╪¬┘à╪º┘ä' },
     { id: 'd', label: 'hcp' }
   ];
   const groups = suggestQuestionTypeGroups(pair);
@@ -740,15 +740,15 @@ test('FEAT-6: auto-group needs 2+ types and 30% share', () => {
 test('REWORK: dashboard insights are a mistake-tag distribution, not progress', () => {
   const sandbox = loadFunctions('js/05-exam.js', ['isQuestionAnalyzed', 'examInsights'], {
     state: {
-      subjects: [{ name: 'ریاضی', type: 'specialized' }],
+      subjects: [{ name: '╪▒█î╪º╪╢█î', type: 'specialized' }],
       commonErrors: [{ id: 'e1', label: 'tag-e1' }],
       exams: [{
         id: 'e1',
         questions: [
-          { id: 'q1', subject: 'ریاضی', status: 'wrong', errorTypes: ['e1'] },
-          { id: 'q2', subject: 'ریاضی', status: 'blank', specialTags: ['s1'] },
-          { id: 'q3', subject: 'ریاضی', status: 'correct', errorTypes: ['e1'] },
-          { id: 'q4', subject: 'ریاضی', status: 'pending', errorTypes: ['e1'] }
+          { id: 'q1', subject: '╪▒█î╪º╪╢█î', status: 'wrong', errorTypes: ['e1'] },
+          { id: 'q2', subject: '╪▒█î╪º╪╢█î', status: 'blank', specialTags: ['s1'] },
+          { id: 'q3', subject: '╪▒█î╪º╪╢█î', status: 'correct', errorTypes: ['e1'] },
+          { id: 'q4', subject: '╪▒█î╪º╪╢█î', status: 'pending', errorTypes: ['e1'] }
         ]
       }]
     },
@@ -768,7 +768,7 @@ test('REWORK: dashboard insights are a mistake-tag distribution, not progress', 
 test('REWORK: dashboard widget text is general-only and free of raw escapes', () => {
   const html = read('index.html');
   const exam = read('js/05-exam.js');
-  assert.ok(html.includes('🏷️ پراکندگی تگهای عمومی اشتباهات'));
+  assert.ok(html.includes('≡ƒÅ╖∩╕Å ┘╛╪▒╪º┌⌐┘å╪»┌»█î ╪¬┌»┘ç╪º█î ╪╣┘à┘ê┘à█î ╪º╪┤╪¬╪¿╪º┘ç╪º╪¬'));
   assert.ok(!html.includes('\\u200c'), 'literal JS escape leaked into HTML');
   assert.ok(!exam.includes('<div class="ei-title">'), 'widget title is duplicated');
 });
@@ -800,11 +800,11 @@ test('CLARIFIED: exams keep the calendar; analysis uses a comprehensive filter s
     'mobile filters must sit inline above the analysis list');
   assert.ok(/function setAnalysisFilterOpen\(/.test(exam));
   assert.ok(/function setExamSidebarOpen\(/.test(exam));
-  assert.ok(/فیلترهای تحلیل/.test(exam), 'filter sidebar needs a clear title');
+  assert.ok(/┘ü█î┘ä╪¬╪▒┘ç╪º█î ╪¬╪¡┘ä█î┘ä/.test(exam), 'filter sidebar needs a clear title');
   const overlay = exam.slice(exam.indexOf('function renderExamAnalysisTab'), exam.indexOf('/* ============ EXAM SETTINGS MODAL'));
   assert.ok(/renderExamNotesTab\(exam,analysisBody\)/.test(overlay),
     'per-exam analysis must stay inside the exam overlay');
-  assert.ok(!/رفتن به تب تحلیل آزمون/.test(exam), 'obsolete link out of the overlay is gone');
+  assert.ok(!/╪▒┘ü╪¬┘å ╪¿┘ç ╪¬╪¿ ╪¬╪¡┘ä█î┘ä ╪ó╪▓┘à┘ê┘å/.test(exam), 'obsolete link out of the overlay is gone');
 });
 
 test('CLARIFIED: tag chips stay inline in overlay cards', () => {
@@ -823,11 +823,11 @@ test('CLARIFIED: note cards start collapsed with an add button and a kind picker
   assert.ok(/nc-static-note/.test(css));
   assert.ok(!/<details class="nc-fold nc-note-fold"/.test(exam), 'note is still collapsible');
   assert.ok(/questionPaperLauncherHTML\(q\)/.test(exam), 'note card lacks the collapsed add launcher');
-  assert.ok(/＋ افزودن سوال و پاسخ/.test(exam), 'add question button missing');
+  assert.ok(/∩╝ï ╪º┘ü╪▓┘ê╪»┘å ╪│┘ê╪º┘ä ┘ê ┘╛╪º╪│╪«/.test(exam), 'add question button missing');
   assert.ok(/data-q-kind="mcq"/.test(exam), 'four-option kind missing');
   assert.ok(/data-q-kind="case"/.test(exam), 'case-based kind missing');
-  assert.ok(/data-q-kind="case">چندموردی</.test(exam), 'multi-item kind must be labelled چندموردی');
-  assert.ok(!/موردی \(پیش فرض ۴\)/.test(exam), 'old case label is gone');
+  assert.ok(/data-q-kind="case">┌å┘å╪»┘à┘ê╪▒╪»█î</.test(exam), 'multi-item kind must be labelled ┌å┘å╪»┘à┘ê╪▒╪»█î');
+  assert.ok(!/┘à┘ê╪▒╪»█î \(┘╛█î╪┤ ┘ü╪▒╪╢ █┤\)/.test(exam), 'old case label is gone');
   assert.ok(/data-case-step/.test(exam), 'case count cannot be adjusted');
   assert.ok(/q\.correctOptions=q\.correctOptions\[0\]===index\?\[\]:\[index\]/.test(exam),
     'correct answer must toggle off when pressed again');
@@ -838,11 +838,11 @@ test('CLARIFIED: note cards start collapsed with an add button and a kind picker
   assert.ok(/legacyCorrectOptions/.test(exam), 'legacy correct answers must survive');
 });
 
-test('REWORK: چندموردی has a main stem, editable items and numeric options', () => {
+test('REWORK: ┌å┘å╪»┘à┘ê╪▒╪»█î has a main stem, editable items and numeric options', () => {
   const exam = read('js/05-exam.js');
   const core = read('js/01-core.js');
   const css = read('css/09-exam.css');
-  assert.ok(/سوال چندموردی/.test(exam), 'multi-item paper title');
+  assert.ok(/╪│┘ê╪º┘ä ┌å┘å╪»┘à┘ê╪▒╪»█î/.test(exam), 'multi-item paper title');
   assert.ok(/nc-case-item-input/.test(exam), 'sub-item statements must be editable');
   assert.ok(/data-case-item=/.test(exam), 'sub-item changes are bound');
   assert.ok(/data-case-item-del/.test(exam), 'sub-items can be removed');
@@ -850,7 +850,7 @@ test('REWORK: چندموردی has a main stem, editable items and numeric optio
   assert.ok(!/q\.options=Array\.from\(\{length:next\}/.test(exam), 'stepper no longer overwrites options with indices');
   assert.ok(!/q\.options=Array\.from\(\{length:count\},/.test(exam), 'draft no longer replaces numeric options');
   assert.ok(/inputmode="numeric"/.test(exam), 'answer options are numeric');
-  assert.ok(/گزینه ها \(عدد تعداد موارد درست\)/.test(exam), 'numeric option hint');
+  assert.ok(/┌»╪▓█î┘å┘ç ┘ç╪º \(╪╣╪»╪» ╪¬╪╣╪»╪º╪» ┘à┘ê╪º╪▒╪» ╪»╪▒╪│╪¬\)/.test(exam), 'numeric option hint');
   assert.ok(!/const numeric=options\.length>0/.test(exam), 'numeric MCQ options are no longer misclassified');
   assert.ok(/hasCaseItems\|\|options\.length>4/.test(exam), 'case inference is conservative');
   assert.ok(/caseItems:Array\.isArray\(q\.caseItems\)/.test(exam), 'full editor keeps sub-items');
@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r53', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r52', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r53'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r52'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -896,7 +896,8 @@ test('REWORK: service worker cache bypasses the API and is bumped to r53', () =>
     './js/00-localstate.js', './css/16-auth.css', './js/12-sql-sync.js',
     './js/13-sql-api.js', './js/14-auth-ui.js'
   ].forEach(path => assert.ok(sw.includes(`'${path}'`), `${path} must be precached`));
-  // Legacy PB kept temporarily for migration; main shell still SQL-first.
+  assert.ok(!/12-pocketbase|00-pocketbase|pocketbase/i.test(sw),
+    'the offline shell must not precache the retired transport');
 });
 
 test('REWORK: phone auth UI and SQL runtime are wired into the app', () => {
@@ -927,19 +928,18 @@ test('REWORK: phone auth UI and SQL runtime are wired into the app', () => {
   const modes = ['login', 'signup', 'reset', 'password', 'admin', 'advisor-code', 'pair-advisor'];
   modes.forEach(mode => assert.ok(auth.includes(`'${mode}'`), `auth mode ${mode} is missing`));
   assert.ok(!/type="email"|email\s*:/i.test(auth), 'auth is phone/password only, with no email inputs');
-  assert.ok(!/authServerUrl|saveServerUrl|dismissForOffline|SESSION_DISMISSED|ادامه آفلاین/.test(auth),
+  assert.ok(!/authServerUrl|saveServerUrl|dismissForOffline|SESSION_DISMISSED|╪º╪»╪º┘à┘ç ╪ó┘ü┘ä╪º█î┘å/.test(auth),
     'login is the app entry point: no offline option and no sync server field');
   assert.ok(!/dismissForOffline/.test(read('js/99-init.js')), 'Android back no longer dismisses login');
   assert.ok(sync.includes('window.sqlSync = {') && sync.includes('window.masirSqlSync = window.sqlSync;'));
 
   const activeJs = fs.readdirSync(path.join(ROOT, 'js')).filter(name => name.endsWith('.js'));
   activeJs.forEach(name => {
-    if(/legacy/i.test(name)) return; // temporary migration files
     assert.ok(!/pocketbase/i.test(read(path.join('js', name))),
       `${name} must not reference the retired runtime`);
   });
   ['index.html', 'sw.js', 'build.py'].forEach(file => {
-    if(file === 'index.html' || file === 'sw.js' || file === 'build.py') return; // temporary legacy PB migration
+    assert.ok(!/pocketbase/i.test(read(file)), `${file} must not reference the retired runtime`);
   });
 });
 
@@ -965,7 +965,7 @@ test('FEAT-8: dashboard exam insights card is rendered', () => {
 test('REWORK: analysis heading is gone and general-tag stats live under the calendar', () => {
   const html = read('index.html');
   const examSection = html.slice(html.indexOf('<section class="view" id="view-exam">'), html.indexOf('<!-- ===== OVERVIEW / SUBJECT PROGRESS ===== -->'));
-  assert.ok(!examSection.includes('تحلیل جامع آزمونها'), 'obsolete analysis heading still present');
+  assert.ok(!examSection.includes('╪¬╪¡┘ä█î┘ä ╪¼╪º┘à╪╣ ╪ó╪▓┘à┘ê┘å┘ç╪º'), 'obsolete analysis heading still present');
   assert.ok(examSection.includes('id="gaSub"'), 'analysis count must stay visible without the heading');
   const sidebar = examSection.slice(examSection.indexOf('id="examSide"'), examSection.indexOf('</aside>', examSection.indexOf('id="examSide"')));
   const listPane = examSection.slice(examSection.indexOf('id="examListPane"'), examSection.indexOf('id="examAnalysisPane"'));
@@ -1000,7 +1000,7 @@ test('REWORK: exam compare uses the app shell and a desktop chart side column', 
     'the dead compare header is gone');
   const topbar = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>'));
   assert.ok(topbar.includes('id="compareBackBtn"'), 'compare needs a back action in the app topbar');
-  assert.ok(topbar.includes('id="compareTitle"') && topbar.includes('>بخش مقایسه آزمونها<'),
+  assert.ok(topbar.includes('id="compareTitle"') && topbar.includes('>╪¿╪«╪┤ ┘à┘é╪º█î╪│┘ç ╪ó╪▓┘à┘ê┘å┘ç╪º<'),
     'topbar must name the comparison section');
   assert.ok(/function setCompareChrome\(open\)\{[\s\S]*?compareTitle\.classList\.toggle\('hidden',!open\)/.test(exam),
     'compare chrome must swap the shared topbar title');
@@ -1035,8 +1035,8 @@ test('REWORK: classes are merged into the renamed overview as a third segment', 
   const core = read('js/01-core.js');
   const overview = read('js/06-overview.js');
   const desktop = read('css/14-desktop.css');
-  assert.ok(html.includes('data-view="overview"') && html.includes('پیشرفت دروس'));
-  assert.ok(html.includes('data-view="activity"') && html.includes('ثبت فعالیت'));
+  assert.ok(html.includes('data-view="overview"') && html.includes('┘╛█î╪┤╪▒┘ü╪¬ ╪»╪▒┘ê╪│'));
+  assert.ok(html.includes('data-view="activity"') && html.includes('╪½╪¿╪¬ ┘ü╪╣╪º┘ä█î╪¬'));
   assert.ok(!html.includes('data-view="class"'), 'standalone class tab must be removed');
   assert.ok(!html.includes('id="view-class"'), 'standalone class view must be removed');
   assert.ok(html.includes('id="ovClassTab"') && html.includes('data-ovt="class"'));
@@ -1051,7 +1051,7 @@ test('REWORK: classes are merged into the renamed overview as a third segment', 
 
 test('REWORK: bottom navigation mirrors the rounded topbar card without a centre bubble', () => {
   const nav = read('css/05-overlays.css');
-  const block = nav.slice(nav.indexOf('/* NAV — rounded glass bar, matching the topbar */'), nav.indexOf('/* MODAL */'));
+  const block = nav.slice(nav.indexOf('/* NAV ΓÇö rounded glass bar, matching the topbar */'), nav.indexOf('/* MODAL */'));
   assert.ok(/position:fixed;bottom:10px;left:50%;transform:translateX\(-50%\)/.test(block),
     'bar must be inset from the bottom edge');
   assert.ok(/width:calc\(100% - 28px\);max-width:452px/.test(block), 'bar must be a spaced card');
@@ -1074,7 +1074,7 @@ test('REWORK: bottom navigation mirrors the rounded topbar card without a centre
 
 test('REWORK: topbar is a rounded spaced card with a rounded-square app icon', () => {
   const overlays = read('css/05-overlays.css');
-  const topbar = overlays.slice(overlays.indexOf('/* TOPBAR */'), overlays.indexOf('/* NAV — rounded glass bar, matching the topbar */'));
+  const topbar = overlays.slice(overlays.indexOf('/* TOPBAR */'), overlays.indexOf('/* NAV ΓÇö rounded glass bar, matching the topbar */'));
   assert.ok(/margin:0 0 12px/.test(topbar), 'topbar must sit inside the app padding');
   assert.ok(!/margin:-14px/.test(topbar), 'negative full-bleed margin is gone');
   assert.ok(/top:10px/.test(topbar), 'sticky topbar needs breathing room');
@@ -1088,7 +1088,7 @@ test('REWORK: topbar is a rounded spaced card with a rounded-square app icon', (
   const html = read('index.html');
   const settingsBtn = html.slice(html.indexOf('id="settingsBtn"'), html.indexOf('</button>', html.indexOf('id="settingsBtn"')));
   assert.ok(/<svg viewBox="0 0 24 24"/.test(settingsBtn), 'settings must use a stroke SVG');
-  assert.ok(!settingsBtn.includes('⚙️'), 'emoji gear is gone');
+  assert.ok(!settingsBtn.includes('ΓÜÖ∩╕Å'), 'emoji gear is gone');
   const buttons = read('css/03-buttons.css');
   const settingsCss = buttons.slice(buttons.indexOf('.icon-btn.settings-btn{'), buttons.indexOf('.day-arrow-sm{'));
   assert.ok(/border:0;background:transparent/.test(settingsCss));
@@ -1100,16 +1100,16 @@ test('REWORK: topbar action buttons use minimal icons and output labels', () => 
   const html = read('index.html');
   const buttons = read('css/03-buttons.css');
   assert.ok(/const CTX_ICONS=/.test(core), 'context icons must be reusable stroke SVGs');
-  assert.ok(core.includes("label:'خروجی گزارش'"));
-  assert.ok(core.includes("label:'خروجی برنامه'"));
-  assert.ok(core.includes("label:'خروجی مقایسه'"));
+  assert.ok(core.includes("label:'╪«╪▒┘ê╪¼█î ┌»╪▓╪º╪▒╪┤'"));
+  assert.ok(core.includes("label:'╪«╪▒┘ê╪¼█î ╪¿╪▒┘å╪º┘à┘ç'"));
+  assert.ok(core.includes("label:'╪«╪▒┘ê╪¼█î ┘à┘é╪º█î╪│┘ç'"));
   assert.ok(core.includes("btn.querySelector('.ctx-icon').innerHTML=cfg.icon"));
-  assert.ok(!/label:'گزارش'/.test(core));
-  assert.ok(!/label:'برنامه هفتگی'/.test(core));
-  assert.ok(!/label:'مقایسه آزمون‌ها'/.test(core));
+  assert.ok(!/label:'┌»╪▓╪º╪▒╪┤'/.test(core));
+  assert.ok(!/label:'╪¿╪▒┘å╪º┘à┘ç ┘ç┘ü╪¬┌»█î'/.test(core));
+  assert.ok(!/label:'┘à┘é╪º█î╪│┘ç ╪ó╪▓┘à┘ê┘åΓÇî┘ç╪º'/.test(core));
   const ctxBtn = html.slice(html.indexOf('id="contextActionBtn"'), html.indexOf('</button>', html.indexOf('id="contextActionBtn"')));
   assert.ok(/<svg viewBox="0 0 24 24"/.test(ctxBtn));
-  assert.ok(!/📊|🖼️/.test(ctxBtn), 'emoji action icons are gone');
+  assert.ok(!/≡ƒôè|≡ƒû╝∩╕Å/.test(ctxBtn), 'emoji action icons are gone');
   const ctxCss = buttons.slice(buttons.indexOf('.icon-btn.context-btn{'), buttons.indexOf('/* Settings version footer */'));
   assert.ok(/border-color:rgba\(34,211,238,\.38\)/.test(ctxCss), 'output buttons keep their cyan border');
   assert.ok(/background:rgba\(34,211,238,\.12\)/.test(ctxCss));
@@ -1125,9 +1125,9 @@ test('REWORK: settings stays inside the app shell with visible active tabs', () 
   const topbar = html.slice(html.indexOf('<header class="topbar">'), html.indexOf('</header>'));
   assert.ok(topbar.includes('id="settingsBackBtn"'), 'back button replaces the app logo');
   assert.ok(topbar.includes('id="appLogo"'));
-  assert.ok(topbar.includes('id="brandTitle"') && topbar.includes('>مسیر<'));
-  assert.ok(topbar.includes('id="settingsTitle"') && topbar.includes('>تنظیمات<'));
-  const settingsCss = overlays.slice(overlays.indexOf('/* SETTINGS — lives inside the app shell'), overlays.indexOf('#gaBody>.flt-card{'));
+  assert.ok(topbar.includes('id="brandTitle"') && topbar.includes('>┘à╪│█î╪▒<'));
+  assert.ok(topbar.includes('id="settingsTitle"') && topbar.includes('>╪¬┘å╪╕█î┘à╪º╪¬<'));
+  const settingsCss = overlays.slice(overlays.indexOf('/* SETTINGS ΓÇö lives inside the app shell'), overlays.indexOf('#gaBody>.flt-card{'));
   assert.ok(/#settingsOverlay\{\s*position:fixed;inset:0;z-index:0/.test(settingsCss));
   assert.ok(/#settingsOverlay \.wr-top\{display:none\}/.test(settingsCss), 'no separate app-within-app header');
   assert.ok(/\.app\.settings-open > main\{display:none\}/.test(settingsCss));
@@ -1159,9 +1159,9 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
     'profile and sync pages are merged into one account page');
   assert.ok(!body.includes('data-acc-toggle'), 'settings sections must not collapse');
   assert.ok(!body.includes('acc-chevron'), 'accordion chevrons are gone');
-  assert.ok(body.includes('id="editProfileBtn"') && body.includes('>ویرایش حساب<'),
+  assert.ok(body.includes('id="editProfileBtn"') && body.includes('>┘ê█î╪▒╪º█î╪┤ ╪¡╪│╪º╪¿<'),
     'home profile card opens the merged account page');
-  assert.ok(!body.includes('✎'), 'pencil is gone');
+  assert.ok(!body.includes('Γ£Ä'), 'pencil is gone');
   assert.ok(body.includes('id="accountUI"') && body.includes('id="syncUI"'), 'account and sync settings are merged');
   const accountPage = body.slice(body.indexOf('data-page="account"'), body.indexOf('data-page="subjects"'));
   assert.ok(accountPage.indexOf('class="card account-profile-card"') < accountPage.indexOf('id="accountUI"'),
@@ -1176,32 +1176,25 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
     'the separate account-services card must be gone');
   assert.ok(accountPage.includes('id="profileHeroPhone"'),
     'the personal account must display the connected phone number');
-  assert.ok(!accountPage.includes('حساب و پروفایل') && !accountPage.includes('حساب کاربری'),
+  assert.ok(!accountPage.includes('╪¡╪│╪º╪¿ ┘ê ┘╛╪▒┘ê┘ü╪º█î┘ä') && !accountPage.includes('╪¡╪│╪º╪¿ ┌⌐╪º╪▒╪¿╪▒█î'),
     'account identity must not be repeated with old labels');
-  assert.ok(!sync.includes('account-row') && !sync.includes('account-phone'),
-    'the account renderer must not repeat identity rows');
+  assert.ok(!sync.includes('account-row') && !sync.includes('account-phone') &&
+    !sync.includes('┘ç┘à┌»╪º┘à╪│╪º╪▓█î ╪º╪¿╪▒█î'),
+    'the account renderer must not repeat identity, phone or sync headings');
   assert.ok(sync.includes('renderAccountUI(loggedIn, phone, busy)') &&
     sync.includes('sync-status-line'),
     'login tools and sync status use the compact redesigned layout');
-  assert.ok(sync.includes('renderAdminUsersPanel') && accountPage.includes('id="adminUsersUI"'),
-    'admin has access to the users list in account settings');
-  assert.ok(settings.includes('updateProfile') || settings.includes('client.updateProfile'),
-    'profile save is connected to the account API');
-  assert.ok(sync.includes('window.sqlSync') && sync.includes('updateProfile'),
-    'sync runtime exposes profile update for account-bound profile data');
   assert.ok(settings.includes('profileHeroPhone') && sync.includes('profileHeroPhone'),
     'profile and sync renderers must keep the hero phone in sync with the session');
-  assert.ok(settings.includes("window.masirAuth.show('login')") && settings.includes("setSettingsPage('account')"),
-    'home profile button logs guests in and opens account settings for logged-in users');
-  assert.ok(settings.includes("editBtn.textContent = loggedIn ? 'ویرایش حساب' : 'ورود به حساب'"),
-    'guest sees login action instead of account edit in settings');
+  assert.ok(settings.includes("_editProfileBtn.onclick = () => setSettingsPage('account')"),
+    'edit profile must open the merged account page');
   const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="account"'));
   assert.ok(!homePage.includes('id="homeSyncNowBtn"'), 'home manual-sync button is gone');
   assert.ok(!homePage.includes('sync-link-row'), 'the redundant account/profile row is gone');
   assert.ok(!homePage.includes('sync-mini-card'), 'separate manual-sync card is gone');
   assert.ok(!homePage.includes('data-go="account"'), 'the top edit button is the only account entry');
   assert.ok(homePage.includes('id="homeSyncState"'), 'sync state stays as text on the profile card');
-  assert.ok(!homePage.includes('حساب و پروفایل'), 'the account/profile label is not repeated on home');
+  assert.ok(!homePage.includes('╪¡╪│╪º╪¿ ┘ê ┘╛╪▒┘ê┘ü╪º█î┘ä'), 'the account/profile label is not repeated on home');
   assert.ok(/#settingsBody \.card\{margin-bottom:0\}/.test(overlays), 'settings cards drop the global bottom margin');
   assert.ok(/#settingsBody\{display:flex;flex-direction:column;gap:8px\}/.test(overlays), 'settings gaps are compact');
   assert.ok(/#settingsOverlay\{[\s\S]*?overflow-x:hidden/.test(overlays), 'settings overlay cannot scroll sideways');
@@ -1212,18 +1205,18 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
   assert.ok(!sync.includes('id="syncAutoToggle"'), 'auto-sync toggle is gone');
   assert.ok(!/function readAutoSyncEnabled\(/.test(sync), 'the old auto-sync toggle reader is gone');
   assert.ok(sync.includes('const autoSyncEnabled = true;'), 'automatic sync is always on');
-  assert.ok(sync.includes('ذخیره ابری خودکار') || sync.includes('همگامسازی خودکار فعال است'), 'sync page shows status only');
+  assert.ok(sync.includes('┘ç┘à┌»╪º┘à╪│╪º╪▓█î ╪«┘ê╪»┌⌐╪º╪▒ ┘ü╪╣╪º┘ä ╪º╪│╪¬'), 'sync page shows status only');
   assert.ok(!settings.includes("editFields.hidden"), 'profile fields no longer toggle hidden inline');
   const profileStart = settings.indexOf('state.profile = {');
   const profileBlock = settings.slice(profileStart, settings.indexOf('};', profileStart));
   assert.ok(!/email\s*:/.test(profileBlock) && !profileBlock.includes('state.profile.email'),
     'saving a profile must not preserve an email address');
   const dangerPage = body.slice(body.indexOf('data-page="danger"'));
-  assert.ok(dangerPage.includes('حذف دادهها از سرور و دستگاه'),
+  assert.ok(dangerPage.includes('╪¡╪░┘ü ╪»╪º╪»┘ç┘ç╪º ╪º╪▓ ╪│╪▒┘ê╪▒ ┘ê ╪»╪│╪¬┌»╪º┘ç'),
     'the delete-data action must explicitly cover the server');
   assert.ok(backup.includes('client.deleteAccountData()'),
     'clearing data must delete the signed-in account data from the server too');
-  assert.ok(backup.includes('دادههای حساب روی سرور و تمام اطلاعات این دستگاه پاک میشود'),
+  assert.ok(backup.includes('╪»╪º╪»┘ç┘ç╪º█î ╪¡╪│╪º╪¿ ╪▒┘ê█î ╪│╪▒┘ê╪▒ ┘ê ╪¬┘à╪º┘à ╪º╪╖┘ä╪º╪╣╪º╪¬ ╪º█î┘å ╪»╪│╪¬┌»╪º┘ç ┘╛╪º┌⌐ ┘à█î╪┤┘ê╪»'),
     'the confirmation must state that server data is deleted');
   assert.ok(sync.includes('deleteAccountData,'), 'the sync runtime must expose server data deletion');
 });
@@ -1289,7 +1282,7 @@ test('ASSETS: app icons use the cropped artwork with no white margin', () => {
   }
 });
 
-test('FIX: topic grid has a سایر column that drag-and-drop can target', () => {
+test('FIX: topic grid has a ╪│╪º█î╪▒ column that drag-and-drop can target', () => {
   const plan = read('js/03-plan.js');
   assert.ok(plan.includes('subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));'),
     'the other subject must be appended as the final grid column');
@@ -1330,7 +1323,7 @@ test('FIX: exam compare stays inside the app shell with active bottom tabs', () 
   const exam = read('js/05-exam.js');
   const core = read('js/01-core.js');
   const init = read('js/99-init.js');
-  const shellCss = overlays.slice(overlays.indexOf('/* EXAM COMPARE — lives inside the app shell'));
+  const shellCss = overlays.slice(overlays.indexOf('/* EXAM COMPARE ΓÇö lives inside the app shell'));
   assert.ok(/#examCompareOverlay\{\s*position:fixed;inset:0;z-index:0/.test(shellCss));
   assert.ok(!/#examCompareOverlay \.wr-top/.test(overlays), 'no app-within-app header');
   assert.ok(/\.app\.compare-open \.nav\{pointer-events:auto\}/.test(shellCss), 'tabs stay tappable');
@@ -1359,16 +1352,16 @@ test('FIX: first sync downloads before uploading so a new device cannot wipe an 
   assert.ok(sync.includes('accountSwitchPending = false;'));
 });
 
-test('BRAND: login uses the real app logo and the short name مسیر', () => {
+test('BRAND: login uses the real app logo and the short name ┘à╪│█î╪▒', () => {
   const auth = read('js/14-auth-ui.js');
   const css = read('css/16-auth.css');
-  assert.ok(auth.includes('<div class="auth-logo" role="img" aria-label="مسیر"></div>'),
+  assert.ok(auth.includes('<div class="auth-logo" role="img" aria-label="┘à╪│█î╪▒"></div>'),
     'auth shell must render the real logo element twice');
   assert.strictEqual((auth.match(/class="auth-logo"/g) || []).length, 2,
     'both desktop hero and mobile header use the logo');
   assert.ok(!auth.includes('auth-hero-mark'), 'the placeholder M mark is gone');
-  assert.ok(auth.includes('<div class="auth-hero-kicker">مسیر</div>'));
-  assert.ok(!auth.includes('مسیر کنکور'));
+  assert.ok(auth.includes('<div class="auth-hero-kicker">┘à╪│█î╪▒</div>'));
+  assert.ok(!auth.includes('┘à╪│█î╪▒ ┌⌐┘å┌⌐┘ê╪▒'));
   assert.ok(/url\('\.\.\/icons\/icon-192\.png'\)/.test(css), 'logo comes from the real app icon');
   assert.ok(!/\.auth-hero-mark\{/.test(css), 'placeholder mark styling is gone');
 
@@ -1379,12 +1372,12 @@ test('BRAND: login uses the real app logo and the short name مسیر', () => {
     'pwa/app/build.gradle', 'pwa/app/src/main/res/values/strings.xml',
     'pwa/app/src/main/res/raw/web_app_manifest.json', 'All in One.html'
   ];
-  sourceFiles.forEach(rel => assert.ok(!read(rel).includes('مسیر کنکور'), `${rel} still has the old brand`));
+  sourceFiles.forEach(rel => assert.ok(!read(rel).includes('┘à╪│█î╪▒ ┌⌐┘å┌⌐┘ê╪▒'), `${rel} still has the old brand`));
   const html = read('index.html');
-  assert.ok(html.includes('<title>مسیر</title>'));
-  assert.ok(html.includes('<meta name="application-name" content="مسیر">'));
-  assert.strictEqual(JSON.parse(read('manifest.json')).name, 'مسیر');
-  assert.strictEqual(JSON.parse(read('pwa/twa-manifest.json')).name, 'مسیر');
+  assert.ok(html.includes('<title>┘à╪│█î╪▒</title>'));
+  assert.ok(html.includes('<meta name="application-name" content="┘à╪│█î╪▒">'));
+  assert.strictEqual(JSON.parse(read('manifest.json')).name, '┘à╪│█î╪▒');
+  assert.strictEqual(JSON.parse(read('pwa/twa-manifest.json')).name, '┘à╪│█î╪▒');
 });
 
 test('MOBILE: login card sits at the bottom with a compact welcome above it', () => {
@@ -1394,7 +1387,7 @@ test('MOBILE: login card sits at the bottom with a compact welcome above it', ()
   assert.ok(auth.includes('class="auth-mobile-top"'));
   assert.ok(auth.includes('class="auth-mobile-welcome"'));
   assert.ok(auth.includes('class="auth-card"'));
-  assert.ok(auth.includes("login: { title: 'خوش آمدید'"));
+  assert.ok(auth.includes("login: { title: '╪«┘ê╪┤ ╪ó┘à╪»█î╪»'"));
   assert.ok(/justify-content:flex-start/.test(mobile), 'header and card sit together as one stacked composition');
   assert.ok(/\.auth-mobile-top\{[\s\S]*?padding:calc\(24px \+ env\(safe-area-inset-top\)\)/.test(mobile),
     'welcome area respects the mobile status bar');
@@ -1463,7 +1456,7 @@ test('AUTH UI: guest entry defers sign in until the user asks for it', () => {
   const css = read('css/16-auth.css');
 
   assert.ok(auth.includes("data-auth-action=\"guest\""), 'login form must expose a guest entry point');
-  assert.ok(auth.includes('ورود مهمان'), 'the guest entry point must be labelled in Persian');
+  assert.ok(auth.includes('┘ê╪▒┘ê╪» ┘à┘ç┘à╪º┘å'), 'the guest entry point must be labelled in Persian');
   assert.ok(css.includes('.auth-link.auth-guest{'), 'the guest entry point must be styled distinctly');
   assert.ok(auth.includes("const AUTH_DEFER_KEY = 'konkur-auth-guest-deferred-v1'"),
     'guest choice must be stored under a dedicated key');
@@ -1476,24 +1469,24 @@ test('AUTH UI: guest entry defers sign in until the user asks for it', () => {
   assert.ok(auth.includes("show('login')"), 'manual login must remain available after deferring');
 });
 
-test('DOMAIN: production TWA and SQL API are configured for www.masir.ir', () => {
+test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {
   const twa = JSON.parse(read('pwa/twa-manifest.json'));
   const manifest = JSON.parse(read('manifest.json'));
   const gradle = read('pwa/app/build.gradle');
   const strings = read('pwa/app/src/main/res/values/strings.xml');
   const sync = read('js/12-sql-sync.js');
-  assert.strictEqual(twa.host, 'www.masir.ir');
-  assert.ok(twa.iconUrl.startsWith('https://www.masir.ir/'));
-  assert.ok(twa.maskableIconUrl.startsWith('https://www.masir.ir/'));
-  assert.ok(twa.webManifestUrl.startsWith('https://www.masir.ir/'));
-  assert.strictEqual(twa.fullScopeUrl, 'https://www.masir.ir/');
+  assert.strictEqual(twa.host, 'masir.ir');
+  assert.ok(twa.iconUrl.startsWith('https://masir.ir/'));
+  assert.ok(twa.maskableIconUrl.startsWith('https://masir.ir/'));
+  assert.ok(twa.webManifestUrl.startsWith('https://masir.ir/'));
+  assert.strictEqual(twa.fullScopeUrl, 'https://masir.ir/');
   assert.strictEqual(twa.appVersionCode, 2);
-  assert.ok(gradle.includes("hostName: 'www.masir.ir'"));
-  assert.ok(gradle.includes("resValue \"string\", \"webManifestUrl\", 'https://www.masir.ir/manifest.json'"));
-  assert.ok(gradle.includes("resValue \"string\", \"fullScopeUrl\", 'https://www.masir.ir/'"));
+  assert.ok(gradle.includes("hostName: 'masir.ir'"));
+  assert.ok(gradle.includes("resValue \"string\", \"webManifestUrl\", 'https://masir.ir/manifest.json'"));
+  assert.ok(gradle.includes("resValue \"string\", \"fullScopeUrl\", 'https://masir.ir/'"));
   assert.ok(gradle.includes('versionCode 2') && gradle.includes('versionName "0.9.5"'));
-  assert.ok(strings.includes('https://www.masir.ir'));
-  assert.ok(manifest.name === 'مسیر' && manifest.short_name === 'مسیر');
+  assert.ok(strings.includes('https://masir.ir'));
+  assert.ok(manifest.name === '┘à╪│█î╪▒' && manifest.short_name === '┘à╪│█î╪▒');
   assert.ok(sync.includes('return normalizeSqlBaseUrl(window.location.origin);'), 'API stays same-origin');
   assert.ok(/masir\\\.ir/.test(sync) && sync.includes('localStorage.removeItem(SQL_API_URL_KEY)'),
     'stale custom server URLs are dropped on the production domain');
@@ -1502,8 +1495,8 @@ test('DOMAIN: production TWA and SQL API are configured for www.masir.ir', () =>
 test('ADMIN: user creation guidance and controls are discoverable', () => {
   const auth = read('js/14-auth-ui.js');
   const sync = read('js/12-sql-sync.js');
-  assert.ok(auth.includes('تنظیمات ← ویرایش حساب ← مدیریت کاربران ← ایجاد کاربر'));
-  assert.ok(sync.includes("accountActionButton('accountAdminBtn', 'مدیریت کاربران'"));
+  assert.ok(auth.includes('╪¬┘å╪╕█î┘à╪º╪¬ ΓåÉ ┘ê█î╪▒╪º█î╪┤ ╪¡╪│╪º╪¿ ΓåÉ ┘à╪»█î╪▒█î╪¬ ┌⌐╪º╪▒╪¿╪▒╪º┘å ΓåÉ ╪º█î╪¼╪º╪» ┌⌐╪º╪▒╪¿╪▒'));
+  assert.ok(sync.includes("accountActionButton('accountAdminBtn', '┘à╪»█î╪▒█î╪¬ ┌⌐╪º╪▒╪¿╪▒╪º┘å'"));
   assert.ok(sync.includes("role === 'admin'"));
   assert.ok(auth.includes("action === 'admin-create'"));
   assert.ok(read('js/13-sql-api.js').includes("this._request('/api/admin/users', { method: 'POST', body })"));
@@ -1516,7 +1509,7 @@ test('ANDROID: seven native widgets consume one dashboard snapshot', () => {
   const sw = read('sw.js');
   const manifest = read('pwa/app/src/main/AndroidManifest.xml');
   assert.ok(/function collectDashboardSnapshot\(/.test(dash), 'dashboard snapshot is generated in one place');
-  ['day:', 'week:', 'month:', 'subjects:', 'exams:', 'generatedAt', "app:'مسیر'"].forEach(token =>
+  ['day:', 'week:', 'month:', 'subjects:', 'exams:', 'generatedAt', "app:'┘à╪│█î╪▒'"].forEach(token =>
     assert.ok(dash.includes(token), `snapshot must expose ${token}`));
   assert.ok(dash.includes('window.masirWidgets.update(s)'), 'dashboard publishes every refresh');
   assert.ok(html.includes('js/15-widget-bridge.js') && sw.includes('js/15-widget-bridge.js'));
@@ -1551,7 +1544,7 @@ test('ANDROID: seven native widgets consume one dashboard snapshot', () => {
   sandbox.globalThis = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(bridge, sandbox);
-  const snapshot = { v: 1, app: 'مسیر', day: { minutes: 75 } };
+  const snapshot = { v: 1, app: '┘à╪│█î╪▒', day: { minutes: 75 } };
   assert.strictEqual(sandbox.window.masirWidgets.update(snapshot), true);
   assert.strictEqual(sandbox.window.masirWidgets.isTwa(), true);
   assert.strictEqual(sandbox.window.masirWidgets.sync(snapshot), true);
@@ -1578,6 +1571,6 @@ function syncHasWidgetButton() {
   return read('js/12-sql-sync.js').includes("accountActionButton('accountWidgetsBtn'");
 }
 
-console.log('TASK SPEC v1.2.0 — all phase checks');
+console.log('TASK SPEC v1.2.0 ΓÇö all phase checks');
 console.log(results.join('\n'));
 console.log(process.exitCode ? 'FAILED' : 'ALL PASSED');

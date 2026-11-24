@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-build.py — bundle the app into a single offline HTML file.
+build.py ΓÇö bundle the app into a single offline HTML file.
 
 Source files are discovered automatically, so adding/renaming a tab module only
 requires updating index.html (or using the same numeric prefix convention).
@@ -130,12 +130,11 @@ def main() -> None:
 
     css_files = discover(CSS_DIR, ".css")
     js_files = discover(JS_DIR, ".js")
-    legacy_js_files = sorted((ROOT / 'legacy').glob('*.js'), key=lambda p: p.name) if (ROOT / 'legacy').exists() else []
     html = read(HTML_FILE)
 
     print(f"HTML: {HTML_FILE.name}")
     print(f"CSS : {len(css_files)} files")
-    print(f"JS  : {len(js_files)} files (+{len(legacy_js_files)} legacy)\n")
+    print(f"JS  : {len(js_files)} files\n")
 
     css_parts: list[str] = []
     for path in css_files:
@@ -169,8 +168,6 @@ def main() -> None:
         for href in re.findall(r'<link[^>]*href=["\']([^"\']+\.css)["\']', html)
         if not is_external(href)
     ]
-    # Temporary migration legacy scripts may be inlined by custom path handling.
-    leftover_local = [x for x in leftover_local if not x.startswith('legacy/')]
     if leftover_local:
         print("  error: local assets were not inlined:")
         for item in leftover_local:

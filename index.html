@@ -523,13 +523,7 @@
           <span class="set-link-arrow">‹</span>
         </button>
 
-        <button type="button" class="card settings-link" data-go="backup" id="backupSettingsLink">
-          <span class="set-link-icon">📥</span>
-          <span class="set-link-copy"><b>بازیابی اطلاعات قدیمی</b><small>وارد کردن فایل بکاپ قدیمی برای کاربران قبلی</small></span>
-          <span class="set-link-arrow">‹</span>
-        </button>
-
-        <button type="button" class="card settings-link" id="installAppBtn" hidden>
+<button type="button" class="card settings-link" id="installAppBtn" hidden>
           <span class="set-link-icon">📲</span>
           <span class="set-link-copy"><b>نصب برنامه</b><small id="installAppSub">افزودن مسیر به صفحه اصلی</small></span>
           <span class="set-link-arrow">‹</span>
@@ -675,28 +669,7 @@
         </div>
       </section>
 
-      <!-- ===== BACKUP PAGE ===== -->
-      <section class="settings-page" data-page="backup" hidden>
-        <div class="settings-page-head">
-          <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
-          <div class="page-title">پشتیبان‌گیری / انتقال داده</div>
-        </div>
-        <div class="card settings-detail-card backup-card">
-          <div class="muted mb-12 fs-11 lh-19">برای انتقال تدریجی: می‌توانید فایل بکاپ بگیرید، روی دستگاه وارد کنید، یا بکاپ قدیمی را وارد حساب سرور کنید.</div>
-          <button class="btn backup-btn mb-9" id="exportBtn">⬇ ذخیره فایل پشتیبان (.json)</button>
-          <label class="file-btn mb-9" id="localImportLabel">⬆ وارد کردن بکاپ روی این دستگاه<input type="file" id="localImportInput" class="hidden" accept="application/json,.json"></label>
-          <div class="muted mb-12 fs-11 lh-19" id="legacyImportStatus"></div>
-          <label class="file-btn" id="legacyImportLabel">☁️ وارد کردن بکاپ قدیمی و جایگزینی سرور<input type="file" id="importInput" class="hidden" accept="application/json,.json"></label>
-        </div>
-        <div class="card settings-detail-card backup-card" id="legacyPbCard">
-          <div class="card-title mb-8">☁️ همگام‌سازی قدیمی PocketBase (موقت)</div>
-          <div class="muted mb-12 fs-11 lh-19">این بخش فقط برای انتقال تدریجی کاربران قدیمی است. ورود با ایمیل/رمز قدیمی PocketBase اینجاست.</div>
-          <div id="legacyPbAccountUI" class="account-ui mb-12"></div>
-          <div id="legacyPbSyncUI"></div>
-        </div>
-      </section>
-
-      <!-- ===== DANGER PAGE ===== -->
+<!-- ===== DANGER PAGE ===== -->
       <section class="settings-page" data-page="danger" hidden>
         <div class="settings-page-head">
           <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">›</button>
@@ -740,8 +713,6 @@
 <script src="js/13-sql-api.js"></script>
 <script src="js/12-sql-sync.js"></script>
 <script src="js/14-auth-ui.js"></script>
-<script src="legacy/00-pocketbase.js"></script>
-<script src="legacy/12-pocketbase.js"></script>
 <script src="js/15-widget-bridge.js"></script>
 <script src="js/99-init.js"></script>
 

@@ -67,10 +67,6 @@ function setSettingsPage(page){
   const body=document.getElementById('settingsBody');
   if(body) body.scrollTop=0;
   if(settingsPage==='home') updateHomeSyncState();
-  if(settingsPage==='backup'){
-    try{ if(typeof window.refreshBackupUiState==='function') window.refreshBackupUiState(); }catch(e){}
-    try{ if(window.legacyPbSync && typeof window.legacyPbSync.renderSyncUI==='function') window.legacyPbSync.renderSyncUI(); }catch(e){}
-  }
 }
 document.querySelectorAll('#settingsBody [data-go]').forEach(btn=>{
   btn.addEventListener('click',()=>setSettingsPage(btn.dataset.go));
@@ -930,7 +926,6 @@ function openSettingsOverlay(){
   try{renderSettingsPanel();}catch(e){console.error(e);}
   try{renderCommonErrors();}catch(e){console.error(e);}
   try{renderSubjectErrorsSection();}catch(e){console.error(e);}
-  try{ if(typeof window.refreshBackupUiState === 'function') window.refreshBackupUiState(); }catch(e){console.error(e);}
   // Sync UI is rendered by 12-sql-sync.js via onSettingsOpen
   try{ if(typeof onSettingsOpen === 'function') onSettingsOpen(); }catch(e){console.error(e);}
   const verEl = document.getElementById('appVersionDisplay');

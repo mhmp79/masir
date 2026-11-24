@@ -1,8 +1,8 @@
 'use strict';
 
 /* ============================================================
-   BACKUP — Schema 11 با پشتیبانی از state.sessions
-   نسخه ۱.۰.۰
+   BACKUP ΓÇö Schema 11 ╪¿╪º ┘╛╪┤╪¬█î╪¿╪º┘å█î ╪º╪▓ state.sessions
+   ┘å╪│╪«┘ç █▒.█░.█░
    ============================================================ */
 
 const BACKUP_SCHEMA = 11;
@@ -38,6 +38,7 @@ function buildBackupPayload(){
     version: APP_VERSION,
     exportedAt: new Date().toISOString(),
     summary: {
+      profile: state.profile ? 1 : 0,
       subjects: customSubjects.length,
       activities: state.activities.length,
       exams: state.exams.length,
@@ -48,7 +49,6 @@ function buildBackupPayload(){
     },
     data: {
       ...state,
-      profile: undefined,
       subjects: customSubjects.map(subject=>
         withoutStaticSubjectCurriculum(subject,state.profile.field)
       ),
@@ -71,38 +71,40 @@ function readLocalTimer(){
 
 function validateBackup(parsed){
   if(!parsed || typeof parsed !== 'object' || Array.isArray(parsed)){
-    throw new Error('فایل JSON معتبر نیست — فایل معتبر نیست');
+    throw new Error('┘ü╪º█î┘ä JSON ┘à╪╣╪¬╪¿╪▒ ┘å█î╪│╪¬ ΓÇö ┘ü╪º█î┘ä ┘à╪╣╪¬╪¿╪▒ ┘å█î╪│╪¬');
   }
   if(parsed.app !== BACKUP_APP){
-    throw new Error('این فایل مربوط به این برنامه نیست');
+    throw new Error('╪º█î┘å ┘ü╪º█î┘ä ┘à╪▒╪¿┘ê╪╖ ╪¿┘ç ╪º█î┘å ╪¿╪▒┘å╪º┘à┘ç ┘å█î╪│╪¬');
   }
   if(parsed.schema != null && +parsed.schema > BACKUP_SCHEMA){
-    throw new Error('این فایل از نسخه جدیدتر برنامه است — برنامه را به‌روزرسانی کن');
+    throw new Error('╪º█î┘å ┘ü╪º█î┘ä ╪º╪▓ ┘å╪│╪«┘ç ╪¼╪»█î╪»╪¬╪▒ ╪¿╪▒┘å╪º┘à┘ç ╪º╪│╪¬ ΓÇö ╪¿╪▒┘å╪º┘à┘ç ╪▒╪º ╪¿┘çΓÇî╪▒┘ê╪▓╪▒╪│╪º┘å█î ┌⌐┘å');
   }
   const data = parsed.data;
   if(!data || typeof data !== 'object'){
-    throw new Error('ساختار داده در فایل وجود ندارد');
+    throw new Error('╪│╪º╪«╪¬╪º╪▒ ╪»╪º╪»┘ç ╪»╪▒ ┘ü╪º█î┘ä ┘ê╪¼┘ê╪» ┘å╪»╪º╪▒╪»');
   }
   if(!Array.isArray(data.subjects)){
-    throw new Error('فیلد «subjects» در فایل وجود ندارد یا مقدار اشتباه دارد');
+    throw new Error('┘ü█î┘ä╪» ┬½subjects┬╗ ╪»╪▒ ┘ü╪º█î┘ä ┘ê╪¼┘ê╪» ┘å╪»╪º╪▒╪» █î╪º ┘à┘é╪»╪º╪▒ ╪º╪┤╪¬╪¿╪º┘ç ╪»╪º╪▒╪»');
   }
   const schema=parsed.schema!=null?+parsed.schema:0;
   if(schema<10 && !data.subjects.length){
-    throw new Error('لیست دروس در فایل خالی است — لطفاً فایل را از نسخه جدیدتر این برنامه ساخته‌شده ضمایم');
+    throw new Error('┘ä█î╪│╪¬ ╪»╪▒┘ê╪│ ╪»╪▒ ┘ü╪º█î┘ä ╪«╪º┘ä█î ╪º╪│╪¬ ΓÇö ┘ä╪╖┘ü╪º┘ï ┘ü╪º█î┘ä ╪▒╪º ╪º╪▓ ┘å╪│╪«┘ç ╪¼╪»█î╪»╪¬╪▒ ╪º█î┘å ╪¿╪▒┘å╪º┘à┘ç ╪│╪º╪«╪¬┘çΓÇî╪┤╪»┘ç ╪╢┘à╪º█î┘à');
   }
   if(schema>=11 && data.sessions!=null && !Array.isArray(data.sessions)){
-    throw new Error('فیلد «sessions» در فایل اشتباه است');
+    throw new Error('┘ü█î┘ä╪» ┬½sessions┬╗ ╪»╪▒ ┘ü╪º█î┘ä ╪º╪┤╪¬╪¿╪º┘ç ╪º╪│╪¬');
   }
   const checks = [];
-  // Profile no longer required in manual/legacy backup.
+  if(typeof data.profile !== 'object' || data.profile === null){
+    checks.push('┘ü█î┘ä╪» ┬½profile┬╗ ╪¿╪º█î╪» ╪¿┘ç ╪╡┘ê╪▒╪¬ ╪┤█î╪í ╪¿╪º╪┤╪»');
+  }
   if(!Array.isArray(data.exams)){
-    checks.push('فیلد «exams» باید آرایه باشد');
+    checks.push('┘ü█î┘ä╪» ┬½exams┬╗ ╪¿╪º█î╪» ╪ó╪▒╪º█î┘ç ╪¿╪º╪┤╪»');
   }
   if(!Array.isArray(data.activities)){
-    checks.push('فیلد «activities» باید آرایه باشد');
+    checks.push('┘ü█î┘ä╪» ┬½activities┬╗ ╪¿╪º█î╪» ╪ó╪▒╪º█î┘ç ╪¿╪º╪┤╪»');
   }
   if(checks.length){
-    throw new Error('ساختار داده ناقص: ' + checks.join(' و '));
+    throw new Error('╪│╪º╪«╪¬╪º╪▒ ╪»╪º╪»┘ç ┘å╪º┘é╪╡: ' + checks.join(' ┘ê '));
   }
   return {
     data,
@@ -242,53 +244,51 @@ function exportBackup(){
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast('✅ پشتیبان دانلود شد');
+    toast('Γ£à ┘╛╪┤╪¬█î╪¿╪º┘å ╪»╪º┘å┘ä┘ê╪» ╪┤╪»');
   }catch(err){
     console.error('[backup] export failed:', err);
-    toast('❌ خطا در ساخت پشتیبان');
+    toast('Γ¥î ╪«╪╖╪º ╪»╪▒ ╪│╪º╪«╪¬ ┘╛╪┤╪¬█î╪¿╪º┘å');
   }
 }
 
-function showImportPreview(summary, parsed, schema, mode){
+function showImportPreview(summary, parsed, schema){
   return new Promise((resolve) => {
     const s = summary || {};
     const exportedAt = parsed && parsed.exportedAt
       ? new Date(parsed.exportedAt).toLocaleString('fa-IR')
-      : '—';
+      : 'ΓÇö';
     const isOldSchema = schema > 0 && schema < BACKUP_SCHEMA;
     const oldSchemaNote = isOldSchema
-      ? `<div class="backup-schema-warn">⚠️ این پشتیبان از نسخه قدیمی (Schema ${fa(schema)}) است — به‌طور خودکار به نسخه جدید مهاجرت می‌شود.</div>`
+      ? `<div class="backup-schema-warn">ΓÜá∩╕Å ╪º█î┘å ┘╛╪┤╪¬█î╪¿╪º┘å ╪º╪▓ ┘å╪│╪«┘ç ┘é╪»█î┘à█î (Schema ${fa(schema)}) ╪º╪│╪¬ ΓÇö ╪¿┘çΓÇî╪╖┘ê╪▒ ╪«┘ê╪»┌⌐╪º╪▒ ╪¿┘ç ┘å╪│╪«┘ç ╪¼╪»█î╪» ┘à┘ç╪º╪¼╪▒╪¬ ┘à█îΓÇî╪┤┘ê╪».</div>`
       : '';
-    const isServer = mode === 'legacy-server';
     let sessionRow = '';
     if (s.sessions != null) {
-      sessionRow = `<div class="setting-row"><div class="sr-label">📋 بازه‌های برنامه</div><div class="sr-control text-cyan fw-800">${fa(s.sessions || 0)}</div></div>`;
+      sessionRow = `<div class="setting-row"><div class="sr-label">≡ƒôï ╪¿╪º╪▓┘çΓÇî┘ç╪º█î ╪¿╪▒┘å╪º┘à┘ç</div><div class="sr-control text-cyan fw-800">${fa(s.sessions || 0)}</div></div>`;
     } else if (s.planDays != null || s.reserved != null) {
       const legacyTotal = (s.planDays || 0) + (s.reserved || 0);
-      sessionRow = `<div class="setting-row"><div class="sr-label">📋 بازه‌ها (legacy)</div><div class="sr-control text-amber fw-800">${fa(legacyTotal)}</div></div>`;
+      sessionRow = `<div class="setting-row"><div class="sr-label">≡ƒôï ╪¿╪º╪▓┘çΓÇî┘ç╪º (legacy)</div><div class="sr-control text-amber fw-800">${fa(legacyTotal)}</div></div>`;
     }
     openModal(`
       <div class="modal-head">
-        <div class="card-title text-ok">📦 پیش‌نمایش پشتیبان</div>
-        <button class="icon-btn" data-close>✕</button>
+        <div class="card-title text-ok">≡ƒôª ┘╛█î╪┤ΓÇî┘å┘à╪º█î╪┤ ┘╛╪┤╪¬█î╪¿╪º┘å</div>
+        <button class="icon-btn" data-close>Γ£ò</button>
       </div>
       <div class="muted mb-14 fs-11h lh-185">
-        تاریخ ساخت فایل: <b class="text-soft">${esc(exportedAt)}</b><br>
-        ${isServer
-          ? 'با تأیید، داده‌های این بکاپ <b class="text-rose">به‌صورت کامل جایگزین اطلاعات حساب سرور و این دستگاه می‌شوند</b>. پروفایل حساب حفظ می‌شود.'
-          : 'با تأیید، داده‌های این بکاپ <b class="text-rose">روی این دستگاه جایگزین می‌شوند</b>.'}
+        ╪¬╪º╪▒█î╪« ╪│╪º╪«╪¬ ┘ü╪º█î┘ä: <b class="text-soft">${esc(exportedAt)}</b><br>
+        ╪¿╪º ╪¬╪ú█î█î╪»╪î <b class="text-rose">╪¬┘à╪º┘à ╪»╪º╪»┘çΓÇî┘ç╪º█î ┘ü╪╣┘ä█î ╪¼╪º█î┌»╪▓█î┘å ┘à█îΓÇî╪┤┘ê┘å╪»</b>. ╪º█î┘å ╪╣┘à┘ä█î╪º╪¬ ┘é╪º╪¿┘ä ╪¿╪º╪▓┌»╪┤╪¬ ┘å█î╪│╪¬.
       </div>
       ${oldSchemaNote}
-      <div class="setting-row"><div class="sr-label">📚 ${schema>=10?'دروس افزوده‌شده':'دروس'}</div><div class="sr-control text-cyan fw-800">${fa(s.subjects || 0)}</div></div>
-      <div class="setting-row"><div class="sr-label">📝 فعالیت‌ها</div><div class="sr-control text-cyan fw-800">${fa(s.activities || 0)}</div></div>
-      <div class="setting-row"><div class="sr-label">📊 آزمون‌ها</div><div class="sr-control text-cyan fw-800">${fa(s.exams || 0)}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒæñ ┘╛╪▒┘ê┘ü╪º█î┘ä</div><div class="sr-control text-cyan fw-800">${s.profile ? '╪»╪º╪▒╪»' : 'ΓÇö'}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒôÜ ${schema>=10?'╪»╪▒┘ê╪│ ╪º┘ü╪▓┘ê╪»┘çΓÇî╪┤╪»┘ç':'╪»╪▒┘ê╪│'}</div><div class="sr-control text-cyan fw-800">${fa(s.subjects || 0)}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒô¥ ┘ü╪╣╪º┘ä█î╪¬ΓÇî┘ç╪º</div><div class="sr-control text-cyan fw-800">${fa(s.activities || 0)}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒôè ╪ó╪▓┘à┘ê┘åΓÇî┘ç╪º</div><div class="sr-control text-cyan fw-800">${fa(s.exams || 0)}</div></div>
       ${sessionRow}
-      <div class="setting-row"><div class="sr-label">🌙 خواب</div><div class="sr-control text-cyan fw-800">${fa(s.sleeps || 0)}</div></div>
-      <div class="setting-row"><div class="sr-label">📱 گوشی</div><div class="sr-control text-cyan fw-800">${fa(s.phones || 0)}</div></div>
-      <div class="setting-row"><div class="sr-label">🏷️ تگ‌های عمومی</div><div class="sr-control text-cyan fw-800">${fa(s.commonErrors || 0)}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒîÖ ╪«┘ê╪º╪¿</div><div class="sr-control text-cyan fw-800">${fa(s.sleeps || 0)}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒô▒ ┌»┘ê╪┤█î</div><div class="sr-control text-cyan fw-800">${fa(s.phones || 0)}</div></div>
+      <div class="setting-row"><div class="sr-label">≡ƒÅ╖∩╕Å ╪¬┌»ΓÇî┘ç╪º█î ╪╣┘à┘ê┘à█î</div><div class="sr-control text-cyan fw-800">${fa(s.commonErrors || 0)}</div></div>
       <div class="row mt-16">
-        <button class="btn ghost" id="ipCancel">انصراف</button>
-        <button class="btn danger" id="ipConfirm">${isServer ? '🔄 جایگزینی سرور و دستگاه' : '📥 وارد کردن روی دستگاه'}</button>
+        <button class="btn ghost" id="ipCancel">╪º┘å╪╡╪▒╪º┘ü</button>
+        <button class="btn danger" id="ipConfirm">≡ƒöä ╪¼╪º█î┌»╪▓█î┘å█î ┌⌐╪º┘à┘ä</button>
       </div>
     `);
     document.getElementById('ipCancel').onclick = () => { closeModal(); resolve(false); };
@@ -296,42 +296,38 @@ function showImportPreview(summary, parsed, schema, mode){
   });
 }
 
-async function importBackup(file, options){
-  const opts = options || {};
-  const mode = opts.mode || 'legacy-server'; // 'legacy-server' | 'local'
-  const client = window.sqlSync || window.masirSqlSync || null;
-  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
-  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
-  if(mode === 'legacy-server'){
-    if(!loggedIn){ toast('برای وارد کردن بکاپ قدیمی به سرور ابتدا وارد حساب شوید.'); return false; }
-    if(!online){ toast('برای وارد کردن بکاپ قدیمی به سرور باید آنلاین باشید.'); return false; }
-  }
+async function importBackup(file){
   try{
     const text = await file.text();
     let parsed;
     try{ parsed = JSON.parse(text); }
-    catch(e){ throw new Error('فایل JSON معتبر نیست'); }
+    catch(e){ throw new Error('┘ü╪º█î┘ä JSON ┘à╪╣╪¬╪¿╪▒ ┘å█î╪│╪¬'); }
 
     const { data, tracker, timer, summary, schema } = validateBackup(parsed);
-    const confirmed = await showImportPreview(summary, parsed, schema, mode);
+
+    const confirmed = await showImportPreview(summary, parsed, schema);
     if(!confirmed) return false;
 
     const normalized = normalizeImportedData(data,schema);
-    normalized.subjects.forEach(s => {
-      if(!normalized.classes[s.name]){
-        normalized.classes[s.name] = { total: s.sessions || 0, sessions: {} };
-      } else if(!normalized.classes[s.name].total){
-        normalized.classes[s.name].total = s.sessions || 0;
+    replaceTrackedState(normalized, true);
+
+    state.subjects.forEach(s => {
+      if(!state.classes[s.name]){
+        state.classes[s.name] = { total: s.sessions || 0, sessions: {} };
+      } else if(!state.classes[s.name].total){
+        state.classes[s.name].total = s.sessions || 0;
       }
     });
 
-    replaceTrackedState(normalized, true);
-    if(tracker && tracker.counts && typeof tracker.counts === 'object'){
-      trkCounts = {
-        correct: Math.max(0, +tracker.counts.correct || 0),
-        wrong: Math.max(0, +tracker.counts.wrong || 0),
-        blank: Math.max(0, +tracker.counts.blank || 0)
-      };
+    if(tracker){
+      if(tracker.counts && typeof tracker.counts === 'object'){
+        trkCounts = {
+          correct: Math.max(0, +tracker.counts.correct || 0),
+          wrong: Math.max(0, +tracker.counts.wrong || 0),
+          blank: Math.max(0, +tracker.counts.blank || 0)
+        };
+        try { saveTracker(); } catch(_) {}
+      }
       trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
       try { saveTracker(); } catch(_) {}
     }
@@ -341,26 +337,12 @@ async function importBackup(file, options){
 
     save();
     await flushStorage();
-
-    if(mode === 'legacy-server' && loggedIn){
-      await client.deleteAccountData();
-      try{
-        const uid = client.getLoggedInUserId ? client.getLoggedInUserId() : '';
-        if(uid) localStorage.removeItem(`konkur-sql-sync-meta-v1::${uid}`);
-      }catch(_){ }
-      const up = await client.uploadAllData();
-      if(!up || up.ok === false){
-        throw new Error((up && up.error) || 'جایگزینی اطلاعات روی سرور ناموفق بود');
-      }
-      toast('✅ بکاپ وارد و روی سرور جایگزین شد');
-    } else {
-      toast('✅ بکاپ روی این دستگاه وارد شد');
-    }
+    toast('Γ£à ┘╛╪┤╪¬█î╪¿╪º┘å ╪¿╪º╪▓┌»╪▒╪»╪º┘å█î ╪┤╪»');
     setTimeout(() => location.reload(), 800);
     return true;
   }catch(err){
     console.error('[backup] import failed:', err);
-    toast('❌ ' + (err.message || 'خطا در وارد کردن بکاپ'));
+    toast('Γ¥î ' + (err.message || '╪«╪╖╪º ╪»╪▒ ╪¿╪º╪▓┌»╪▒╪»╪º┘å█î'));
     return false;
   }
 }
@@ -368,22 +350,17 @@ async function importBackup(file, options){
 async function clearAllData(){
   const client = window.sqlSync || window.masirSqlSync || null;
   const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
-  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
-  if(loggedIn && !online){
-    toast('برای پاک کردن کامل سرور و دستگاه باید آنلاین باشید.');
-    return;
-  }
   const message = loggedIn
-    ? 'دادههای حساب روی سرور و تمام اطلاعات این دستگاه پاک میشود. این عملیات قابل بازگشت نیست؛ ادامه میدهید؟'
-    : 'تمام اطلاعات این دستگاه پاک میشود. ادامه میدهید؟';
+    ? '╪»╪º╪»┘ç┘ç╪º█î ╪¡╪│╪º╪¿ ╪▒┘ê█î ╪│╪▒┘ê╪▒ ┘ê ╪¬┘à╪º┘à ╪º╪╖┘ä╪º╪╣╪º╪¬ ╪º█î┘å ╪»╪│╪¬┌»╪º┘ç ┘╛╪º┌⌐ ┘à█î╪┤┘ê╪». ╪º█î┘å ╪╣┘à┘ä█î╪º╪¬ ┘é╪º╪¿┘ä ╪¿╪º╪▓┌»╪┤╪¬ ┘å█î╪│╪¬╪¢ ╪º╪»╪º┘à┘ç ┘à█î╪»┘ç█î╪»╪ƒ'
+    : '╪¬┘à╪º┘à ╪º╪╖┘ä╪º╪╣╪º╪¬ ╪º█î┘å ╪»╪│╪¬┌»╪º┘ç ┘╛╪º┌⌐ ┘à█î╪┤┘ê╪»╪¢ ╪¡╪│╪º╪¿█î ┘à╪¬╪╡┘ä ┘å█î╪│╪¬ ╪¬╪º ╪»╪º╪»┘ç ╪│╪▒┘ê╪▒ ╪¡╪░┘ü ╪┤┘ê╪». ╪º╪»╪º┘à┘ç ┘à█î╪»┘ç█î╪»╪ƒ';
   if(!confirm(message)) return;
   if(loggedIn){
     try{
-      if(typeof client.deleteAccountData !== 'function') throw new Error('امکان حذف دادهها از سرور در دسترس نیست.');
+      if(typeof client.deleteAccountData !== 'function') throw new Error('╪º┘à┌⌐╪º┘å ╪¡╪░┘ü ╪»╪º╪»┘ç┘ç╪º ╪º╪▓ ╪│╪▒┘ê╪▒ ╪»╪▒ ╪»╪│╪¬╪▒╪│ ┘å█î╪│╪¬.');
       await client.deleteAccountData();
     }catch(error){
       console.error('[backup] server data delete failed:',error);
-      toast('❌ حذف دادهها از سرور ناموفق بود؛ دادههای دستگاه پاک نشد.');
+      toast('Γ¥î ╪¡╪░┘ü ╪»╪º╪»┘ç┘ç╪º ╪º╪▓ ╪│╪▒┘ê╪▒ ┘å╪º┘à┘ê┘ü┘é ╪¿┘ê╪»╪¢ ╪»╪º╪»┘ç┘ç╪º█î ╪»╪│╪¬┌»╪º┘ç ┘╛╪º┌⌐ ┘å╪┤╪».');
       return;
     }
   }
@@ -409,73 +386,23 @@ async function clearAllData(){
   }
   catch(error){
     console.error('[backup] clearing data failed:',error);
-    toast('پاک‌سازی در حافظه ذخیره نشد.');
+    toast('┘╛╪º┌⌐ΓÇî╪│╪º╪▓█î ╪»╪▒ ╪¡╪º┘ü╪╕┘ç ╪░╪«█î╪▒┘ç ┘å╪┤╪».');
     return;
   }
-  toast(loggedIn ? 'دادهها از سرور و دستگاه پاک شد' : 'دادههای دستگاه پاک شد');
+  toast(loggedIn ? '╪»╪º╪»┘ç┘ç╪º ╪º╪▓ ╪│╪▒┘ê╪▒ ┘ê ╪»╪│╪¬┌»╪º┘ç ┘╛╪º┌⌐ ╪┤╪»' : '╪»╪º╪»┘ç┘ç╪º█î ╪»╪│╪¬┌»╪º┘ç ┘╛╪º┌⌐ ╪┤╪»');
   setTimeout(() => location.reload(), 500);
-}
-
-function refreshBackupUiState(){
-  const client = window.sqlSync || window.masirSqlSync || null;
-  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
-  const online = typeof navigator !== 'undefined' ? navigator.onLine !== false : true;
-  const imp = document.getElementById('importInput');
-  const impLabel = document.getElementById('legacyImportLabel');
-  const impStatus = document.getElementById('legacyImportStatus');
-  const localImp = document.getElementById('localImportInput');
-  const localImpLabel = document.getElementById('localImportLabel');
-  const clr = document.getElementById('clearDataBtn');
-  const backupLink = document.getElementById('backupSettingsLink');
-
-  if(backupLink) backupLink.style.display = '';
-  if(localImp) localImp.disabled = false;
-  if(localImpLabel){ localImpLabel.classList.remove('is-disabled'); localImpLabel.setAttribute('aria-disabled','false'); }
-  if(imp){ imp.disabled = !(loggedIn && online); }
-  if(impLabel){
-    impLabel.classList.toggle('is-disabled', !(loggedIn && online));
-    impLabel.setAttribute('aria-disabled', (!(loggedIn && online)) ? 'true' : 'false');
-  }
-  if(impStatus){
-    impStatus.textContent = !loggedIn
-      ? 'جایگزینی سرور: ابتدا وارد حساب شوید.'
-      : (!online ? 'جایگزینی سرور: برای این کار باید آنلاین باشید.' : 'وارد حساب هستید؛ می‌توانید بکاپ قدیمی را جایگزین سرور کنید.');
-  }
-  if(clr){
-    const canClear = !loggedIn || online;
-    clr.disabled = !canClear;
-    clr.classList.toggle('is-disabled', !canClear);
-    clr.title = (!loggedIn || online) ? '' : 'برای پاک کردن کامل سرور و دستگاه باید آنلاین باشید.';
-  }
-  try{
-    if(window.legacyPbSync && typeof window.legacyPbSync.renderSyncUI === 'function') window.legacyPbSync.renderSyncUI();
-  }catch(e){}
 }
 
 (function wireBackupEvents(){
   const exp = document.getElementById('exportBtn');
   if(exp) exp.onclick = exportBackup;
-  const localImp = document.getElementById('localImportInput');
-  if(localImp) localImp.onchange = async (e) => {
-    const f = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if(!f) return;
-    await importBackup(f, { mode: 'local' });
-  };
   const imp = document.getElementById('importInput');
   if(imp) imp.onchange = async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = '';
     if(!f) return;
-    refreshBackupUiState();
-    if(imp.disabled) return;
-    await importBackup(f, { mode: 'legacy-server' });
+    await importBackup(f);
   };
   const clr = document.getElementById('clearDataBtn');
   if(clr) clr.onclick = clearAllData;
-  window.addEventListener('online', refreshBackupUiState);
-  window.addEventListener('offline', refreshBackupUiState);
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refreshBackupUiState(); });
-  setTimeout(refreshBackupUiState, 0);
 })();
-window.refreshBackupUiState = refreshBackupUiState;

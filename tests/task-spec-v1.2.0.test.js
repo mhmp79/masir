@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r48', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r49', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r48'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r49'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1375,30 +1375,32 @@ test('MOBILE: login card sits at the bottom with a compact welcome above it', ()
   assert.ok(/\.auth-heading\{display:none\}/.test(mobile), 'duplicate desktop heading is hidden');
 });
 
-test('AUTH UI: branded header, overlapping white card and three dedicated layouts', () => {
+test('AUTH UI: original dark palette, circular logo and three dedicated layouts', () => {
   const css = read('css/16-auth.css');
   const auth = read('js/14-auth-ui.js');
   const mobile = css.slice(css.indexOf('@media(max-width:760px)'));
 
-  assert.ok(/\.auth-hero\{[\s\S]*?linear-gradient\(158deg,#2b1e63/.test(css),
-    'header must keep the dark brand gradient');
+  assert.ok(/\.auth-hero\{[\s\S]*?linear-gradient\(155deg,rgba\(124,92,255,\.24\)/.test(css),
+    'header must keep the original dark purple brand palette');
+  assert.ok(/\.auth-panel\{[\s\S]*?linear-gradient\(180deg,rgba\(20,28,58,\.97\)/.test(css),
+    'desktop card must keep the original dark surface');
   assert.ok(/\.auth-logo\{[\s\S]*?border-radius:50%/.test(css),
-    'the square app icon must be cropped into a circular logo');
-  assert.ok(/\.auth-panel\{[\s\S]*?margin-left:-46px[\s\S]*?background:#fff/.test(css),
-    'desktop white card must overlap the branded header');
+    'the app icon must stay cropped into a circular logo');
+  assert.ok(/\.auth-panel\{[\s\S]*?margin-left:-46px/.test(css),
+    'desktop card must still overlap the branded header');
   assert.ok(/\.auth-hero\{[\s\S]*?padding:44px 86px 44px 38px/.test(css),
     'desktop hero text must stay clear of the overlapping card');
-  assert.ok(/\.auth-card\{[\s\S]*?border-radius:34px;background:#fff/.test(css),
-    'content card uses a large radius and a white surface');
   assert.ok(css.includes('@media(min-width:1025px)'), 'desktop needs its own breakpoint');
   assert.ok(css.includes('@media(min-width:761px) and (max-width:1024px)'), 'tablet needs its own breakpoint');
   assert.ok(css.includes('@media(max-width:760px)'), 'mobile needs its own breakpoint');
   assert.ok(/\.auth-mobile-top\{[\s\S]*?margin-bottom:-36px/.test(css),
     'mobile card must visibly overlap the branded header');
-  assert.ok(/linear-gradient\(155deg,#2b1e63/.test(mobile),
-    'mobile header must stay dark instead of a light purple wash');
+  assert.ok(/linear-gradient\(180deg,rgba\(22,30,60,\.98\)/.test(mobile),
+    'mobile card must keep the original dark bottom-sheet palette');
   assert.ok(css.includes('.auth-overlay #authContent{width:100%;max-width:100%}'),
     'auth content must fill the overlay so the card has no empty side gutters');
+  assert.ok(/\.auth-card \.auth-field\{margin-inline:-14px\}/.test(mobile),
+    'mobile inputs must reach the card edges without an empty side gap');
   assert.ok(/\.auth-input\{[\s\S]*?border-radius:14px/.test(css) &&
     /\.auth-input\{[\s\S]*?min-height:42px/.test(css) &&
     /min-height:42px;padding:9px 12px;font-size:13px/.test(mobile),

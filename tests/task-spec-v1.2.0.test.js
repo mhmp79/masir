@@ -426,6 +426,7 @@ test('FEAT: timeline month mode renders a real Persian calendar', () => {
     calYear: 1404,
     calMonth: 1,
     calSelected: '1404/1/1',
+    tlSelectedKey: '1404/1/1',
     state: { activities: [], exams: [], settings: { examsEnabled: false } },
     timedOfDay: () => [{ id: 's1', subject: 'ریاضی', startMin: 480, durMin: 60 }],
     minToStr: (m) => `T${m}`
@@ -843,7 +844,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r38'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r39'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -1127,6 +1128,60 @@ test('ASSETS: app icons use the cropped artwork with no white margin', () => {
       ['apple-touch-icon.png', 'favicon-32.png'].includes(name),
       `${name} must remain referenced or intentionally kept outside the manifest`);
   }
+});
+
+test('FIX: topic grid has a سایر column that drag-and-drop can target', () => {
+  const plan = read('js/03-plan.js');
+  assert.ok(plan.includes('subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));'),
+    'the other subject must be appended as the final grid column');
+  assert.ok(plan.includes('? { date: target.date, subject: target.subject }'),
+    'dropping into a subject column must update the session subject');
+});
+
+test('FIX: multi-day reserve band uses one shared height', () => {
+  const plan = read('js/03-plan.js');
+  const css = read('css/07-plan.css');
+  assert.ok(plan.includes('const reserves = keys.map(k => reservedOfDay(k));'));
+  assert.ok(plan.includes('const reserveH = Math.max(52, ...reserves.map(r => 21 * r.length + 21));'));
+  assert.ok(plan.includes('const reserved = reserves[dayIdx];'));
+  assert.ok(plan.includes('style="--reserve-h:${reserveH}px"'));
+  assert.ok(/\.wv-reserve-spacer \{\s*height: var\(--reserve-h, 52px\);\s*flex: 0 0 var\(--reserve-h, 52px\);/.test(css));
+  assert.ok(/\.wv-reserve-row \{\s*height: var\(--reserve-h, 52px\);/.test(css));
+  assert.ok(!/\.wv-reserve-row \{\s*min-height: 52px/.test(css),
+    'a per-column minimum height would let one day push its ruler down');
+});
+
+test('FIX: week navigation clears the selected-day highlight', () => {
+  const plan = read('js/03-plan.js');
+  assert.ok(plan.includes('let tlSelectedKey = TODAY_KEY;'));
+  assert.ok(/tlSelectedKey = null;\s*if \(tlMode === 'month'\)/.test(plan),
+    'navigation must clear the explicit selection');
+  assert.ok(plan.includes("if (k === tlSelectedKey) cls.push('sel');"));
+  assert.ok(!/if \(k === calSelected\) cls\.push\('sel'\)/.test(plan),
+    'the moving anchor must never be painted as a selected day');
+  assert.ok(plan.includes("body.querySelectorAll('.wv-day[data-key]')"),
+    'weekday headers must still allow explicit day selection');
+  assert.ok(plan.includes('const savedSelectedKey = tlSelectedKey;'),
+    'swipe previews must not paint a false selection');
+});
+
+test('FIX: exam compare stays inside the app shell with active bottom tabs', () => {
+  const overlays = read('css/05-overlays.css');
+  const desktop = read('css/14-desktop.css');
+  const exam = read('js/05-exam.js');
+  const core = read('js/01-core.js');
+  const init = read('js/99-init.js');
+  const shellCss = overlays.slice(overlays.indexOf('/* EXAM COMPARE — lives inside the app shell'));
+  assert.ok(/#examCompareOverlay\{\s*position:fixed;inset:0;z-index:0/.test(shellCss));
+  assert.ok(/#examCompareOverlay \.wr-top\{display:none\}/.test(shellCss), 'no app-within-app header');
+  assert.ok(/\.app\.compare-open \.nav\{pointer-events:auto\}/.test(shellCss), 'tabs stay tappable');
+  assert.ok(/\.app\.compare-open > main\{display:none\}/.test(shellCss));
+  assert.ok(exam.includes("app.classList.toggle('compare-open',open)"));
+  assert.ok(exam.includes('setCompareChrome(true)') && exam.includes('setCompareChrome(false)'));
+  assert.ok(core.includes("app.classList.contains('compare-open') && typeof closeExamCompare==='function'"),
+    'tab taps must close compare before switching views');
+  assert.ok(init.includes('try{ closeExamCompare(true); }catch(_){}'));
+  assert.ok(/#examCompareOverlay \{ left: 0; right: var\(--sidebar-w\); top: var\(--topbar-h\); bottom: 0; \}/.test(desktop));
 });
 
 console.log('TASK SPEC v1.2.0 — all phase checks');

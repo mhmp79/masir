@@ -2159,6 +2159,7 @@ function switchView(name){
 document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>{
   const app=document.querySelector('.app');
   if(app && app.classList.contains('settings-open') && typeof closeSettingsOverlay==='function') closeSettingsOverlay(true);
+  if(app && app.classList.contains('compare-open') && typeof closeExamCompare==='function') closeExamCompare(true);
   switchView(btn.dataset.view);
 });});
 

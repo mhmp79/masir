@@ -809,6 +809,7 @@ function setSettingsChrome(open){
 }
 function openSettingsOverlay(){
   const overlay=document.getElementById('settingsOverlay');if(!overlay)return;
+  if(typeof closeExamCompare==='function')closeExamCompare(true);
   setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);

@@ -33,8 +33,7 @@ function setupBackExitGuard(){
     }
     const compare=document.getElementById('examCompareOverlay');
     if(compare && compare.classList.contains('show')){
-      compare.classList.remove('show');
-      document.body.style.overflow='';
+      try{ closeExamCompare(true); }catch(_){}
       rearm(); return;
     }
     const calendarDrawer=document.getElementById('examSidebarBackdrop');

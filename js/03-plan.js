@@ -39,6 +39,7 @@ function timelineStepDays() {
 /* Month navigation changes the calendar month instead of jumping a fixed number
    of days, so the 29/30/31-day months always advance by exactly one screen. */
 function shiftTimelineAnchor(dir) {
+  tlSelectedKey = null;
   if (tlMode === 'month') {
     const m = shiftPersianMonth(calYear, calMonth, dir);
     calYear = m.jy;
@@ -58,6 +59,9 @@ let tlMode = 'day';
 let calYear = TODAY_J.jy;
 let calMonth = TODAY_J.jm;
 let calSelected = TODAY_KEY;
+/* The timeline anchor (calSelected) moves a whole day/week/3-day block at a time.
+   Keep the highlighted day separate so navigation never paints a false selection. */
+let tlSelectedKey = TODAY_KEY;
 let examSelectedId = null;
 let examTopicSetup = {};
 let dragState = null;
@@ -457,7 +461,7 @@ function renderCalendar() {
     const cls = ['cal-cell'];
     if (adj) cls.push('adjacent');
     if (k === TODAY_KEY) cls.push('today');
-    if (k === calSelected) cls.push('sel');
+    if (k === tlSelectedKey) cls.push('sel');
     if (hasExam) cls.push('exam-day');
     return `<div class="${cls.join(' ')}" data-key="${k}">${fa(d)}${hasData ? '<i class="dot"></i>' : ''}${hasExam ? '<i class="exam-dot"></i>' : ''}</div>`;
   };
@@ -477,6 +481,7 @@ function renderCalendar() {
   grid.querySelectorAll('.cal-cell[data-key]').forEach(el => {
     el.onclick = () => {
       calSelected = el.dataset.key;
+      tlSelectedKey = calSelected;
       const j = parseKey(calSelected);
       calYear = j.jy; calMonth = j.jm;
       syncCompat();
@@ -909,7 +914,9 @@ function applyDrop(st, target) {
     return;
   }
   if (target.type === 'day' || target.type === 'subject') {
-    sessions.forEach(s => updateSession(s.id, { date: target.date }));
+    sessions.forEach(s => updateSession(s.id, target.type === 'subject'
+      ? { date: target.date, subject: target.subject }
+      : { date: target.date }));
     toast('منتقل شد');
     return;
   }
@@ -1086,10 +1093,12 @@ function onTimelineSwipeCancel() {
 
 function renderAdjacentTimelineHTML(targetDir) {
   const savedSelected = calSelected;
+  const savedSelectedKey = tlSelectedKey;
   const savedYear = calYear;
   const savedMonth = calMonth;
 
   const savedMode = tlMode;
+  tlSelectedKey = null;
   let html;
   try {
     if (savedMode === 'month') {
@@ -1117,6 +1126,7 @@ function renderAdjacentTimelineHTML(targetDir) {
   }
 
   calSelected = savedSelected;
+  tlSelectedKey = savedSelectedKey;
   calYear = savedYear;
   calMonth = savedMonth;
 
@@ -1201,6 +1211,20 @@ function renderTimelineBody() {
   body.querySelectorAll('.mc-cell[data-key]').forEach(cell => {
     cell.onclick = () => {
       calSelected = cell.dataset.key;
+      tlSelectedKey = calSelected;
+      const j = parseKey(calSelected);
+      calYear = j.jy;
+      calMonth = j.jm;
+      tlMode = 'day';
+      syncCompat();
+      renderCalendar();
+      renderViewContent();
+    };
+  });
+  body.querySelectorAll('.wv-day[data-key]').forEach(day => {
+    day.onclick = () => {
+      calSelected = day.dataset.key;
+      tlSelectedKey = calSelected;
       const j = parseKey(calSelected);
       calYear = j.jy;
       calMonth = j.jm;
@@ -1508,7 +1532,7 @@ function renderTimelineMonth() {
     const cls = ['mc-cell'];
     if (adjacent) cls.push('adjacent');
     if (k === TODAY_KEY) cls.push('today');
-    if (k === calSelected) cls.push('sel');
+    if (k === tlSelectedKey) cls.push('sel');
 
     const chips = items.slice(0, 2).map(item => {
       const label = item._monthKind === 'exam'
@@ -1536,20 +1560,24 @@ function renderTimelineMonth() {
 function renderTimelineMulti(keys) {
   const cols = keys.length;
   const wrapper = cols >= 7 ? 'week-view narrow' : 'week-view';
+  /* One shared band height for every column: a busier reserve list can never
+     push a single day's ruler out of alignment with its neighbours. */
+  const reserves = keys.map(k => reservedOfDay(k));
+  const reserveH = Math.max(52, ...reserves.map(r => 21 * r.length + 21));
   const head = `<div class="wv-head" style="--cols:${cols}"><div></div>${keys.map(k => {
     const j = parseKey(k);
     const kd = j2d(j.jy, j.jm, j.jd);
     const cls = ['wv-day'];
     if (k === TODAY_KEY) cls.push('today');
-    if (k === calSelected) cls.push('sel');
+    if (k === tlSelectedKey) cls.push('sel');
     return `<div class="${cls.join(' ')}" data-key="${k}"><span>${DOW_SHORT[dowIndex(kd)]}</span><b>${fa(j.jd)}</b></div>`;
   }).join('')}</div>`;
   const hours = HOURS.map(h => `<div class="wv-h">${fa(h)}</div>`).join('');
 
-  const colsHTML = keys.map(k => {
+  const colsHTML = keys.map((k, dayIdx) => {
     const timed = timedOfDay(k);
     const merged = mergeSessions(timed);
-    const reserved = reservedOfDay(k);
+    const reserved = reserves[dayIdx];
     const acts = state.activities
       .filter(a => a.date === k && a.startMin != null && a.endMin != null)
       .filter(a => !timed.some(s => s.activityId === a.id))
@@ -1630,18 +1658,21 @@ function renderTimelineMulti(keys) {
     return `<div class="wv-day-column">${reservedHTML}<div class="wv-col" data-drop-col="${k}">${cells}${blocksHTML}${actsHTML}${examsHTML}${sleepsHTML}${nowLine}</div></div>`;
   }).join('');
 
-  return `<div class="${wrapper}"><div class="wv-scroll">${head}<div class="wv"><div class="wv-hours"><div class="wv-reserve-spacer"></div>${hours}<div class="wv-h wv-h-end">۲۴:۰۰</div></div><div class="wv-cols" style="--cols:${cols}">${colsHTML}</div></div></div></div>`;
+  return `<div class="${wrapper}"><div class="wv-scroll">${head}<div class="wv" style="--reserve-h:${reserveH}px"><div class="wv-hours"><div class="wv-reserve-spacer"></div>${hours}<div class="wv-h wv-h-end">۲۴:۰۰</div></div><div class="wv-cols" style="--cols:${cols}">${colsHTML}</div></div></div></div>`;
 }
 
 /* ============ SUBJECTS VIEW ============ */
 function renderSubjects(box) {
   const st = activeWeekStart();
   const days = Array.from({ length: 7 }, (_, i) => jKey(d2j(st + i)));
-  const subjects = allSubjectsForSelect().filter(s => s.name !== OTHER_SUBJECT);
+  const allSubjects = allSubjectsForSelect();
+  const subjects = allSubjects.filter(s => s.name !== OTHER_SUBJECT);
   if (!subjects.length) {
     box.innerHTML = `<div class="plan-hint">هنوز درسی نداری. از تنظیمات اضافه کن.</div>`;
     return;
   }
+  /* «سایر» is a real column in the topic grid, always last. */
+  subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));
   const onThisWeek = subjectsContainsThisWeek();
   let html = `<div class="grid-card">
     <div class="grid-header">
@@ -1823,6 +1854,7 @@ function weekTitle(ws) {
 }
 
 function navigateWeek(dir) {
+  tlSelectedKey = null;
   calSelected = jKey(d2j(jdnFromKey(calSelected) + dir * 7));
   const j = parseKey(calSelected);
   calYear = j.jy; calMonth = j.jm;
@@ -1833,6 +1865,7 @@ function navigateWeek(dir) {
 
 function gotoToday() {
   calSelected = TODAY_KEY;
+  tlSelectedKey = TODAY_KEY;
   const j = parseKey(calSelected);
   calYear = j.jy; calMonth = j.jm;
   syncCompat();

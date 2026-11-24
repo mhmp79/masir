@@ -960,6 +960,23 @@ select option{background:#0d1524;color:var(--txt)}
 #examCompareOverlay .wr-close{width:38px;height:38px;border-radius:14px}
 #examCompareOverlay .wr-title{color:#fff}
 
+/* EXAM COMPARE — lives inside the app shell: topbar and bottom tabs stay visible */
+#examCompareOverlay{
+  position:fixed;inset:0;z-index:0;
+  overflow-y:auto;overflow-x:hidden;background:transparent;
+  -webkit-overflow-scrolling:touch;
+}
+#examCompareOverlay .wr-top{display:none}
+#examCompareOverlay .wr-shell{
+  width:100%;max-width:480px;margin:0 auto;box-sizing:border-box;
+  padding:96px 14px calc(104px + env(safe-area-inset-bottom));
+}
+.app.compare-open{pointer-events:none}
+.app.compare-open .topbar,
+.app.compare-open .nav{pointer-events:auto}
+.app.compare-open > main{display:none}
+.app.compare-open .context-btn{display:none}
+
 /* SETTINGS — lives inside the app shell: topbar and bottom tabs stay visible */
 #settingsOverlay{
   position:fixed;inset:0;z-index:0;
@@ -2347,13 +2364,15 @@ body.creating-block .pool-drop-wrap {
   font-weight: 700;
 }
 .wv-reserve-spacer {
-  height: 52px;
-  flex: 0 0 52px;
+  height: var(--reserve-h, 52px);
+  flex: 0 0 var(--reserve-h, 52px);
   border-bottom: 1px solid rgba(255,255,255,.06);
   background: rgba(255,255,255,.02);
 }
 .wv-reserve-row {
-  min-height: 52px;
+  height: var(--reserve-h, 52px);
+  flex: 0 0 var(--reserve-h, 52px);
+  box-sizing: border-box;
   padding: 5px 4px;
   display: flex;
   flex-direction: column;
@@ -2363,8 +2382,8 @@ body.creating-block .pool-drop-wrap {
   transition: .15s;
 }
 .wv-reserve-row.drop-hover { background: rgba(34,211,238,.15); }
-.wv-reserve-label { font-size: 8px; color: var(--muted); text-align: right; }
-.wv-reserve-items { display: flex; flex-direction: column; gap: 3px; }
+.wv-reserve-label { font-size: 8px; color: var(--muted); text-align: right; flex: 0 0 auto; }
+.wv-reserve-items { display: flex; flex-direction: column; gap: 3px; min-height: 0; overflow-y: auto; }
 .wv-reserve-empty {
   display: inline-flex;
   align-items: center;
@@ -6145,6 +6164,7 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   #examCompareOverlay .wr-shell { padding: 16px 24px 80px; }
   #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 13px 16px; }
+  #examCompareOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -6659,6 +6679,8 @@ input.cell-test-input{font-size:12px;padding:7px;text-align:center}
   }
   #examCompareOverlay .exam-compare-side { position: sticky; top: 84px; }
   #examCompareOverlay .exam-compare-charts-card .exam-charts-row { grid-template-columns: 1fr; }
+  #examCompareOverlay { left: 0; right: var(--sidebar-w); top: var(--topbar-h); bottom: 0; }
+  #examCompareOverlay .wr-shell { max-width: 1120px; padding: var(--main-pad); }
   #examOverlay .exam-overlay-inner { max-width: 1000px; padding: 20px 24px 80px; }
 
   .toast { bottom: 40px; }
@@ -9869,6 +9891,7 @@ function switchView(name){
 document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>{
   const app=document.querySelector('.app');
   if(app && app.classList.contains('settings-open') && typeof closeSettingsOverlay==='function') closeSettingsOverlay(true);
+  if(app && app.classList.contains('compare-open') && typeof closeExamCompare==='function') closeExamCompare(true);
   switchView(btn.dataset.view);
 });});
 
@@ -11418,6 +11441,7 @@ function timelineStepDays() {
 /* Month navigation changes the calendar month instead of jumping a fixed number
    of days, so the 29/30/31-day months always advance by exactly one screen. */
 function shiftTimelineAnchor(dir) {
+  tlSelectedKey = null;
   if (tlMode === 'month') {
     const m = shiftPersianMonth(calYear, calMonth, dir);
     calYear = m.jy;
@@ -11437,6 +11461,9 @@ let tlMode = 'day';
 let calYear = TODAY_J.jy;
 let calMonth = TODAY_J.jm;
 let calSelected = TODAY_KEY;
+/* The timeline anchor (calSelected) moves a whole day/week/3-day block at a time.
+   Keep the highlighted day separate so navigation never paints a false selection. */
+let tlSelectedKey = TODAY_KEY;
 let examSelectedId = null;
 let examTopicSetup = {};
 let dragState = null;
@@ -11836,7 +11863,7 @@ function renderCalendar() {
     const cls = ['cal-cell'];
     if (adj) cls.push('adjacent');
     if (k === TODAY_KEY) cls.push('today');
-    if (k === calSelected) cls.push('sel');
+    if (k === tlSelectedKey) cls.push('sel');
     if (hasExam) cls.push('exam-day');
     return `<div class="${cls.join(' ')}" data-key="${k}">${fa(d)}${hasData ? '<i class="dot"></i>' : ''}${hasExam ? '<i class="exam-dot"></i>' : ''}</div>`;
   };
@@ -11856,6 +11883,7 @@ function renderCalendar() {
   grid.querySelectorAll('.cal-cell[data-key]').forEach(el => {
     el.onclick = () => {
       calSelected = el.dataset.key;
+      tlSelectedKey = calSelected;
       const j = parseKey(calSelected);
       calYear = j.jy; calMonth = j.jm;
       syncCompat();
@@ -12288,7 +12316,9 @@ function applyDrop(st, target) {
     return;
   }
   if (target.type === 'day' || target.type === 'subject') {
-    sessions.forEach(s => updateSession(s.id, { date: target.date }));
+    sessions.forEach(s => updateSession(s.id, target.type === 'subject'
+      ? { date: target.date, subject: target.subject }
+      : { date: target.date }));
     toast('منتقل شد');
     return;
   }
@@ -12465,10 +12495,12 @@ function onTimelineSwipeCancel() {
 
 function renderAdjacentTimelineHTML(targetDir) {
   const savedSelected = calSelected;
+  const savedSelectedKey = tlSelectedKey;
   const savedYear = calYear;
   const savedMonth = calMonth;
 
   const savedMode = tlMode;
+  tlSelectedKey = null;
   let html;
   try {
     if (savedMode === 'month') {
@@ -12496,6 +12528,7 @@ function renderAdjacentTimelineHTML(targetDir) {
   }
 
   calSelected = savedSelected;
+  tlSelectedKey = savedSelectedKey;
   calYear = savedYear;
   calMonth = savedMonth;
 
@@ -12580,6 +12613,20 @@ function renderTimelineBody() {
   body.querySelectorAll('.mc-cell[data-key]').forEach(cell => {
     cell.onclick = () => {
       calSelected = cell.dataset.key;
+      tlSelectedKey = calSelected;
+      const j = parseKey(calSelected);
+      calYear = j.jy;
+      calMonth = j.jm;
+      tlMode = 'day';
+      syncCompat();
+      renderCalendar();
+      renderViewContent();
+    };
+  });
+  body.querySelectorAll('.wv-day[data-key]').forEach(day => {
+    day.onclick = () => {
+      calSelected = day.dataset.key;
+      tlSelectedKey = calSelected;
       const j = parseKey(calSelected);
       calYear = j.jy;
       calMonth = j.jm;
@@ -12887,7 +12934,7 @@ function renderTimelineMonth() {
     const cls = ['mc-cell'];
     if (adjacent) cls.push('adjacent');
     if (k === TODAY_KEY) cls.push('today');
-    if (k === calSelected) cls.push('sel');
+    if (k === tlSelectedKey) cls.push('sel');
 
     const chips = items.slice(0, 2).map(item => {
       const label = item._monthKind === 'exam'
@@ -12915,20 +12962,24 @@ function renderTimelineMonth() {
 function renderTimelineMulti(keys) {
   const cols = keys.length;
   const wrapper = cols >= 7 ? 'week-view narrow' : 'week-view';
+  /* One shared band height for every column: a busier reserve list can never
+     push a single day's ruler out of alignment with its neighbours. */
+  const reserves = keys.map(k => reservedOfDay(k));
+  const reserveH = Math.max(52, ...reserves.map(r => 21 * r.length + 21));
   const head = `<div class="wv-head" style="--cols:${cols}"><div></div>${keys.map(k => {
     const j = parseKey(k);
     const kd = j2d(j.jy, j.jm, j.jd);
     const cls = ['wv-day'];
     if (k === TODAY_KEY) cls.push('today');
-    if (k === calSelected) cls.push('sel');
+    if (k === tlSelectedKey) cls.push('sel');
     return `<div class="${cls.join(' ')}" data-key="${k}"><span>${DOW_SHORT[dowIndex(kd)]}</span><b>${fa(j.jd)}</b></div>`;
   }).join('')}</div>`;
   const hours = HOURS.map(h => `<div class="wv-h">${fa(h)}</div>`).join('');
 
-  const colsHTML = keys.map(k => {
+  const colsHTML = keys.map((k, dayIdx) => {
     const timed = timedOfDay(k);
     const merged = mergeSessions(timed);
-    const reserved = reservedOfDay(k);
+    const reserved = reserves[dayIdx];
     const acts = state.activities
       .filter(a => a.date === k && a.startMin != null && a.endMin != null)
       .filter(a => !timed.some(s => s.activityId === a.id))
@@ -13009,18 +13060,21 @@ function renderTimelineMulti(keys) {
     return `<div class="wv-day-column">${reservedHTML}<div class="wv-col" data-drop-col="${k}">${cells}${blocksHTML}${actsHTML}${examsHTML}${sleepsHTML}${nowLine}</div></div>`;
   }).join('');
 
-  return `<div class="${wrapper}"><div class="wv-scroll">${head}<div class="wv"><div class="wv-hours"><div class="wv-reserve-spacer"></div>${hours}<div class="wv-h wv-h-end">۲۴:۰۰</div></div><div class="wv-cols" style="--cols:${cols}">${colsHTML}</div></div></div></div>`;
+  return `<div class="${wrapper}"><div class="wv-scroll">${head}<div class="wv" style="--reserve-h:${reserveH}px"><div class="wv-hours"><div class="wv-reserve-spacer"></div>${hours}<div class="wv-h wv-h-end">۲۴:۰۰</div></div><div class="wv-cols" style="--cols:${cols}">${colsHTML}</div></div></div></div>`;
 }
 
 /* ============ SUBJECTS VIEW ============ */
 function renderSubjects(box) {
   const st = activeWeekStart();
   const days = Array.from({ length: 7 }, (_, i) => jKey(d2j(st + i)));
-  const subjects = allSubjectsForSelect().filter(s => s.name !== OTHER_SUBJECT);
+  const allSubjects = allSubjectsForSelect();
+  const subjects = allSubjects.filter(s => s.name !== OTHER_SUBJECT);
   if (!subjects.length) {
     box.innerHTML = `<div class="plan-hint">هنوز درسی نداری. از تنظیمات اضافه کن.</div>`;
     return;
   }
+  /* «سایر» is a real column in the topic grid, always last. */
+  subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));
   const onThisWeek = subjectsContainsThisWeek();
   let html = `<div class="grid-card">
     <div class="grid-header">
@@ -13202,6 +13256,7 @@ function weekTitle(ws) {
 }
 
 function navigateWeek(dir) {
+  tlSelectedKey = null;
   calSelected = jKey(d2j(jdnFromKey(calSelected) + dir * 7));
   const j = parseKey(calSelected);
   calYear = j.jy; calMonth = j.jm;
@@ -13212,6 +13267,7 @@ function navigateWeek(dir) {
 
 function gotoToday() {
   calSelected = TODAY_KEY;
+  tlSelectedKey = TODAY_KEY;
   const j = parseKey(calSelected);
   calYear = j.jy; calMonth = j.jm;
   syncCompat();
@@ -15192,7 +15248,7 @@ function openExamSettingsModal(id){
     state.exams=state.exams.filter(e=>e.id!==id);
     save();closeModal();
     if(currentExamId===id)closeExamDetail();
-    if(document.getElementById('examCompareOverlay').classList.contains('show')){document.getElementById('examCompareOverlay').classList.remove('show');document.body.style.overflow='';}
+    if(document.getElementById('examCompareOverlay').classList.contains('show'))closeExamCompare(true);
     renderExamSection();renderDashboard();toast('آزمون حذف شد');
   };
 }
@@ -16465,13 +16521,28 @@ function getExamChartData(){
     .sort((a,b)=>jdnFromKey(a.date)-jdnFromKey(b.date));
 }
 
+function setCompareChrome(open){
+  const app=document.querySelector('.app');
+  if(app)app.classList.toggle('compare-open',open);
+}
 function openExamCompare(){
   if(!state.settings.examsEnabled){toast('اول آزمون را فعال کن');return;}
-  document.getElementById('examCompareOverlay').classList.add('show');
+  const overlay=document.getElementById('examCompareOverlay');
+  if(!overlay)return;
+  if(typeof closeSettingsOverlay==='function')closeSettingsOverlay(true);
+  overlay.classList.add('show');
   document.body.style.overflow='hidden';
+  setCompareChrome(true);
   renderExamCompare();
 }
-document.getElementById('examCompareClose').onclick=()=>{document.getElementById('examCompareOverlay').classList.remove('show');document.body.style.overflow='';};
+function closeExamCompare(force){
+  const overlay=document.getElementById('examCompareOverlay');
+  if(!overlay)return;
+  overlay.classList.remove('show');
+  setCompareChrome(false);
+  document.body.style.overflow='';
+}
+document.getElementById('examCompareClose').onclick=()=>closeExamCompare(true);
 
 function renderExamCompare(){
   const exams=getExamChartData();
@@ -18668,6 +18739,7 @@ function setSettingsChrome(open){
 }
 function openSettingsOverlay(){
   const overlay=document.getElementById('settingsOverlay');if(!overlay)return;
+  if(typeof closeExamCompare==='function')closeExamCompare(true);
   setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);
@@ -23218,8 +23290,7 @@ function setupBackExitGuard(){
     }
     const compare=document.getElementById('examCompareOverlay');
     if(compare && compare.classList.contains('show')){
-      compare.classList.remove('show');
-      document.body.style.overflow='';
+      try{ closeExamCompare(true); }catch(_){}
       rearm(); return;
     }
     const calendarDrawer=document.getElementById('examSidebarBackdrop');

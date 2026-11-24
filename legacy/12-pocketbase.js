@@ -2899,9 +2899,10 @@ window.pocketBaseSync = {
   startRealtime: startRealtimePush,
   login: loginWithPassword,
   logout: logoutPocketBase,
-  render: renderSyncUI
+  render: renderSyncUI,
+  renderSyncUI: renderSyncUI
 };
 
 
 // Temporary migration shim
-window.legacyPbSync = window.pbSync || window.pocketBaseSync || { renderSyncUI: typeof renderSyncUI==='function'?renderSyncUI:function(){} };
+window.legacyPbSync = window.pocketBaseSync;

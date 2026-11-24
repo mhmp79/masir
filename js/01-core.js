@@ -461,6 +461,7 @@ const DEFAULT_SUBJECTS=[
 
 const LS_KEY='konkur-unified-v1';
 const DB_NAME='konkur-student-db';
+const DB_VERSION=5;
 const DB_STORE='app-state';
 const DB_STATE_ID='main';
 const LOCAL_RECORD_PREFIX=`${LS_KEY}:record:`;
@@ -1031,11 +1032,12 @@ const appStateRepository={
   open(){
     return new Promise((resolve,reject)=>{
       if(!window.indexedDB){reject(new Error('مرورگر از IndexedDB پشتیبانی نمی‌کند'));return;}
-      const request=window.indexedDB.open(DB_NAME,4);
+      const request=window.indexedDB.open(DB_NAME,DB_VERSION);
       request.onupgradeneeded=()=>{
         const db=request.result;
         if(!db.objectStoreNames.contains(DB_STORE))db.createObjectStore(DB_STORE,{keyPath:'id'});
         NORMALIZED_STORES.forEach(name=>{if(!db.objectStoreNames.contains(name))db.createObjectStore(name,{keyPath:'id'});});
+        if(!db.objectStoreNames.contains('local-state'))db.createObjectStore('local-state',{keyPath:'id'});
         if(!db.objectStoreNames.contains(SYNC_CHANGES_STORE))db.createObjectStore(SYNC_CHANGES_STORE,{keyPath:'id',autoIncrement:true});
         if(!db.objectStoreNames.contains(SYNC_PENDING_STORE)){
           const pending=db.createObjectStore(SYNC_PENDING_STORE,{keyPath:'id'});
@@ -1502,6 +1504,12 @@ async function initializeStorage(){
   try{
     await appStateRepository.open();
     indexedDbOpened=true;
+    /* شمارنده و تایمر قبل از init() از cache خوانده میشوند؛ cache را پیش از
+       آن از IndexedDB پر میکنیم. */
+    if(typeof window!=='undefined'&&window.localState&&typeof window.localState.ready==='function'){
+      await window.localState.ready();
+      if(typeof window._localStateHydratedHook==='function')window._localStateHydratedHook();
+    }
     const stored=await appStateRepository.getNormalized();
     if(stored){
       recoveryData=stored;
@@ -1704,6 +1712,86 @@ window.storageSync = {
     return true;
   }
 };
+
+/* index.html بارگذاری مستقیم 01-core.js را انجام میدهد و ماژول 00-localstate.js
+   فقط توسط build.py درج میشود؛ در آن حالت همان API بهطور تنبل اینجا ساخته میشود. */
+if(typeof window!=='undefined'&&!window.localState){
+  const LOCAL_STATE_STORE='local-state';
+  const LOCAL_LEGACY_KEYS={tracker:'konkur-'+'trk-v1',timer:'konkur-'+'timer-v1'};
+  const localCache=Object.create(null);
+  const localDirty=new Set();
+  const localMigratedKeys=[];
+  let localMigrated=false;
+  let localHydrated=false;
+  let localQueue=Promise.resolve();
+  function localMigrate(){
+    if(localMigrated)return;
+    localMigrated=true;
+    Object.keys(LOCAL_LEGACY_KEYS).forEach(key=>{
+      try{
+        const raw=localStorage.getItem(LOCAL_LEGACY_KEYS[key]);
+        if(raw==null)return;
+        /* رشتهٔ ذخیرهشدهٔ قدیمی را بدون پارس نگه میداریم تا خوانندگانی که
+           خود JSON.parse میکنند مقدار معتبر ببینند. */
+        if(!(key in localCache))localCache[key]=raw;
+        localStorage.removeItem(LOCAL_LEGACY_KEYS[key]);
+        localDirty.add(key);
+        localMigratedKeys.push(key);
+      }catch(error){
+        console.warn('[localState] legacy migration failed:',error);
+      }
+    });
+  }
+  function localReady(){
+    localMigrate();
+    const db=appStateRepository.database;
+    if(localHydrated||!db||!db.objectStoreNames.contains(LOCAL_STATE_STORE))return Promise.resolve(localCache);
+    localHydrated=true;
+    return new Promise(resolve=>{
+      const request=db.transaction(LOCAL_STATE_STORE,'readonly').objectStore(LOCAL_STATE_STORE).getAll();
+      request.onsuccess=()=>{
+        (request.result||[]).forEach(row=>{
+          if(row&&row.id!=null&&!localDirty.has(row.id)&&!(row.id in localCache))localCache[row.id]=row.value;
+        });
+        localMigratedKeys.forEach(key=>{
+          localQueue=localQueue.then(()=>localWrite(key)).catch(()=>{});
+        });
+        resolve(localCache);
+      };
+      request.onerror=()=>resolve(localCache);
+    });
+  }
+  function localWrite(key){
+    const db=appStateRepository.database;
+    if(!db||!db.objectStoreNames.contains(LOCAL_STATE_STORE))return Promise.resolve();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(LOCAL_STATE_STORE,'readwrite');
+      if(key in localCache)tx.objectStore(LOCAL_STATE_STORE).put({id:key,value:localCache[key]});
+      else tx.objectStore(LOCAL_STATE_STORE).delete(key);
+      tx.oncomplete=()=>resolve();
+      tx.onerror=()=>reject(tx.error||new Error('نوشتن local-state ناموفق بود'));
+    });
+  }
+  function localGetSync(key){
+    localMigrate();
+    return key in localCache?localCache[key]:null;
+  }
+  function localSetSync(key,value){
+    localMigrate();
+    localDirty.add(key);
+    localCache[key]=value;
+    localQueue=localQueue.then(()=>localReady()).then(()=>localWrite(key)).catch(()=>{});
+    return value;
+  }
+  window.localState={
+    getSync:localGetSync,
+    setSync:localSetSync,
+    get:(key)=>localReady().then(()=>key in localCache?localCache[key]:null),
+    set:(key,value)=>{localSetSync(key,value);return localQueue.then(()=>value);},
+    remove:(key)=>localSetSync(key,null),
+    ready:localReady
+  };
+}
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),1800);}
 
@@ -2159,6 +2247,7 @@ function switchView(name){
 document.querySelectorAll('.nav-btn').forEach((btn)=>{btn.addEventListener('click',()=>{
   const app=document.querySelector('.app');
   if(app && app.classList.contains('settings-open') && typeof closeSettingsOverlay==='function') closeSettingsOverlay(true);
+  if(app && app.classList.contains('compare-open') && typeof closeExamCompare==='function') closeExamCompare(true);
   switchView(btn.dataset.view);
 });});
 

@@ -5,7 +5,7 @@
    نسخه ۰.۹.۰ — ثبت با تاریخ انتخابی
    ============================================================ */
 
-const TIMER_KEY = 'konkur-timer-v1';
+const TIMER_STATE_KEY = 'timer';
 
 function defaultTimerState(){
   return {
@@ -23,13 +23,37 @@ function defaultTimerState(){
 }
 function loadTimerState(){
   try{
-    const raw = localStorage.getItem(TIMER_KEY);
+    const raw = localState.getSync(TIMER_STATE_KEY);
     if(!raw) return null;
     return Object.assign(defaultTimerState(), JSON.parse(raw));
   }catch(e){ return null; }
 }
 let timerState = loadTimerState() || defaultTimerState();
-function saveTimerState(){ try{ localStorage.setItem(TIMER_KEY, JSON.stringify(timerState)); }catch(e){} }
+function saveTimerState(){
+  try{ localState.setSync(TIMER_STATE_KEY, JSON.stringify(timerState)); }catch(e){}
+  try{ if(typeof window._trackerSaveHook==='function') window._trackerSaveHook(); }catch(e){}
+}
+function applyImportedTimerState(value){
+  if(!value || typeof value !== 'object') return;
+  timerState = Object.assign(defaultTimerState(), value);
+  saveTimerState();
+  try{ updateTimerDisplay(); }catch(e){}
+}
+/* IndexedDB cache is ready before init(); load the persisted timer without
+   overwriting anything the user changed in the meantime. */
+function applyHydratedTimerState(){
+  if(JSON.stringify(timerState) !== JSON.stringify(defaultTimerState())) return;
+  const saved = loadTimerState();
+  if(!saved) return;
+  timerState = saved;
+  try{ updateTimerDisplay(); }catch(e){}
+  try{ updateFlowRatioInfo(); }catch(e){}
+  ['pomWork','pomBreak','pomReps','flowStudy','flowBreak'].forEach(key=>{
+    const el = document.getElementById(key);
+    if(el) el.value = timerState[key];
+  });
+}
+window._localStateHydratedHook = applyHydratedTimerState;
 
 function getElapsedMs(){
   let ms = timerState.accumulated || 0;

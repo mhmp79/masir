@@ -736,7 +736,7 @@ function openExamSettingsModal(id){
     state.exams=state.exams.filter(e=>e.id!==id);
     save();closeModal();
     if(currentExamId===id)closeExamDetail();
-    if(document.getElementById('examCompareOverlay').classList.contains('show')){document.getElementById('examCompareOverlay').classList.remove('show');document.body.style.overflow='';}
+    if(document.getElementById('examCompareOverlay').classList.contains('show'))closeExamCompare(true);
     renderExamSection();renderDashboard();toast('آزمون حذف شد');
   };
 }
@@ -2009,13 +2009,28 @@ function getExamChartData(){
     .sort((a,b)=>jdnFromKey(a.date)-jdnFromKey(b.date));
 }
 
+function setCompareChrome(open){
+  const app=document.querySelector('.app');
+  if(app)app.classList.toggle('compare-open',open);
+}
 function openExamCompare(){
   if(!state.settings.examsEnabled){toast('اول آزمون را فعال کن');return;}
-  document.getElementById('examCompareOverlay').classList.add('show');
+  const overlay=document.getElementById('examCompareOverlay');
+  if(!overlay)return;
+  if(typeof closeSettingsOverlay==='function')closeSettingsOverlay(true);
+  overlay.classList.add('show');
   document.body.style.overflow='hidden';
+  setCompareChrome(true);
   renderExamCompare();
 }
-document.getElementById('examCompareClose').onclick=()=>{document.getElementById('examCompareOverlay').classList.remove('show');document.body.style.overflow='';};
+function closeExamCompare(force){
+  const overlay=document.getElementById('examCompareOverlay');
+  if(!overlay)return;
+  overlay.classList.remove('show');
+  setCompareChrome(false);
+  document.body.style.overflow='';
+}
+document.getElementById('examCompareClose').onclick=()=>closeExamCompare(true);
 
 function renderExamCompare(){
   const exams=getExamChartData();

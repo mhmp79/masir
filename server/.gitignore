@@ -1,0 +1,4 @@
+# Keep local secrets out while shipping the example file (root .gitignore has .env.*).
+.env
+!.env.example
+node_modules/

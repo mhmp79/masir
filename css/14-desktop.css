@@ -17,6 +17,7 @@
   #settingsOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   #examCompareOverlay .wr-shell { padding: 16px 24px 80px; }
   #examCompareOverlay .wr-top { margin: 0 0 14px; padding: 13px 16px; }
+  #examCompareOverlay .wr-shell { max-width: 100%; padding: 100px 24px calc(110px + env(safe-area-inset-bottom)); }
   .plan-side { grid-column: 2; grid-row: 1; position: sticky; top: 16px; order: initial; width: auto; }
   .plan-main { grid-column: 1; grid-row: 1; min-width: 0; order: initial; }
   .plan-side > .card { margin-bottom: 10px; }
@@ -531,6 +532,8 @@
   }
   #examCompareOverlay .exam-compare-side { position: sticky; top: 84px; }
   #examCompareOverlay .exam-compare-charts-card .exam-charts-row { grid-template-columns: 1fr; }
+  #examCompareOverlay { left: 0; right: var(--sidebar-w); top: var(--topbar-h); bottom: 0; }
+  #examCompareOverlay .wr-shell { max-width: 1120px; padding: var(--main-pad); }
   #examOverlay .exam-overlay-inner { max-width: 1000px; padding: 20px 24px 80px; }
 
   .toast { bottom: 40px; }

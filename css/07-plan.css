@@ -1004,13 +1004,15 @@ body.creating-block .pool-drop-wrap {
   font-weight: 700;
 }
 .wv-reserve-spacer {
-  height: 52px;
-  flex: 0 0 52px;
+  height: var(--reserve-h, 52px);
+  flex: 0 0 var(--reserve-h, 52px);
   border-bottom: 1px solid rgba(255,255,255,.06);
   background: rgba(255,255,255,.02);
 }
 .wv-reserve-row {
-  min-height: 52px;
+  height: var(--reserve-h, 52px);
+  flex: 0 0 var(--reserve-h, 52px);
+  box-sizing: border-box;
   padding: 5px 4px;
   display: flex;
   flex-direction: column;
@@ -1020,8 +1022,8 @@ body.creating-block .pool-drop-wrap {
   transition: .15s;
 }
 .wv-reserve-row.drop-hover { background: rgba(34,211,238,.15); }
-.wv-reserve-label { font-size: 8px; color: var(--muted); text-align: right; }
-.wv-reserve-items { display: flex; flex-direction: column; gap: 3px; }
+.wv-reserve-label { font-size: 8px; color: var(--muted); text-align: right; flex: 0 0 auto; }
+.wv-reserve-items { display: flex; flex-direction: column; gap: 3px; min-height: 0; overflow-y: auto; }
 .wv-reserve-empty {
   display: inline-flex;
   align-items: center;

@@ -639,11 +639,11 @@ function renderPhoneEntryList(){
 let trkCounts={correct:0,wrong:0,blank:0};
 const TRK_COEF=1/3;
 let trkCoef=TRK_COEF;
-const TRK_KEY='konkur-trk-v1';
+const TRK_STATE_KEY='tracker';
 
 function loadTracker(){
   try{
-    const d=JSON.parse(localStorage.getItem(TRK_KEY)||'null');
+    const d=JSON.parse(localState.getSync(TRK_STATE_KEY)||'null');
     if(d){
       trkCounts={correct:Math.max(0,+d.correct||0),wrong:Math.max(0,+d.wrong||0),blank:Math.max(0,+d.blank||0)};
     }
@@ -651,7 +651,7 @@ function loadTracker(){
   trkCoef=TRK_COEF;
 }
 function saveTracker(){
-  try{localStorage.setItem(TRK_KEY,JSON.stringify({...trkCounts,coef:TRK_COEF}));}catch(e){}
+  try{localState.setSync(TRK_STATE_KEY,JSON.stringify({...trkCounts,coef:TRK_COEF}));}catch(e){}
   try{ if(typeof window._trackerSaveHook==='function') window._trackerSaveHook(); }catch(e){}
 }
 

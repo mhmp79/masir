@@ -23284,8 +23284,21 @@ readSession();
       return this._request(`/api/collections/${encodeURIComponent(collection)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
     }
 
+    async _resolveUsersCollection() {
+      if (this._usersCollection) return this._usersCollection;
+      for (const name of ['masir_users', 'users']) {
+        try {
+          const res = await fetch(this.baseUrl + '/api/collections/' + encodeURIComponent(name) + '/auth-methods', { headers: { 'Accept': 'application/json' } });
+          if (res.ok) { this._usersCollection = name; return name; }
+        } catch (_) {}
+      }
+      this._usersCollection = 'masir_users';
+      return this._usersCollection;
+    }
+
     async _authRecordByToken(token) {
-      const res = await fetch(this.baseUrl + '/api/collections/masir_users/auth-refresh', {
+      const col = await this._resolveUsersCollection();
+      const res = await fetch(this.baseUrl + '/api/collections/' + encodeURIComponent(col) + '/auth-refresh', {
         method: 'POST', headers: this._authHeaders(token)
       });
       if (!res.ok) throw await responseError(res);
@@ -23316,10 +23329,11 @@ readSession();
       const p = normalizePhone(phone);
       const pass = normalizePassword(password);
       const identities = [p, phoneUsername(p), englishDigits(phone == null ? '' : phone).replace(/[\s\-()+]/g, '')].filter(Boolean);
+      const col = await this._resolveUsersCollection();
       let lastErr;
       for (const identity of [...new Set(identities)]) {
         try {
-          const res = await this._request('/api/collections/masir_users/auth-with-password', { method: 'POST', auth: false, body: { identity, password: pass } });
+          const res = await this._request(`/api/collections/${encodeURIComponent(col)}/auth-with-password`, { method: 'POST', auth: false, body: { identity, password: pass } });
           const token = String(res && res.token || '');
           const record = res && res.record || {};
           if (!token || !record.id) throw new Error('???? ?????? ???.');
@@ -23336,12 +23350,13 @@ readSession();
       const rec = auth && auth.record || auth || {};
       const id = rec.id;
       if (!id) throw new Error('????? ??????? ???.');
+      const col = await this._resolveUsersCollection();
       const body = {
         oldPassword: String(currentPassword || ''),
         password: normalizePassword(newPassword),
         passwordConfirm: normalizePassword(newPassword)
       };
-      await this._request(`/api/collections/masir_users/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+      await this._request(`/api/collections/${encodeURIComponent(col)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
       return { ok: true };
     }
 
@@ -23366,7 +23381,8 @@ readSession();
         grade: String(p.grade == null ? '' : p.grade),
       };
       body.display_name = [body.first_name, body.last_name].filter(Boolean).join(' ');
-      const updated = await this._request(`/api/collections/masir_users/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
+      const col = await this._resolveUsersCollection();
+      const updated = await this._request(`/api/collections/${encodeURIComponent(col)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
       return { ok: true, user: this._userFromRecord(updated) };
     }
 

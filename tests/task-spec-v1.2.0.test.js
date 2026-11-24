@@ -844,7 +844,7 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r39'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r40'));
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {
@@ -1182,6 +1182,18 @@ test('FIX: exam compare stays inside the app shell with active bottom tabs', () 
     'tab taps must close compare before switching views');
   assert.ok(init.includes('try{ closeExamCompare(true); }catch(_){}'));
   assert.ok(/#examCompareOverlay \{ left: 0; right: var\(--sidebar-w\); top: var\(--topbar-h\); bottom: 0; \}/.test(desktop));
+});
+
+test('FIX: first sync downloads before uploading so a new device cannot wipe an account', () => {
+  const pb = read('js/12-pocketbase.js');
+  assert.ok(/if \(firstSync\) \{[\s\S]{0,120}performDownload/.test(pb),
+    'first sync must read the account before writing local records');
+  assert.ok(!/firstSync && !hasLocalStudyData\(\)/.test(pb),
+    'local study data must not turn the first sync into an upload');
+  assert.ok(pb.includes('if (accountSwitchPending) {'));
+  assert.ok(pb.includes('replaceTrackedState(defaultState(), true)'),
+    'a different account must be seeded from clean defaults, not the previous account');
+  assert.ok(pb.includes('accountSwitchPending = false;'));
 });
 
 console.log('TASK SPEC v1.2.0 — all phase checks');

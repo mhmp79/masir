@@ -1795,6 +1795,8 @@ async function loginWithPassword(email, password, serverUrl) {
   saveLegacyToken(pb.authStore.token);
   const record = auth && (auth.record || auth);
   if (record && record.id) {
+    const previousId = state.profile && state.profile.id ? String(state.profile.id) : '';
+    if (previousId && previousId !== String(record.id)) accountSwitchPending = true;
     state.profile.email = String(record.email || email || '');
     state.profile.id = String(record.id);
     save();
@@ -2222,6 +2224,9 @@ let lastProbeAt = 0;
 let probeInFlight = false;
 let realtimePending = false;
 let lastAutoStatus = 'idle';
+/* A login into a different account must never seed that account with records
+   left over from the previous one. */
+let accountSwitchPending = false;
 let pendingBadgeToken = 0;
 
 function readAutoSyncEnabled() {
@@ -2367,7 +2372,7 @@ async function syncCycle(options = {}) {
     const firstSync = !identity || !identity.meta;
 
     /* اولین همگام‌سازی: دستگاه تازه اول دریافت می‌کند؛ اگر دادهٔ محلی وجود دارد اول ارسال */
-    if (firstSync && !hasLocalStudyData()) {
+    if (firstSync) {
       outcome = await performDownload({ silent: true, deferCheck: !manual });
       if (outcome && outcome.ok) {
         lastDownloadAt = Date.now();
@@ -2375,9 +2380,22 @@ async function syncCycle(options = {}) {
         lastAutoStatus = 'idle';
         /* حساب خالی است: همین دستگاه پایهٔ اولیه را می‌سازد تا سینک بعدی معنا داشته باشد */
         if (outcome.empty) {
+          /* After an account switch, seed from a clean default state instead of
+             copying records that belonged to the previous account. */
+          if (accountSwitchPending) {
+            autoSyncSuppressUpload++;
+            try {
+              replaceTrackedState(defaultState(), true);
+              save();
+              await flushStorage().catch(() => {});
+            } finally {
+              autoSyncSuppressUpload--;
+            }
+          }
           const seed = await performUpload({ silent: true });
           if (seed && seed.ok) outcome = { ok: true, changed: seed.changed || 0, seeded: true };
         }
+        accountSwitchPending = false;
       } else if (outcome && outcome.deferred) {
         scheduleAutoCycle(AUTO_DEFER_RETRY, reason);
         lastAutoStatus = 'idle';

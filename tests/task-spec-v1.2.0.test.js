@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r51', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r52', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r51'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r52'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1150,6 +1150,7 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
   const html = read('index.html');
   const settings = read('js/08-settings.js');
   const sync = read('js/12-sql-sync.js');
+  const backup = read('js/11-backup.js');
   const overlays = read('css/05-overlays.css');
   const body = html.slice(html.indexOf('<main class="wr-body" id="settingsBody">'), html.indexOf('</main>', html.indexOf('<main class="wr-body" id="settingsBody">')));
   const pages = ['home', 'account', 'subjects', 'exam', 'backup', 'danger'];
@@ -1175,15 +1176,25 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
     'the separate account-services card must be gone');
   assert.ok(accountPage.includes('id="profileHeroPhone"'),
     'the personal account must display the connected phone number');
+  assert.ok(!accountPage.includes('حساب و پروفایل') && !accountPage.includes('حساب کاربری'),
+    'account identity must not be repeated with old labels');
+  assert.ok(!sync.includes('account-row') && !sync.includes('account-phone') &&
+    !sync.includes('همگامسازی ابری'),
+    'the account renderer must not repeat identity, phone or sync headings');
+  assert.ok(sync.includes('renderAccountUI(loggedIn, phone, busy)') &&
+    sync.includes('sync-status-line'),
+    'login tools and sync status use the compact redesigned layout');
   assert.ok(settings.includes('profileHeroPhone') && sync.includes('profileHeroPhone'),
     'profile and sync renderers must keep the hero phone in sync with the session');
   assert.ok(settings.includes("_editProfileBtn.onclick = () => setSettingsPage('account')"),
     'edit profile must open the merged account page');
   const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="account"'));
   assert.ok(!homePage.includes('id="homeSyncNowBtn"'), 'home manual-sync button is gone');
-  assert.ok(homePage.includes('class="card settings-link sync-link-row"'), 'sync row remains');
+  assert.ok(!homePage.includes('sync-link-row'), 'the redundant account/profile row is gone');
   assert.ok(!homePage.includes('sync-mini-card'), 'separate manual-sync card is gone');
-  assert.ok(homePage.includes('data-go="account"'), 'sync row opens the merged account page');
+  assert.ok(!homePage.includes('data-go="account"'), 'the top edit button is the only account entry');
+  assert.ok(homePage.includes('id="homeSyncState"'), 'sync state stays as text on the profile card');
+  assert.ok(!homePage.includes('حساب و پروفایل'), 'the account/profile label is not repeated on home');
   assert.ok(/#settingsBody \.card\{margin-bottom:0\}/.test(overlays), 'settings cards drop the global bottom margin');
   assert.ok(/#settingsBody\{display:flex;flex-direction:column;gap:8px\}/.test(overlays), 'settings gaps are compact');
   assert.ok(/#settingsOverlay\{[\s\S]*?overflow-x:hidden/.test(overlays), 'settings overlay cannot scroll sideways');
@@ -1200,6 +1211,14 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
   const profileBlock = settings.slice(profileStart, settings.indexOf('};', profileStart));
   assert.ok(!/email\s*:/.test(profileBlock) && !profileBlock.includes('state.profile.email'),
     'saving a profile must not preserve an email address');
+  const dangerPage = body.slice(body.indexOf('data-page="danger"'));
+  assert.ok(dangerPage.includes('حذف دادهها از سرور و دستگاه'),
+    'the delete-data action must explicitly cover the server');
+  assert.ok(backup.includes('client.deleteAccountData()'),
+    'clearing data must delete the signed-in account data from the server too');
+  assert.ok(backup.includes('دادههای حساب روی سرور و تمام اطلاعات این دستگاه پاک میشود'),
+    'the confirmation must state that server data is deleted');
+  assert.ok(sync.includes('deleteAccountData,'), 'the sync runtime must expose server data deletion');
 });
 
 test('REWORK: weekly totals show correct/wrong/blank and plan images have a preview', () => {
@@ -1476,7 +1495,7 @@ test('DOMAIN: production TWA and SQL API are configured for masir.ir', () => {
 test('ADMIN: user creation guidance and controls are discoverable', () => {
   const auth = read('js/14-auth-ui.js');
   const sync = read('js/12-sql-sync.js');
-  assert.ok(auth.includes('تنظیمات ← حساب و پروفایل ← مدیریت کاربران ← ایجاد کاربر'));
+  assert.ok(auth.includes('تنظیمات ← ویرایش حساب ← مدیریت کاربران ← ایجاد کاربر'));
   assert.ok(sync.includes("accountActionButton('accountAdminBtn', 'مدیریت کاربران'"));
   assert.ok(sync.includes("role === 'admin'"));
   assert.ok(auth.includes("action === 'admin-create'"));

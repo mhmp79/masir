@@ -304,6 +304,25 @@ test('HTTP: advisor and admin endpoints use the agreed paths', async () => {
   });
 });
 
+test('HTTP: account data deletion uses a dedicated authenticated endpoint', async () => {
+  const h = harness();
+  await h.client.deleteAccountData();
+  assert.deepStrictEqual(
+    h.calls.map((call) => call.url.replace('https://sql.example.test', '')),
+    ['/api/account/clear-data'],
+  );
+  assert.strictEqual(h.calls[0].init.method, 'POST');
+  assert.strictEqual(h.calls[0].init.headers.Authorization, 'Bearer test-token');
+
+  const routes = fs.readFileSync(path.join(ROOT, 'server/src/routes.js'), 'utf8');
+  assert.ok(routes.includes("router.post('/api/account/clear-data', authenticate"),
+    'server must expose an authenticated account-data deletion route');
+  assert.ok(routes.includes('SET deleted = true, updated = now()'),
+    'server data deletion must be a soft delete that cannot be resurrected by sync');
+  assert.ok(routes.includes('WHERE owner_id = $1'),
+    'server deletion must be limited to the signed-in account');
+});
+
 test('HTTP: server errors and timeouts produce clear English messages', async () => {
   const denied = harness({
     fetchHook: async () => ({ ok: false, status: 401, text: async () => JSON.stringify({ message: 'expired' }) })

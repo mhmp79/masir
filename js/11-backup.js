@@ -348,7 +348,22 @@ async function importBackup(file){
 }
 
 async function clearAllData(){
-  if(!confirm('همه داده‌ها پاک شوند؟ این عملیات قابل بازگشت نیست.')) return;
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const message = loggedIn
+    ? 'دادههای حساب روی سرور و تمام اطلاعات این دستگاه پاک میشود. این عملیات قابل بازگشت نیست؛ ادامه میدهید؟'
+    : 'تمام اطلاعات این دستگاه پاک میشود؛ حسابی متصل نیست تا داده سرور حذف شود. ادامه میدهید؟';
+  if(!confirm(message)) return;
+  if(loggedIn){
+    try{
+      if(typeof client.deleteAccountData !== 'function') throw new Error('امکان حذف دادهها از سرور در دسترس نیست.');
+      await client.deleteAccountData();
+    }catch(error){
+      console.error('[backup] server data delete failed:',error);
+      toast('❌ حذف دادهها از سرور ناموفق بود؛ دادههای دستگاه پاک نشد.');
+      return;
+    }
+  }
   replaceTrackedState(defaultState(), true);
   trkCounts = { correct: 0, wrong: 0, blank: 0 };
   trkCoef = (typeof TRK_COEF !== 'undefined' ? TRK_COEF : 1 / 3);
@@ -374,7 +389,7 @@ async function clearAllData(){
     toast('پاک‌سازی در حافظه ذخیره نشد.');
     return;
   }
-  toast('همه داده‌ها پاک شد');
+  toast(loggedIn ? 'دادهها از سرور و دستگاه پاک شد' : 'دادههای دستگاه پاک شد');
   setTimeout(() => location.reload(), 500);
 }
 

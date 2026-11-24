@@ -274,6 +274,11 @@ async function changePassword(currentPassword, newPassword) {
   return true;
 }
 
+async function deleteAccountData() {
+  const client = await requireSqlAuth();
+  return client.deleteAccountData();
+}
+
 function logoutSql() {
   stopRealtimePush();
   stopAutoSyncTimers();
@@ -1344,35 +1349,33 @@ function accountActionButton(id, label, className) {
   return `<button type="button" class="btn ${className || 'ghost'} account-btn" id="${id}">${label}</button>`;
 }
 
-function renderAccountUI(loggedIn, phone, online, busy, lastSync) {
+function renderAccountUI(loggedIn, phone, busy) {
   const box = document.getElementById('accountUI');
   if (!box) return;
   const role = getLoggedInRole();
-  const stateKey = `${loggedIn}|${phone}|${role}|${online}|${busy}|${lastSync}`;
+  const stateKey = `${loggedIn}|${phone}|${role}|${busy}`;
   const active = document.activeElement;
   if (active && box.contains(active) &&
       /^(INPUT|TEXTAREA|SELECT)$/.test(String(active.tagName || '').toUpperCase()) &&
       accountRenderState === stateKey) return;
   accountRenderState = stateKey;
 
+  const openAuth = mode => () => {
+    try { if (window.masirAuth) window.masirAuth.show(mode); } catch (e) {}
+  };
+  const bind = (id, handler) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.onclick = handler;
+  };
+
   if (!loggedIn) {
-    box.innerHTML = `
-      <div class="account-row">
-        <span class="account-avatar muted-avatar">👤</span>
-        <div class="account-identity">
-          <div class="account-phone">حساب کاربری متصل نیست</div>
-          <div class="account-sub">برای همگامسازی وارد شوید یا ثبتنام کنید</div>
-        </div>
-        <button type="button" class="btn primary account-btn" id="accountLoginBtn">ورود</button>
-      </div>`;
-    const loginBtn = document.getElementById('accountLoginBtn');
-    if (loginBtn) loginBtn.onclick = () => {
-      try { if (window.masirAuth) window.masirAuth.show('login'); } catch (e) {}
-    };
+    box.innerHTML = `<div class="account-actions">${accountActionButton('accountLoginBtn', 'ورود', 'primary')}</div>`;
+    bind('accountLoginBtn', openAuth('login'));
     return;
   }
 
-  const initial = String(phone || '?').trim().charAt(0).toUpperCase() || '?';
+  const roleLabels = { admin: 'مدیر', advisor: 'مشاور', student: 'دانشآموز' };
+  const roleLabel = roleLabels[role] || 'کاربر';
   const adminButtons = role === 'admin'
     ? accountActionButton('accountAdminBtn', 'مدیریت کاربران', 'ghost')
     : '';
@@ -1386,32 +1389,19 @@ function renderAccountUI(loggedIn, phone, online, busy, lastSync) {
     ? accountActionButton('accountWidgetsBtn', 'ویجتهای اندروید', 'ghost')
     : '';
   box.innerHTML = `
-    <div class="account-row">
-      <span class="account-avatar">${esc(initial)}</span>
-      <div class="account-identity">
-        <div class="account-phone" dir="ltr">${esc(phone || 'حساب متصل')}</div>
-        <div class="account-sub"><span class="sync-status-${online ? 'online' : 'offline'}">${online ? 'آنلاین' : 'آفلاین'}</span> • آخرین سینک: ${esc(lastSync)}</div>
-      </div>
-      ${accountActionButton('accountLogoutBtn', 'خروج', 'ghost')}
-    </div>
     <div class="account-actions">
+      ${accountActionButton('accountLogoutBtn', busy ? 'در حال سینک…' : 'خروج', 'ghost')}
       ${accountActionButton('accountPasswordBtn', 'تغییر رمز', 'ghost')}
       ${adminButtons}${advisorButtons}${studentButtons}${widgetButtons}
-    </div>`;
+    </div>
+    <div class="account-role">دسترسی: ${esc(roleLabel)}</div>`;
 
-  const bind = (id, handler) => {
-    const btn = document.getElementById(id);
-    if (btn) btn.onclick = handler;
-  };
   bind('accountLogoutBtn', () => {
     if (busy) return;
     if (!confirm('از حساب کاربری خارج میشوید؟')) return;
     logoutSql();
     toast('خارج شدید');
   });
-  const openAuth = mode => () => {
-    try { if (window.masirAuth) window.masirAuth.show(mode); } catch (e) {}
-  };
   bind('accountPasswordBtn', openAuth('password'));
   bind('accountAdminBtn', openAuth('admin'));
   bind('accountAdvisorCodeBtn', openAuth('advisor-code'));
@@ -1436,7 +1426,7 @@ function renderSyncUI() {
   const badge = syncStateBadge(online, loggedIn, busy);
   const accountBadge = document.getElementById('accountProfileBadge');
   if (accountBadge) {
-    accountBadge.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
+    accountBadge.textContent = loggedIn ? '✓ متصل' : 'مهمان';
     accountBadge.classList.toggle('connected', loggedIn);
   }
   const heroPhone = document.getElementById('profileHeroPhone');
@@ -1446,27 +1436,25 @@ function renderSyncUI() {
     heroPhone.dir = linkedPhone ? 'ltr' : 'rtl';
   }
 
-  renderAccountUI(loggedIn, phone, online, busy, lastSync);
+  renderAccountUI(loggedIn, phone, busy);
 
   if (!loggedIn) {
     box.innerHTML = `
-      <div class="sync-card-head">
-        <div class="sync-card-title">همگامسازی ابری</div>
+      <div class="sync-status-line">
+        <span class="sync-empty-note">برای شروع همگامسازی وارد شوید.</span>
         <span class="sync-state-pill warn">${badge.text}</span>
-      </div>
-      <div class="sync-empty-note">پس از ورود، وضعیت همگامسازی خودکار اینجا نمایش داده میشود.</div>`;
+      </div>`;
     return;
   }
 
   box.innerHTML = `
-    <div class="sync-card-head">
-      <div class="sync-card-title">همگامسازی ابری</div>
+    <div class="sync-status-line">
+      <span class="sync-status-note">همگامسازی خودکار فعال است · آخرین سینک: ${esc(lastSync)}</span>
       <span class="sync-state-pill ${badge.cls}">${badge.text}</span>
     </div>
     <div class="sync-pending-row">
       <span class="sync-pending" id="syncPendingStatus">در حال بررسی تغییرات…</span>
     </div>
-    <div class="sync-auto-note">همگامسازی خودکار فعال است؛ تغییرات به محض اتصال ارسال و دریافت میشوند.</div>
     ${syncError ? `<div class="sync-login-error show">⚠️ ${esc(syncError)}</div>` : ''}
     ${syncProgressMarkup()}`;
 
@@ -1510,6 +1498,7 @@ window.sqlSync = {
   startAutoSync,
   onSettingsOpen,
   logout: logoutSql,
+  deleteAccountData,
   isAutoSyncEnabled: () => autoSyncEnabled,
   render: renderSyncUI,
   realtimeStatus: () => ({

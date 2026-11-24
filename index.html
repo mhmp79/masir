@@ -503,6 +503,8 @@
                 <span id="profileDisplayField">رشته: تجربی</span>
                 <span class="profile-meta-divider">•</span>
                 <span id="profileDisplayGrade">پایه: دوازدهم</span>
+                <span class="profile-meta-divider">•</span>
+                <span class="profile-sync-state" id="homeSyncState">برای همگامسازی وارد حساب شوید</span>
               </div>
             </div>
             <button type="button" class="profile-link-btn" id="editProfileBtn" title="ویرایش حساب" aria-label="ویرایش حساب">ویرایش حساب</button>
@@ -521,14 +523,6 @@
           <span class="set-link-arrow">‹</span>
         </button>
 
-        <div class="card settings-link sync-link-row">
-          <button type="button" class="set-link-main" data-go="account">
-            <span class="set-link-icon">☁️</span>
-            <span class="set-link-copy"><b>حساب و پروفایل</b><small id="homeSyncState">اطلاعات شخصی، ورود و وضعیت همگامسازی</small></span>
-            <span class="set-link-arrow">‹</span>
-          </button>
-        </div>
-
         <button type="button" class="card settings-link" data-go="backup">
           <span class="set-link-icon">💾</span>
           <span class="set-link-copy"><b>پشتیبانگیری</b><small>ذخیره و بازگردانی فایل پشتیبان</small></span>
@@ -537,7 +531,7 @@
 
         <button type="button" class="card settings-link danger-link" data-go="danger">
           <span class="set-link-icon">⚠️</span>
-          <span class="set-link-copy"><b>حذف دادهها</b><small>پاک کردن تمام اطلاعات برنامه</small></span>
+          <span class="set-link-copy"><b>حذف دادهها</b><small>پاک کردن اطلاعات سرور و دستگاه</small></span>
           <span class="set-link-arrow">‹</span>
         </button>
 
@@ -551,14 +545,14 @@
       <section class="settings-page" data-page="account" hidden>
         <div class="settings-page-head">
           <button type="button" class="set-page-back" data-go="home" title="بازگشت" aria-label="بازگشت">‹</button>
-          <div class="page-title">حساب و پروفایل</div>
+          <div class="page-title">حساب من</div>
         </div>
 
         <div class="card account-profile-card">
           <div class="account-profile-hero">
             <div class="account-profile-avatar" id="profileHeroAvatar" aria-hidden="true">M</div>
             <div class="account-profile-intro">
-              <div class="account-profile-eyebrow">حساب شخصی</div>
+              <div class="account-profile-eyebrow">شناسه مسیر</div>
               <div class="account-profile-name" id="profileHeroName">نام ثبت نشده</div>
               <div class="account-profile-meta">
                 <span id="profileDisplayField">رشته: تجربی</span>
@@ -568,7 +562,7 @@
                 <span class="profile-phone" id="profileHeroPhone">شماره متصل نشده</span>
               </div>
             </div>
-            <span class="account-profile-badge" id="accountProfileBadge">👤 مهمان</span>
+            <span class="account-profile-badge" id="accountProfileBadge">مهمان</span>
           </div>
 
           <div class="account-profile-body">
@@ -616,14 +610,12 @@
             <div class="account-section-head">
               <span class="account-section-icon">☁</span>
               <div>
-                <b>حساب و همگامسازی</b>
-                <small>شماره تلفن، ورود، امنیت و وضعیت همگامسازی خودکار</small>
+                <b>ورود و همگامسازی</b>
+                <small>شماره تلفن، امنیت و وضعیت ذخیره ابری</small>
               </div>
             </div>
             <div id="accountUI" class="account-ui"></div>
-            <div class="sync-card" id="syncCard">
-              <div id="syncUI"></div>
-            </div>
+            <div id="syncUI" class="sync-status-row"></div>
           </div>
         </div>
       </section>
@@ -696,7 +688,11 @@
           <div class="page-title">حذف دادهها</div>
         </div>
         <div class="card settings-detail-card danger-card">
-          <button class="btn danger" id="clearDataBtn">🗑 پاک کردن تمام اطلاعات</button>
+          <div class="danger-copy">
+            <b>حذف دادههای حساب</b>
+            <small>دادههای ذخیرهشده روی سرور و این دستگاه پاک میشود. این عملیات قابل بازگشت نیست.</small>
+          </div>
+          <button class="btn danger" id="clearDataBtn">🗑 حذف دادهها از سرور و دستگاه</button>
         </div>
       </section>
 

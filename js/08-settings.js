@@ -31,7 +31,7 @@ function updateHomeSyncState(){
   const el=document.getElementById('homeSyncState');
   if(!el) return;
   const loggedIn=typeof isLoggedIn==='function'&&isLoggedIn();
-  el.textContent=loggedIn?'همگام سازی فعال است':'برای همگام سازی وارد حساب شوید';
+  el.textContent=loggedIn?'همگامسازی فعال':'برای همگامسازی وارد شوید';
 }
 /* ============ PROFILE ============ */
 function renderProfileSection(){
@@ -60,7 +60,7 @@ function renderProfileSection(){
     phoneEl.dir = phone ? 'ltr' : 'rtl';
   }
   if(badgeEl){
-    badgeEl.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
+    badgeEl.textContent = loggedIn ? '✓ متصل' : 'مهمان';
     badgeEl.classList.toggle('connected', loggedIn);
   }
   if(displayFieldEl) displayFieldEl.textContent = `رشته: ${p.field || 'تجربی'}`;

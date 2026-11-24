@@ -431,6 +431,11 @@
       });
     }
 
+    /** Remove every synced row belonging to the signed-in account. */
+    deleteAccountData() {
+      return this._request('/api/account/clear-data', { method: 'POST', body: {} });
+    }
+
     createUser(phone, password, options) {
       const opts = options || {};
       const body = { phone: normalizePhone(phone), password: normalizePassword(password) };

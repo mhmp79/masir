@@ -450,6 +450,29 @@ router.post('/api/changes', authenticate, async (req, res, next) => {
   }
 });
 
+router.post('/api/account/clear-data', authenticate, async (req, res, next) => {
+  try {
+    const cleared = [];
+    await withTransaction(async (client) => {
+      for (const table of Object.keys(TABLE_CONFIG)) {
+        const columns = await getColumnInfo(table);
+        if (!columns.has('deleted') || !columns.has('updated')) continue;
+        const result = await client.query(
+          `UPDATE ${quoteIdent(table)}
+              SET deleted = true, updated = now()
+            WHERE owner_id = $1 AND deleted = false`,
+          [req.user.id],
+        );
+        if (result.rowCount > 0) cleared.push({ table, rows: result.rowCount });
+      }
+    });
+    await refreshAllSubscriptions();
+    return res.json({ ok: true, cleared });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.post('/api/advisors/invite', authenticate, requireRole('advisor', 'admin'), async (req, res, next) => {
   try {
     const columns = await linkColumns();

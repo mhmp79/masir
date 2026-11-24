@@ -871,7 +871,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
 
 test('REWORK: service worker cache is bumped for returning users', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r41'));
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r42'));
+  assert.ok(sw.includes("'./js/00-localstate.js'"), 'local state helper must be in the offline shell');
+  assert.ok(sw.includes("'./js/13-sql-api.js'"), 'SQL adapter must be in the offline shell');
 });
 
 test('FEAT-6/7: question types persist, render in cards and merge needs confirmation', () => {

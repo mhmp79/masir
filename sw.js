@@ -10,7 +10,7 @@
 
 'use strict';
 
-const CACHE_NAME = 'konkur-shell-v1-0-9-5-r41';
+const CACHE_NAME = 'konkur-shell-v1-0-9-5-r42';
 const ROOT_URL = new URL('./', self.location.href).href;
 const OFFLINE_URL = new URL('index.html', ROOT_URL).href;
 
@@ -42,6 +42,7 @@ const APP_SHELL = [
   './css/15-utilities.css',
   './js/00-pocketbase.js',
   './js/00-utils.js',
+  './js/00-localstate.js',
   './js/01-core.js',
   './js/02-dashboard.js',
   './js/03-plan.js',
@@ -54,6 +55,7 @@ const APP_SHELL = [
   './js/10-timer.js',
   './js/11-backup.js',
   './js/12-pocketbase.js',
+  './js/13-sql-api.js',
   './js/99-init.js'
 ];
 

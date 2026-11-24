@@ -52,6 +52,13 @@ function renderProfileSection(){
   if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
   const client = window.sqlSync || window.masirSqlSync || null;
   const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const phone = loggedIn && client && typeof client.getLoggedInPhone === 'function'
+    ? String(client.getLoggedInPhone() || '') : '';
+  const phoneEl = document.getElementById('profileHeroPhone');
+  if(phoneEl){
+    phoneEl.textContent = phone || 'شماره متصل نشده';
+    phoneEl.dir = phone ? 'ltr' : 'rtl';
+  }
   if(badgeEl){
     badgeEl.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
     badgeEl.classList.toggle('connected', loggedIn);

@@ -885,9 +885,9 @@ test('CLARIFIED: comprehensive filters live in the analysis sidebar', () => {
   assert.ok(/t\.topics\.includes\(f\.topic\)/.test(exam), 'type filter must match the selected topic');
 });
 
-test('REWORK: service worker cache bypasses the API and is bumped to r50', () => {
+test('REWORK: service worker cache bypasses the API and is bumped to r51', () => {
   const sw = read('sw.js');
-  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r50'), 'cache name must match the UI redesign release');
+  assert.ok(sw.includes('konkur-shell-v1-0-9-5-r51'), 'cache name must match the UI redesign release');
   assert.ok(!sw.includes('konkur-shell-v1-0-9-5-r44'), 'the previous cache name must be gone');
   assert.ok(sw.includes("url.origin !== self.location.origin"), 'external origins must bypass the cache');
   assert.ok(/url\.pathname\.(?:startsWith\('\/api\/'\)|indexOf\('\/api\/'\)\s*===\s*0)/.test(sw),
@@ -1169,6 +1169,14 @@ test('REWORK: settings is paged, with merged sync/account and automatic sync onl
     'login UI and sync status share the account page');
   assert.ok(accountPage.includes('id="profileHeroName"') && accountPage.includes('id="accountProfileBadge"'),
     'profile identity and connection badge live on the account page');
+  assert.strictEqual((accountPage.match(/class="card/g) || []).length, 1,
+    'profile, phone, login tools and sync status must share one merged card');
+  assert.ok(!accountPage.includes('account-services-card'),
+    'the separate account-services card must be gone');
+  assert.ok(accountPage.includes('id="profileHeroPhone"'),
+    'the personal account must display the connected phone number');
+  assert.ok(settings.includes('profileHeroPhone') && sync.includes('profileHeroPhone'),
+    'profile and sync renderers must keep the hero phone in sync with the session');
   assert.ok(settings.includes("_editProfileBtn.onclick = () => setSettingsPage('account')"),
     'edit profile must open the merged account page');
   const homePage = body.slice(body.indexOf('data-page="home"'), body.indexOf('data-page="account"'));
@@ -1386,6 +1394,8 @@ test('AUTH UI: original dark palette, circular logo and three dedicated layouts'
     'desktop card must keep the original dark surface');
   assert.ok(/\.auth-logo\{[\s\S]*?border-radius:50%/.test(css),
     'the app icon must stay cropped into a circular logo');
+  assert.ok(/\.auth-shell\{[\s\S]*?margin-inline:auto/.test(css),
+    'the desktop auth composition must be horizontally centered');
   assert.ok(/\.auth-panel\{[\s\S]*?margin-left:-30px/.test(css),
     'desktop card must keep a subtle overlap with the branded header');
   assert.ok(/\.auth-hero\{[\s\S]*?padding:44px 92px 44px 38px/.test(css),
@@ -1403,8 +1413,9 @@ test('AUTH UI: original dark palette, circular logo and three dedicated layouts'
     'mobile card must keep the original dark bottom-sheet palette');
   assert.ok(css.includes('.auth-overlay #authContent{width:100%;max-width:100%}'),
     'auth content must fill the overlay so the card has no empty side gutters');
-  assert.ok(/\.auth-card \.auth-field\{margin-inline:-14px\}/.test(mobile),
-    'mobile inputs must reach the card edges without an empty side gap');
+  assert.ok(/\.auth-card \.auth-field\{margin-inline:-8px\}/.test(mobile) &&
+    /\.auth-card \.auth-field \.auth-label\{margin-inline:8px\}/.test(mobile),
+    'mobile inputs must sit slightly inside the card edges, not stick to them');
   assert.ok(/\.auth-panel\{[\s\S]*?margin:0;max-width:none;width:100%/.test(mobile),
     'mobile card must reset the desktop overlap so nothing spills off screen');
   assert.ok(/\.auth-overlay\{[\s\S]*?overflow-x:hidden/.test(mobile),

@@ -166,8 +166,16 @@
   border-color:rgba(16,185,129,.30);background:rgba(16,185,129,.10);color:#6ee7b7;
 }
 .account-profile-body{padding:16px}
-.account-services-card{padding:16px}
-.account-services-card .account-section-head{margin-bottom:4px}
+.account-integrations{
+  padding:16px;border-top:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.018);
+  border-radius:0 0 20px 20px;
+}
+.account-integrations .account-section-head{margin-bottom:4px}
+.profile-phone{
+  color:#c7bfff;font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;
+}
 .account-section-head{display:flex;align-items:center;gap:10px;margin-bottom:13px}
 .account-section-icon{
   flex:0 0 34px;width:34px;height:34px;border-radius:11px;
@@ -260,7 +268,7 @@
   .profile-card{padding:13px}
   .account-profile-hero{padding:15px;gap:10px;flex-wrap:wrap}
   .account-profile-badge{margin-inline-start:auto}
-  .account-profile-body,.account-services-card{padding:13px}
+  .account-profile-body,.account-integrations{padding:13px}
   .sync-card{padding:11px}
   .account-btn{padding:8px 10px;font-size:10.5px}
   .profile-display-name{font-size:15px}

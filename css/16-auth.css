@@ -26,7 +26,7 @@
 
 /* ---------- desktop: branded header + overlapping content card ---------- */
 .auth-shell{
-  width:100%;max-width:1020px;direction:ltr;
+  width:100%;max-width:1020px;margin-inline:auto;direction:ltr;
   display:grid;grid-template-columns:.92fr 1.08fr;align-items:stretch;
 }
 .auth-hero,.auth-panel{direction:rtl}
@@ -324,8 +324,9 @@
     box-shadow:0 -22px 60px -30px rgba(0,0,0,.95),inset 0 1px 0 rgba(255,255,255,.08);
     max-height:78vh;max-height:78dvh;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
   }
-  .auth-card .auth-field{margin-inline:-14px}
-  .auth-card .auth-field .auth-label{margin-inline:14px}
+  /* Nudge fields toward the card edges without sticking to them. */
+  .auth-card .auth-field{margin-inline:-8px}
+  .auth-card .auth-field .auth-label{margin-inline:8px}
   .auth-card::before{
     content:'';display:block;width:38px;height:4px;border-radius:99px;
     margin:0 auto 14px;background:rgba(255,255,255,.18);

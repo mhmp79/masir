@@ -1439,6 +1439,12 @@ function renderSyncUI() {
     accountBadge.textContent = loggedIn ? '✓ حساب متصل' : '👤 مهمان';
     accountBadge.classList.toggle('connected', loggedIn);
   }
+  const heroPhone = document.getElementById('profileHeroPhone');
+  if (heroPhone) {
+    const linkedPhone = loggedIn ? String(phone || '') : '';
+    heroPhone.textContent = linkedPhone || 'شماره متصل نشده';
+    heroPhone.dir = linkedPhone ? 'ltr' : 'rtl';
+  }
 
   renderAccountUI(loggedIn, phone, online, busy, lastSync);
 

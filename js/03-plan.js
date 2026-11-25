@@ -1674,7 +1674,7 @@ function renderSubjects(box) {
   /* «سایر» is a real column in the topic grid, always last. */
   subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));
   const onThisWeek = subjectsContainsThisWeek();
-  let html = `<div class="grid-card">
+  let html = `<div class="grid-card subjects-card">
     <div class="grid-header">
       <div class="gh-title">${weekTitle(st)}</div>
       <div class="wh-nav">
@@ -1684,20 +1684,24 @@ function renderSubjects(box) {
       </div>
     </div>
     <div class="grid-scroll">
-      <table class="grid-table">
-        <thead><tr><th class="gt-corner">روز</th>`;
-  subjects.forEach(s => { html += `<th style="color:${s.color}">${esc(s.name)}</th>`; });
-  html += `</tr></thead><tbody>`;
-
+      <table class="grid-table subjects-table">
+        <thead><tr><th class="gt-corner">درس</th>`;
+  /* Days are columns, subjects are rows. Cells keep data-drop-day / data-drop-subject,
+     so drag & drop and tap-to-add work exactly as before. */
   days.forEach(k => {
     const jd = parseKey(k);
     const jdn = jdnFromKey(k);
     const isToday = k === TODAY_KEY;
-    html += `<tr><td class="gt-row-label${isToday ? ' today' : ''}">${DOW[dowIndex(jdn)]}<br><span class="text-muted fs-9">${fa(jd.jd)} ${MONTHS[jd.jm - 1].slice(0, 4)}</span></td>`;
-    subjects.forEach(subj => {
+    html += `<th class="gt-day-head${isToday ? ' today' : ''}">${DOW[dowIndex(jdn)]}<br><span class="text-muted fs-9"><span class="gt-dnum">${fa(jd.jd)}</span><span class="gt-dmon"> ${MONTHS[jd.jm - 1].slice(0, 4)}</span></span></th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  subjects.forEach(subj => {
+    html += `<tr><td class="gt-row-label gt-subj-label" style="color:${subj.color};--sc:${subj.color}"><span class="gt-subj-text">${esc(subj.name)}</span></td>`;
+    days.forEach(k => {
       const cellSessions = sessionsOfDay(k).filter(s => s.subject === subj.name);
-      html += `<td class="gt-cell" data-drop-day="${k}" data-drop-subject="${esc(subj.name)}">
-        ${cellSessions.map(s => renderPill(s)).join('')}
+      html += `<td class="gt-cell${k === TODAY_KEY ? ' today-col' : ''}" data-drop-day="${k}" data-drop-subject="${esc(subj.name)}">
+        ${cellSessions.map(s => renderSubjectPill(s)).join('')}
       </td>`;
     });
     html += `</tr>`;
@@ -1711,6 +1715,28 @@ function renderSubjects(box) {
   box.querySelectorAll('[data-week-nav]').forEach(btn => btn.onclick = () => navigateWeek(+btn.dataset.weekNav));
   const todayBtn = document.getElementById('subjectsWeek');
   if (todayBtn) todayBtn.onclick = () => gotoToday();
+}
+
+/* Compact label for the narrow «مبحثی» grid: "فصل ۳: تبادلات گازی" -> "فصل ۳". */
+function subjectPillShortLabel(s) {
+  const t = String(s.topic || '').trim();
+  if (!t) return '';
+  const m = t.match(/^(فصل|درس|گفتار|بخش|مبحث)\s*([0-9\u06F0-\u06F9\u0660-\u0669]+)/);
+  if (m) return m[1] + ' ' + m[2];
+  return t.split(/\s+/)[0];
+}
+
+/* Pill used by the «مبحثی» grid: full text on wide screens, short text on phones (CSS switches). */
+function renderSubjectPill(s) {
+  const color = subjColor(s.subject);
+  const full = esc(s.topic || s.subject);
+  const short = esc(subjectPillShortLabel(s));
+  const durFull = `${fa(s.durMin)}د${s.startMin != null ? ' · ' + minToStr(s.startMin) : ''}`;
+  const durShort = `${s.done ? '✓ ' : ''}${hmTotalStr(s.durMin)}`;
+  return `<div class="sess-pill${s.done ? ' done' : ''}" data-sid="${s.id}" style="--pill:${color}" title="${esc(s.subject)}${s.topic ? ' — ' + esc(s.topic) : ''} · ${fa(s.durMin)}د">
+    <span class="sp-label"><span class="sp-full">${full}</span><span class="sp-short">${short}</span></span>
+    <span class="sp-dur"><span class="sp-full">${durFull}</span><span class="sp-short">${durShort}</span></span>
+  </div>`;
 }
 
 function renderPill(s) {

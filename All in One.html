@@ -2910,6 +2910,39 @@ body.creating-block .pool-drop-wrap {
   background:rgba(16,185,129,.32);border-color:rgba(52,211,153,.55);
 }
 
+/* ===== «مبحثی» عمودی: روزها ستون، دروس ردیف ===== */
+.subjects-table{table-layout:fixed;width:100%;min-width:440px}
+.subjects-table .gt-corner,.subjects-table .gt-subj-label{width:68px;min-width:68px;max-width:68px}
+.subjects-table .gt-subj-label{white-space:normal;line-height:1.35;font-size:10px;font-weight:800;vertical-align:middle;text-align:right;overflow-wrap:anywhere;border-right:3px solid var(--sc,transparent)}
+.subjects-table .gt-day-head{line-height:1.35}
+.subjects-table .gt-day-head.today{color:#4de2f5}
+.subjects-table .gt-cell{min-width:0}
+.subjects-table .gt-cell.today-col{background:rgba(34,211,238,.05)}
+.subjects-table .sess-pill{flex-wrap:wrap;row-gap:1px;margin-bottom:3px}
+.subjects-table .sp-label{flex:1 1 100%;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3}
+.subjects-table .sp-dur{flex:1 1 100%;text-align:center}
+.subjects-table .sp-short{display:none}
+
+/* گوشی: بدون اسکرول افقی؛ ۷ روز + ستون باریک درس داخل عرض صفحه */
+@media (max-width:520px){
+  .subjects-card{margin-left:-8px;margin-right:-8px}
+  .subjects-card .grid-scroll{border-radius:0;border-left:0;border-right:0;overflow-x:hidden}
+  .subjects-table{min-width:0;width:100%;font-size:9px}
+  .subjects-table .gt-corner,.subjects-table .gt-subj-label{width:28px;min-width:28px;max-width:28px;padding:2px 1px;text-align:center}
+  .subjects-table .gt-corner{font-size:8.5px}
+  .subjects-table thead th{padding:5px 1px}
+  .subjects-table .gt-day-head{font-size:9px;white-space:nowrap}
+  .subjects-table .gt-dmon{display:none}
+  .subjects-table .gt-dnum{font-size:10px;font-weight:800}
+  .subjects-table .gt-subj-text{display:inline-block;writing-mode:vertical-rl;transform:rotate(180deg);height:50px;white-space:normal;line-height:1.15;font-size:9px;text-align:center;overflow-wrap:normal}
+  .subjects-table .gt-cell{padding:2px 1px;height:46px}
+  .subjects-table .sess-pill{flex-direction:column;flex-wrap:nowrap;align-items:stretch;padding:2px 1px;margin-bottom:2px;border-radius:4px;text-align:center;line-height:1.2}
+  .subjects-table .sp-label{flex:0 0 auto;-webkit-line-clamp:1;font-size:8.5px;font-weight:800;text-align:center}
+  .subjects-table .sp-dur{flex:0 0 auto;font-size:8px;font-weight:600;opacity:.95}
+  .subjects-table .sp-full{display:none}
+  .subjects-table .sp-short{display:inline}
+}
+
 
 /* ===== css/08-activity.css ===== */
 /* ============================================================
@@ -13818,7 +13851,7 @@ function renderSubjects(box) {
   /* «سایر» is a real column in the topic grid, always last. */
   subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));
   const onThisWeek = subjectsContainsThisWeek();
-  let html = `<div class="grid-card">
+  let html = `<div class="grid-card subjects-card">
     <div class="grid-header">
       <div class="gh-title">${weekTitle(st)}</div>
       <div class="wh-nav">
@@ -13828,20 +13861,24 @@ function renderSubjects(box) {
       </div>
     </div>
     <div class="grid-scroll">
-      <table class="grid-table">
-        <thead><tr><th class="gt-corner">روز</th>`;
-  subjects.forEach(s => { html += `<th style="color:${s.color}">${esc(s.name)}</th>`; });
-  html += `</tr></thead><tbody>`;
-
+      <table class="grid-table subjects-table">
+        <thead><tr><th class="gt-corner">درس</th>`;
+  /* Days are columns, subjects are rows. Cells keep data-drop-day / data-drop-subject,
+     so drag & drop and tap-to-add work exactly as before. */
   days.forEach(k => {
     const jd = parseKey(k);
     const jdn = jdnFromKey(k);
     const isToday = k === TODAY_KEY;
-    html += `<tr><td class="gt-row-label${isToday ? ' today' : ''}">${DOW[dowIndex(jdn)]}<br><span class="text-muted fs-9">${fa(jd.jd)} ${MONTHS[jd.jm - 1].slice(0, 4)}</span></td>`;
-    subjects.forEach(subj => {
+    html += `<th class="gt-day-head${isToday ? ' today' : ''}">${DOW[dowIndex(jdn)]}<br><span class="text-muted fs-9"><span class="gt-dnum">${fa(jd.jd)}</span><span class="gt-dmon"> ${MONTHS[jd.jm - 1].slice(0, 4)}</span></span></th>`;
+  });
+  html += `</tr></thead><tbody>`;
+
+  subjects.forEach(subj => {
+    html += `<tr><td class="gt-row-label gt-subj-label" style="color:${subj.color};--sc:${subj.color}"><span class="gt-subj-text">${esc(subj.name)}</span></td>`;
+    days.forEach(k => {
       const cellSessions = sessionsOfDay(k).filter(s => s.subject === subj.name);
-      html += `<td class="gt-cell" data-drop-day="${k}" data-drop-subject="${esc(subj.name)}">
-        ${cellSessions.map(s => renderPill(s)).join('')}
+      html += `<td class="gt-cell${k === TODAY_KEY ? ' today-col' : ''}" data-drop-day="${k}" data-drop-subject="${esc(subj.name)}">
+        ${cellSessions.map(s => renderSubjectPill(s)).join('')}
       </td>`;
     });
     html += `</tr>`;
@@ -13855,6 +13892,28 @@ function renderSubjects(box) {
   box.querySelectorAll('[data-week-nav]').forEach(btn => btn.onclick = () => navigateWeek(+btn.dataset.weekNav));
   const todayBtn = document.getElementById('subjectsWeek');
   if (todayBtn) todayBtn.onclick = () => gotoToday();
+}
+
+/* Compact label for the narrow «مبحثی» grid: "فصل ۳: تبادلات گازی" -> "فصل ۳". */
+function subjectPillShortLabel(s) {
+  const t = String(s.topic || '').trim();
+  if (!t) return '';
+  const m = t.match(/^(فصل|درس|گفتار|بخش|مبحث)\s*([0-9\u06F0-\u06F9\u0660-\u0669]+)/);
+  if (m) return m[1] + ' ' + m[2];
+  return t.split(/\s+/)[0];
+}
+
+/* Pill used by the «مبحثی» grid: full text on wide screens, short text on phones (CSS switches). */
+function renderSubjectPill(s) {
+  const color = subjColor(s.subject);
+  const full = esc(s.topic || s.subject);
+  const short = esc(subjectPillShortLabel(s));
+  const durFull = `${fa(s.durMin)}د${s.startMin != null ? ' · ' + minToStr(s.startMin) : ''}`;
+  const durShort = `${s.done ? '✓ ' : ''}${hmTotalStr(s.durMin)}`;
+  return `<div class="sess-pill${s.done ? ' done' : ''}" data-sid="${s.id}" style="--pill:${color}" title="${esc(s.subject)}${s.topic ? ' — ' + esc(s.topic) : ''} · ${fa(s.durMin)}د">
+    <span class="sp-label"><span class="sp-full">${full}</span><span class="sp-short">${short}</span></span>
+    <span class="sp-dur"><span class="sp-full">${durFull}</span><span class="sp-short">${durShort}</span></span>
+  </div>`;
 }
 
 function renderPill(s) {

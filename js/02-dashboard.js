@@ -126,6 +126,39 @@ function renderExamDashChart(){
   box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" class="chart-svg"><defs><linearGradient id="examMiniGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#eab308"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs>${grid}<polyline points="${pts}" fill="none" stroke="url(#examMiniGrad)" stroke-width="2.8" stroke-linejoin="round" stroke-linecap="round"/>${dots}${labels}</svg>`;
 }
 
+/* ============ مسیر تا کنکور ============ */
+function dashboardRoadmapData(){
+  const daysLeft=Math.max(0,KONKUR_JDN-TODAY_JDN);
+  const exams=state.exams
+    .map(e=>({id:e.id,name:String(e.name||'آزمون'),jdn:jdnFromKey(e.date)}))
+    .filter(e=>e.jdn>=TODAY_JDN)
+    .sort((a,b)=>a.jdn-b.jdn)
+    .map(e=>({...e,days:Math.max(0,e.jdn-TODAY_JDN)}));
+  return {daysLeft,weeksLeft:Math.max(0,Math.ceil(daysLeft/7)),exams};
+}
+
+function renderDashboardRoadmap(){
+  const track=document.getElementById('dashRoadmapTrack');
+  if(!track)return;
+  const data=dashboardRoadmapData();
+  const count=document.getElementById('dashRoadmapCount');
+  if(count)count.textContent=`${fa(data.daysLeft)} روز مانده`;
+  const colors=['#a78bfa','#22d3ee','#34d399','#fbbf24','#fb7185','#60a5fa'];
+  const span=Math.max(1,KONKUR_JDN-TODAY_JDN);
+  let prev=5;
+  const dots=data.exams.map((e,i)=>{
+    const ratio=Math.min(1,Math.max(0,(e.jdn-TODAY_JDN)/span));
+    const pos=Math.min(88,Math.max(prev+8,ratio*88));
+    prev=pos;
+    const nearest=i===0;
+    return`<button type="button" class="er-dot er-exam-dot${nearest?' nearest':''}" style="left:${pos}%;--dot:${colors[i%colors.length]}" data-exam-id="${esc(e.id)}" title="${esc(e.name)} — ${fa(e.days)} روز"><span class="er-label"><b>${esc(e.name)}</b><small>${fa(e.days)} روز تا آزمون</small></span></button>`;
+  }).join('');
+  track.innerHTML=`<div class="er-dot er-today" style="left:0%"><span class="er-label">امروز</span></div>${dots}<div class="er-dot er-konkur" style="left:100%"><span class="er-label"><b>کنکور</b><small>${fa(data.daysLeft)} روز</small></span></div>`;
+  track.querySelectorAll('.er-exam-dot').forEach(btn=>{
+    btn.onclick=()=>{ if(typeof openExamDetail==='function') openExamDetail(btn.dataset.examId); };
+  });
+}
+
 /* ============ WIDGET SNAPSHOT ============ */
 function collectDashboardSnapshot(){
   const dayKey=jKey(d2j(dashDay));
@@ -190,7 +223,11 @@ function collectDashboardSnapshot(){
       activeDays,days:monthDays
     },
     subjects:{mode:currentPie,total:pieTotal,rows:subjectRows},
-    exams:{enabled:!!state.settings.examsEnabled,count:exams.length,points:exams,tags}
+    exams:{enabled:!!state.settings.examsEnabled,count:exams.length,points:exams,tags},
+    roadmap:(()=>{const r=dashboardRoadmapData();return {
+      daysLeft:r.daysLeft,weeksLeft:r.weeksLeft,
+      exams:r.exams.slice(0,6).map(e=>({label:e.name,days:e.days}))
+    };})()
   };
 }
 
@@ -213,6 +250,7 @@ function renderDashboard(){
   document.getElementById('donutPct').textContent=fa(s.week.pct)+'٪';
   document.getElementById('weekTotal').textContent=hmTotalStr(s.week.totalMinutes);
   document.getElementById('weekGoal').textContent=fa(s.week.goalHours);
+  renderDashboardRoadmap();
   renderLineChart();
   renderMonthlyHeatmap();
   renderPie();

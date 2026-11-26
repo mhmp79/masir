@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-build.py ΓÇö bundle the app into a single offline HTML file.
+build.py — bundle the app into a single offline HTML file.
 
 Source files are discovered automatically, so adding/renaming a tab module only
 requires updating index.html (or using the same numeric prefix convention).
@@ -181,7 +181,7 @@ def main() -> None:
     ]
 
     out = Path(args.out)
-    out.write_text(html, encoding="utf-8")
+    out.write_text(html, encoding="utf-8", newline="\n")
     size_kb = out.stat().st_size / 1024
 
     print(f"Wrote {out.name} ({size_kb:,.1f} KB)")

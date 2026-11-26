@@ -390,7 +390,7 @@ function openSleepModal(initialJdn,editId){
   loadDayRanges();
   openModal(`
     <div class="modal-head">
-      <div class="card-title">${editing?'✏️ ویرایش خواب':'🌙 ثبت خواب'}</div>
+      <div class="card-title">${editing?'✏️ ویرایش خواب':'ثبت خواب'}</div>
       <button class="icon-btn" data-close>✕</button>
     </div>
     <div class="day-nav-mini">
@@ -444,7 +444,7 @@ function openSleepModal(initialJdn,editId){
       }
       infoEl.className='sleep-range-info ok';
       const typeBadge=calc.overnight
-        ?`<span class="chip-mini night">🌙 شبانه</span>`
+        ?`<span class="chip-mini night">شبانه</span>`
         :`<span class="chip-mini day">☀️ چرت روزانه</span>`;
       infoEl.innerHTML=`${typeBadge} مدت: <b class="text-white">${hmString(calc.dur)}</b>`;
     });
@@ -477,7 +477,7 @@ function openSleepModal(initialJdn,editId){
     box.innerHTML=ranges.map((r,i)=>`
       <div class="sleep-range" data-rid="${r.id}" data-idx="${i}">
         <div class="sleep-range-head">
-          <span class="sleep-range-title">🌙 بازه ${fa(i+1)}</span>
+          <span class="sleep-range-title">بازه ${fa(i+1)}</span>
           ${ranges.length>1?`<button type="button" class="sleep-range-del" data-del-idx="${i}">✕ حذف</button>`:''}
         </div>
         <div class="grid2 gap-6">
@@ -590,7 +590,7 @@ function renderSleepEntryList(){
   box.innerHTML=list.map(s=>{
     const ov=s.date!==(s.endDate||s.date);
     const tag=ov?'شبانه':'چرت';
-    return`<div class="entry-row"><div class="er-main cursor-pointer" data-edit-sleep="${s.id}"><div class="er-title">🌙 ${sleepDateLabel(s.date)}${ov?' → '+sleepDateLabel(s.endDate):''} <span class="sleep-tag">${tag}</span></div><div class="er-sub">${minToStr(s.startMin)} تا ${minToStr(s.endMin)} (${hmString(s.minutes)})</div></div><button class="li-edit" data-edit-sleep="${s.id}">✎</button><button class="er-del" data-sid="${s.id}">×</button></div>`;
+    return`<div class="entry-row"><div class="er-main cursor-pointer" data-edit-sleep="${s.id}"><div class="er-title">${sleepDateLabel(s.date)}${ov?' → '+sleepDateLabel(s.endDate):''} <span class="sleep-tag">${tag}</span></div><div class="er-sub">${minToStr(s.startMin)} تا ${minToStr(s.endMin)} (${hmString(s.minutes)})</div></div><button class="li-edit" data-edit-sleep="${s.id}">✎</button><button class="er-del" data-sid="${s.id}">×</button></div>`;
   }).join('');
   box.querySelectorAll('[data-edit-sleep]').forEach(el=>el.onclick=()=>openSleepInfo(el.dataset.editSleep));
   box.querySelectorAll('[data-sid]').forEach(b=>b.onclick=()=>{state.sleeps=state.sleeps.filter(x=>x.id!==b.dataset.sid);refreshSleepViews();toast('حذف شد');});
@@ -602,7 +602,7 @@ document.getElementById('openPhoneBtn').onclick=()=>openPhoneModal();
 let phoneSelectedJDN=TODAY_JDN;
 function openPhoneModal(initialJdn){
   phoneSelectedJDN=initialJdn!=null?initialJdn:TODAY_JDN;
-  openModal(`<div class="modal-head"><div class="card-title">📱 ثبت کار با گوشی</div><button class="icon-btn" data-close>✕</button></div><div class="day-nav-mini"><button class="day-arrow-sm" id="phPrevDay">‹</button><div class="title" id="phDayTitle">—</div><button class="day-arrow-sm" id="phNextDay">›</button></div><label class="lbl mt-0">مدت استفاده</label><div class="time-pair" id="phTimeWrap"></div><button class="btn primary phone-save mt-16" id="phSave">ثبت</button><div class="card-title mt-22">رکوردهای این روز</div><div class="entry-list" id="phList"></div>`);
+  openModal(`<div class="modal-head"><div class="card-title">ثبت کار با گوشی</div><button class="icon-btn" data-close>✕</button></div><div class="day-nav-mini"><button class="day-arrow-sm" id="phPrevDay">‹</button><div class="title" id="phDayTitle">—</div><button class="day-arrow-sm" id="phNextDay">›</button></div><label class="lbl mt-0">مدت استفاده</label><div class="time-pair" id="phTimeWrap"></div><button class="btn primary phone-save mt-16" id="phSave">ثبت</button><div class="card-title mt-22">رکوردهای این روز</div><div class="entry-list" id="phList"></div>`);
   const phTp=mountTimePair('phTime',document.getElementById('phTimeWrap'),{});
   const updateDay=()=>{const j=d2j(phoneSelectedJDN);const dow=DOW[dowIndex(phoneSelectedJDN)];document.getElementById('phDayTitle').innerHTML=`${dow} ${fa(j.jd)} ${MONTHS[j.jm-1]}`;document.getElementById('phNextDay').disabled=phoneSelectedJDN>=TODAY_JDN;};
   updateDay();
@@ -624,7 +624,7 @@ function renderPhoneEntryList(){
   const dayKey=jKey(d2j(phoneSelectedJDN));
   const list=state.phones.filter(p=>p.date===dayKey).sort((a,b)=>(b.ts||0)-(a.ts||0));
   if(!list.length){box.innerHTML='<div class="muted text-center act-list-empty">ثبت نشده</div>';return;}
-  box.innerHTML=list.map(p=>`<div class="entry-row"><div class="er-main"><div class="er-title text-red">📱 ${hmString(p.minutes)}</div></div><button class="er-del" data-pid="${p.id}">×</button></div>`).join('');
+  box.innerHTML=list.map(p=>`<div class="entry-row"><div class="er-main"><div class="er-title text-red">${hmString(p.minutes)}</div></div><button class="er-del" data-pid="${p.id}">×</button></div>`).join('');
   box.querySelectorAll('[data-pid]').forEach(b=>b.onclick=()=>{state.phones=state.phones.filter(x=>x.id!==b.dataset.pid);save();renderPhoneEntryList();renderDashboard();if(typeof renderWeeklyReport==='function') renderWeeklyReport();});
 }
 

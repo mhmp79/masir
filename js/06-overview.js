@@ -61,6 +61,43 @@ function cssEsc(v){
   return (window.CSS&&CSS.escape)?CSS.escape(String(v)):String(v).replace(/["\\]/g,'\\$&');
 }
 
+/* سلکتورهای موبایل: آخرین انتخاب کاربر برای هر تب/درس حفظ میشود. */
+function ensureOvSelectedSubject(kind, names){
+  const list=Array.isArray(names)?names.filter(Boolean):[];
+  if(!list.length){ ovSelectedSubject[kind]=''; return ''; }
+  if(!list.includes(ovSelectedSubject[kind])) ovSelectedSubject[kind]=list[0];
+  return ovSelectedSubject[kind];
+}
+function ensureOvSelectedGrade(kind, subjectName, grades){
+  const list=Array.isArray(grades)?grades.filter(Boolean):[];
+  const key=kind+'::'+String(subjectName||'');
+  if(!ovSelectedGrade._keys) ovSelectedGrade._keys={};
+  if(ovSelectedGrade._keys[kind]!==key){ ovSelectedGrade[kind]=''; ovSelectedGrade._keys[kind]=key; }
+  if(!list.length){ ovSelectedGrade[kind]=''; return ''; }
+  if(!list.includes(ovSelectedGrade[kind])) ovSelectedGrade[kind]=list[0];
+  return ovSelectedGrade[kind];
+}
+function renderOvSubjectSelector(subs, selected, kind){
+  if(!Array.isArray(subs)||!subs.length) return '';
+  return `<div class="ov-subject-selector" data-ov-kind="${kind}" role="tablist" aria-label="انتخاب درس">
+    ${subs.map(sub=>{
+      const name=sub.name;
+      const active=name===selected;
+      return `<button type="button" class="ov-subject-chip ${active?'active':''}" data-ov-subject="${esc(name)}" data-ov-kind="${kind}" style="--ov-color:${sub.color||'#7c5cff'}">${esc(sub.type==='general'?generalSubjectDisplayName(name):name)}</button>`;
+    }).join('')}
+  </div>`;
+}
+function renderOvGradeSelector(grades, selected, kind, color){
+  const list=Array.isArray(grades)?grades.filter(Boolean):[];
+  if(list.length<=1) return '';
+  return `<div class="ov-grade-selector" data-ov-kind="${kind}" role="tablist" aria-label="انتخاب پایه" style="--ov-color:${color||'#7c5cff'}">
+    ${list.map(g=>{
+      const active=g===selected;
+      return `<button type="button" class="ov-grade-chip ${active?'active':''}" data-ov-grade="${esc(g)}" data-ov-kind="${kind}">${esc(g)}</button>`;
+    }).join('')}
+  </div>`;
+}
+
 function bindOverviewTabs(){
   const wrap=document.querySelector('.overview-tabs');
   if(!wrap||wrap._ovTabsBound)return;
@@ -128,8 +165,8 @@ function renderSpecializedOverview(body){
   }
 
   if(ovIsMobile()){
-    const selected=ensureOvSelectedSubject('specialized', specSubs.map(s=>s.name));
-    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(specSubs, selected, 'specialized')}${renderSpecializedMobile(specSubs, selected)}${ovLegendSpecialized()}</div>`;
+    const selected=ensureOvSelectedSubject('specialized',specSubs.map(s=>s.name));
+    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(specSubs,selected,'specialized')}${renderSpecializedMobile(specSubs,selected)}${ovLegendSpecialized()}</div>`;
     return;
   }
 
@@ -201,46 +238,8 @@ function ovLegendSpecialized(){
   return `<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg ov-leg-hint">کلیک روی خانه = ثبت درصد و مرور</span></div>`;
 }
 
-function ensureOvSelectedSubject(kind, names){
-  const list = Array.isArray(names) ? names.filter(Boolean) : [];
-  if(!list.length){ ovSelectedSubject[kind]=''; return ''; }
-  if(!list.includes(ovSelectedSubject[kind])) ovSelectedSubject[kind]=list[0];
-  return ovSelectedSubject[kind];
-}
-function ensureOvSelectedGrade(kind, subjectName, grades){
-  const list = Array.isArray(grades) ? grades.filter(Boolean) : [];
-  const key = kind + '::' + String(subjectName||'');
-  if(!ovSelectedGrade._keys) ovSelectedGrade._keys = {};
-  if(ovSelectedGrade._keys[kind] !== key){ ovSelectedGrade[kind]=''; ovSelectedGrade._keys[kind]=key; }
-  if(!list.length){ ovSelectedGrade[kind]=''; return ''; }
-  if(!list.includes(ovSelectedGrade[kind])) ovSelectedGrade[kind]=list[0];
-  return ovSelectedGrade[kind];
-}
-
-function renderOvSubjectSelector(subs, selected, kind){
-  if(!Array.isArray(subs)||!subs.length) return '';
-  return `<div class="ov-subject-selector" role="tablist" aria-label="انتخاب درس">
-    ${subs.map(sub=>{
-      const name=sub.name;
-      const active=name===selected;
-      return `<button type="button" class="ov-subject-chip ${active?'active':''}" data-ov-subject="${esc(name)}" data-ov-kind="${kind}" style="--ov-color:${sub.color||'#7c5cff'}">${esc(sub.type==='general'?generalSubjectDisplayName(name):name)}</button>`;
-    }).join('')}
-  </div>`;
-}
-
-function renderOvGradeSelector(grades, selected, kind, color){
-  const list = Array.isArray(grades) ? grades.filter(Boolean) : [];
-  if(list.length <= 1) return '';
-  return `<div class="ov-grade-selector" role="tablist" aria-label="انتخاب پایه" style="--ov-color:${color||'#7c5cff'}">
-    ${list.map(g=>{
-      const active=g===selected;
-      return `<button type="button" class="ov-grade-chip ${active?'active':''}" data-ov-grade="${esc(g)}" data-ov-kind="${kind}">${esc(g)}</button>`;
-    }).join('')}
-  </div>`;
-}
-
 function renderSpecializedMobile(specSubs, selectedName){
-  const subj = specSubs.find(s=>s.name===selectedName) || specSubs[0];
+  const subj=specSubs.find(s=>s.name===selectedName)||specSubs[0];
   if(!subj) return '<div class="empty-state"><b>درسی انتخاب نشده</b></div>';
   let html='<div class="ov-mobile-cards ov-mobile-cards-specialized">';
   const rowGroups=[];
@@ -250,9 +249,9 @@ function renderSpecializedMobile(specSubs, selectedName){
     rowGroups.push({grade,topics});
   });
   const grades=rowGroups.map(r=>r.grade);
-  const selectedGrade=ensureOvSelectedGrade('specialized', subj.name, grades);
-  const visibleRows = selectedGrade ? rowGroups.filter(r=>r.grade===selectedGrade) : rowGroups;
-  html = renderOvGradeSelector(grades, selectedGrade, 'specialized', subj.color) + html;
+  const selectedGrade=ensureOvSelectedGrade('specialized',subj.name,grades);
+  const visibleRows=selectedGrade?rowGroups.filter(r=>r.grade===selectedGrade):rowGroups;
+  html=renderOvGradeSelector(grades,selectedGrade,'specialized',subj.color)+html;
   if(!visibleRows.length){
     html+=`<div class="empty-state"><b>مبحثی برای ${esc(subj.name)} ثبت نشده</b></div>`;
   }
@@ -325,8 +324,8 @@ function renderGeneralOverview(body){
   }
 
   if(ovIsMobile()){
-    const selected=ensureOvSelectedSubject('general', genSubs.map(s=>s.name));
-    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(genSubs, selected, 'general')}${renderGeneralMobile(genSubs, selected)}<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg text-amber">◐ آزاد</span><span class="ov-leg ov-leg-hint">کلیک روی درس = ثبت درصد</span></div></div>`;
+    const selected=ensureOvSelectedSubject('general',genSubs.map(s=>s.name));
+    body.innerHTML=`<div class="card ov-table-card">${renderOvSubjectSelector(genSubs,selected,'general')}${renderGeneralMobile(genSubs,selected)}<div class="ov-legend"><span class="ov-leg"><span class="ov-dot">✓</span> مطالعه شده</span><span class="ov-leg text-amber">◐ آزاد</span><span class="ov-leg ov-leg-hint">کلیک روی درس = ثبت درصد</span></div></div>`;
     return;
   }
 
@@ -404,18 +403,18 @@ function renderGeneralOverview(body){
 }
 
 function renderGeneralMobile(genSubs, selectedName){
-  const group = genSubs.find(s=>s.name===selectedName) || genSubs[0];
+  const group=genSubs.find(s=>s.name===selectedName)||genSubs[0];
   if(!group) return '<div class="empty-state"><b>درسی انتخاب نشده</b></div>';
   let html='<div class="ov-mobile-cards ov-mobile-cards-general">';
   const visibleGeneralGrades=state.profile.grade==='دوازدهم'
       ?(state.settings.includeEleventhFinal?GENERAL_GRADES:['دوازدهم'])
     :GENERAL_GRADES.includes(state.profile.grade)?[state.profile.grade]:[];
-  const availableGrades = visibleGeneralGrades.filter(g=>getSubjectLessons(group.name,g)>0);
-  const selectedGrade = ensureOvSelectedGrade('general', group.name, availableGrades);
-  html = renderOvGradeSelector(availableGrades, selectedGrade, 'general', group.color) + html;
+  const availableGrades=visibleGeneralGrades.filter(g=>getSubjectLessons(group.name,g)>0);
+  const selectedGrade=ensureOvSelectedGrade('general',group.name,availableGrades);
+  html=renderOvGradeSelector(availableGrades,selectedGrade,'general',group.color)+html;
   let hasAny=false;
   visibleGeneralGrades.forEach(grade=>{
-    if(selectedGrade && grade !== selectedGrade) return;
+    if(selectedGrade&&grade!==selectedGrade)return;
     const total=getSubjectLessons(group.name,grade);
     if(total<=0)return;
     hasAny=true;
@@ -442,10 +441,10 @@ function bindOverviewDelegation(body){
   body._ovDelegated=true;
   body.addEventListener('click',e=>{
     const subjBtn=e.target.closest('[data-ov-subject][data-ov-kind]');
-    if(subjBtn && body.contains(subjBtn)){
+    if(subjBtn&&body.contains(subjBtn)){
       const kind=subjBtn.dataset.ovKind;
       const name=subjBtn.dataset.ovSubject;
-      if(kind && name){
+      if(kind&&name){
         ovSelectedSubject[kind]=name;
         ovSelectedGrade[kind]='';
         const sy=window.scrollY;
@@ -455,10 +454,10 @@ function bindOverviewDelegation(body){
       return;
     }
     const gradeBtn=e.target.closest('[data-ov-grade][data-ov-kind]');
-    if(gradeBtn && body.contains(gradeBtn)){
+    if(gradeBtn&&body.contains(gradeBtn)){
       const kind=gradeBtn.dataset.ovKind;
       const grade=gradeBtn.dataset.ovGrade;
-      if(kind && grade){
+      if(kind&&grade){
         ovSelectedGrade[kind]=grade;
         const sy=window.scrollY;
         renderOverview();

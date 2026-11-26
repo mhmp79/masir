@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS activities (
     start_min int,
     end_min   int,
     note      text,
+    done      boolean NOT NULL DEFAULT false,
     local_order int,
     updated   timestamptz NOT NULL DEFAULT now(),
     deleted   boolean     NOT NULL DEFAULT false,
@@ -266,6 +267,7 @@ ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'si
 ALTER TABLE subjects    ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE sessions    ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE activities  ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE activities  ADD COLUMN IF NOT EXISTS done boolean NOT NULL DEFAULT false;
 ALTER TABLE classes     ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE sleeps      ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE phones      ADD COLUMN IF NOT EXISTS local_order int;

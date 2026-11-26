@@ -20,7 +20,8 @@ public final class WidgetData {
             MonthWidgetProvider.class,
             SubjectsWidgetProvider.class,
             ExamTrendWidgetProvider.class,
-            ExamTagsWidgetProvider.class
+            ExamTagsWidgetProvider.class,
+            KonkurRoadmapWidgetProvider.class
     };
 
     private WidgetData() {}

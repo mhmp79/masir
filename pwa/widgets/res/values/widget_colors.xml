@@ -4,6 +4,7 @@
     <color name="widget_muted">#FF9AA4BD</color>
     <color name="widget_primary">#FF7C5CFF</color>
     <color name="widget_accent">#FF22D3EE</color>
+    <color name="widget_warm">#FFFBBF24</color>
     <color name="widget_level0">#FF202944</color>
     <color name="widget_level1">#FF1E3A5F</color>
     <color name="widget_level2">#FF245E83</color>

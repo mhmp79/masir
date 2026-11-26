@@ -49,3 +49,22 @@ body::after{
   margin:0 auto;
   padding:14px 14px 112px;
 }
+
+/* ============================================================
+   SCROLLBAR — اسکرول کاستوم هماهنگ با تم تاریک برنامه
+   ============================================================ */
+*{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(124,92,255,.48) rgba(255,255,255,.025);
+}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:rgba(255,255,255,.025);border-radius:8px}
+::-webkit-scrollbar-thumb{
+  background:linear-gradient(135deg,rgba(124,92,255,.62),rgba(34,211,238,.40));
+  border:2px solid transparent;background-clip:padding-box;border-radius:8px;
+}
+::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(135deg,rgba(124,92,255,.85),rgba(34,211,238,.62));
+  border:2px solid transparent;background-clip:padding-box;border-radius:8px;
+}
+::-webkit-scrollbar-corner{background:transparent}

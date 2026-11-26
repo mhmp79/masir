@@ -61,7 +61,9 @@ body.creating-block .plan-side,
 body.creating-block .timeline,
 body.creating-block .wv-col,
 body.creating-block .wv-cols,
-body.creating-block .pool-drop-wrap {
+body.creating-block .pool-drop-wrap,
+body.creating-block .sess-card.pool,
+body.creating-block .vp-day-body {
   touch-action: none;
 }
 
@@ -94,6 +96,22 @@ body.creating-block .pool-drop-wrap {
   cursor: pointer;
 }
 .pbh-add:hover { background: rgba(124,92,255,.26); }
+.pbh-toggle {
+  display: none;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .2s, color .2s;
+}
+.pbh-toggle:hover { color: var(--txt); }
 
 .pool-empty {
   padding: 10px;
@@ -209,9 +227,17 @@ body.creating-block .pool-drop-wrap {
 .pph-count { font-size: 10px; color: #8b94ad; font-weight: 600; flex: 0 0 auto; }
 .pool-panel-grid {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 2px 6px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
+.pool-panel-grid::-webkit-scrollbar { height: 4px; }
+.pool-panel-grid::-webkit-scrollbar-track { background: rgba(255,255,255,.03); border-radius: 2px; }
+.pool-panel-grid::-webkit-scrollbar-thumb { background: rgba(124,92,255,.4); border-radius: 2px; }
 
 /* ============ LAYOUT ============ */
 .plan-layout {
@@ -445,6 +471,12 @@ body.creating-block .pool-drop-wrap {
 .sess-card.done .sc-topic { text-decoration: line-through; }
 .sess-card.pool { flex: 0 0 auto; min-width: 130px; max-width: 190px; }
 .sess-card.mini { flex: 0 0 auto; min-width: 100px; padding: 6px 8px; }
+/* کشیدن برای اسکرول استخر (غیر از کشیدن بازه که جابهجاش میکند) */
+.sess-card.scroll-dragging{cursor:grabbing;user-select:none;opacity:.8}
+.pool-chip-bar,.pool-panel-grid,.pool-sessions-area{
+  overscroll-behavior:contain;touch-action:pan-x pan-y;
+}
+.pool-chip-bar.scroll-dragging,.pool-panel-grid.scroll-dragging,.pool-sessions-area.scroll-dragging{cursor:grabbing;user-select:none}
 
 .sc-head { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
 .sc-subject { font-weight: 800; font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -690,18 +722,33 @@ body.creating-block .pool-drop-wrap {
 .tb-sub { font-size: 10px; opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .tb-sub.empty { opacity: .55; font-style: italic; }
 .tb-time { font-size: 9px; opacity: .85; font-variant-numeric: tabular-nums; pointer-events: none; }
+/* بازههای کوتاه: فقط عنوان مبحث میماند و هندل با فاصله از آن قرار میگیرد */
+.tl-block.resizable { padding-bottom: 17px; }
+.tl-block.compact { padding: 4px 10px 15px; gap: 0; }
+.tl-block.compact .tb-sub,
+.tl-block.compact .tb-time { display: none; }
 
 .resize-handle {
   position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 2px;
-  height: 10px;
-  border-radius: 5px;
+  left: 14px;
+  right: 14px;
+  bottom: 3px;
+  height: 9px;
+  border-radius: 8px;
   cursor: ns-resize;
   touch-action: none;
-  background: rgba(255,255,255,.18);
+  background: rgba(11,16,34,.30);
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 3;
+  transition: background .2s, border-color .2s;
+}
+.resize-handle:hover,
+.resize-handle:active {
+  background: rgba(124,92,255,.24);
+  border-color: rgba(167,139,250,.55);
 }
 .resize-handle::after {
   content: '';
@@ -709,10 +756,10 @@ body.creating-block .pool-drop-wrap {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 20px;
-  height: 2px;
-  border-radius: 2px;
-  background: rgba(255,255,255,.6);
+  width: 22px;
+  height: 3px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(90deg,rgba(255,255,255,.75) 0 4px,transparent 4px 8px);
 }
 
 .tl-activity {
@@ -1085,6 +1132,16 @@ body.creating-block .pool-drop-wrap {
   user-select: none;
 }
 .wv-block.done { opacity: .65; }
+.wv-block.resizable { padding-bottom: 12px; }
+.wv-block.compact span { font-size: 7.5px; line-height: 1.1; }
+.wv-block.resizable .resize-handle {
+  left: 5px;
+  right: 5px;
+  bottom: 2px;
+  height: 7px;
+  border-radius: 6px;
+}
+.wv-block.resizable .resize-handle::after { width: 14px; height: 2px; }
 .wv-block span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; pointer-events: none; }
 .wv-act {
   position: absolute;
@@ -1145,57 +1202,6 @@ body.creating-block .pool-drop-wrap {
 .week-view.narrow .wv-act span,
 .week-view.narrow .wv-exam span { font-size: 6.5px; }
 .wv-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-
-/* ============ MONTH CALENDAR ============ */
-.month-cal { padding: 2px 2px 6px; }
-.mc-weekdays,
-.mc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
-.mc-weekdays span {
-  text-align: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: rgba(255,255,255,.42);
-  padding: 3px 0 5px;
-}
-.mc-cell {
-  min-height: 78px;
-  padding: 6px 5px;
-  border-radius: 11px;
-  border: 1px solid rgba(255,255,255,.07);
-  background: rgba(255,255,255,.025);
-  cursor: pointer;
-  overflow: hidden;
-  transition: background .15s ease, border-color .15s ease;
-}
-.mc-cell:hover { background: rgba(255,255,255,.06); }
-.mc-cell.adjacent { opacity: .32; }
-.mc-cell.today { border-color: rgba(34,211,238,.7); }
-.mc-cell.sel { background: linear-gradient(135deg, rgba(124,92,255,.5), rgba(34,211,238,.35)); border-color: transparent; }
-.mc-day { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
-.mc-day b { font-size: 12px; }
-.mc-exam-dot { width: 5px; height: 5px; border-radius: 50%; background: #eab308; }
-.mc-events { display: flex; flex-direction: column; gap: 3px; }
-.mc-chip {
-  display: block;
-  border-right: 2px solid var(--chip, #7c5cff);
-  border-radius: 4px;
-  padding: 2px 4px;
-  background: rgba(255,255,255,.07);
-  font-size: 9px;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mc-more { font-size: 9px; color: rgba(255,255,255,.45); }
-.mc-hint { margin-top: 8px; text-align: center; font-size: 10px; color: rgba(255,255,255,.34); }
-@media (max-width: 560px) {
-  .mc-grid { gap: 3px; }
-  .mc-cell { min-height: 62px; padding: 4px 3px; border-radius: 8px; }
-  .mc-day { margin-bottom: 3px; }
-  .mc-day b { font-size: 10px; }
-  .mc-chip { font-size: 8px; padding: 1px 3px; }
-}
 
 /* ============ GRID VIEWS ============ */
 .grid-card { display: flex; flex-direction: column; gap: 8px; }
@@ -1482,10 +1488,9 @@ body.creating-block .pool-drop-wrap {
     gap: 10px;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-width: none;
+    scrollbar-width: thin;
     padding-bottom: 4px;
   }
-  .plan-side::-webkit-scrollbar { display: none; }
 
   .timeline-card {
     flex: 1;
@@ -1524,6 +1529,12 @@ body.creating-block .pool-drop-wrap {
 /* ============ MOBILE ============ */
 @media (max-width: 767px) {
   .sess-card.pool { min-width: 110px; max-width: 160px; }
+  /* استخر بهصورت پیشفرض جمع است； با دکمهٔ کنار عنوان باز میشود. */
+  .pbh-toggle { display: inline-grid; place-items: center; }
+  .plan-pool-section > #planPool { display: none; }
+  .plan-pool-section.open > #planPool { display: block; }
+  .plan-pool-section.open .pbh-toggle { transform: rotate(180deg); }
+  .plan-pool-section:not(.open) { padding-bottom: 8px; }
   .plan-pool-section .pool-sessions-area { max-height: none; }
   .grid-table { font-size: 9.5px; }
   .gt-row-label { font-size: 9px; min-width: 58px; max-width: 76px; }

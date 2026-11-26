@@ -1,10 +1,12 @@
 'use strict';
 
 /* ============================================================
-   MASIR PocketBase-native API (no custom server hooks required).
-   - Uses PocketBase REST API directly from browser fetch.
-   - Keeps the method surface used by js/12-sql-sync.js.
-   - Designed for PocketBase v0.22+ collections imported via pb_schema_masir_native.json.
+   MASIR SQL API — the only browser transport for the SQL backend.
+   - No external SDK: only fetch, WebSocket and AbortController.
+   - Access tokens are supplied through getToken(); this file never
+     writes them anywhere.
+   - Auth, sync snapshots, changes, advisor links and admin tools all
+     go through MasirSqlClient.
    ============================================================ */
 
 (function (factory) {
@@ -16,38 +18,85 @@
 
   const DEFAULT_TIMEOUT_MS = 15000;
   const DEFAULT_SNAPSHOT_LIMIT = 500;
+  const BASE_RECONNECT_DELAY_MS = 500;
+  const MAX_RECONNECT_DELAY_MS = 30000;
+  /* The Konkur penalty is fixed in the app; legacy custom values are ignored. */
   const FIXED_TRACKER_COEF = 1 / 3;
 
+  /* Typed PostgreSQL table names <-> local IndexedDB store names. */
   const SQL_TABLES = Object.freeze([
     'subjects', 'sessions', 'activities', 'classes', 'sleeps', 'phones',
     'exams', 'questions', 'app_meta', 'tracker', 'timer'
   ]);
   const TABLE_TO_STORE = Object.freeze({
-    subjects: 'subjects', sessions: 'sessions', activities: 'activities', classes: 'classes',
-    sleeps: 'sleeps', phones: 'phones', exams: 'exams', questions: 'questions',
-    app_meta: 'app-meta', tracker: 'tracker', timer: 'timer'
+    subjects: 'subjects',
+    sessions: 'sessions',
+    activities: 'activities',
+    classes: 'classes',
+    sleeps: 'sleeps',
+    phones: 'phones',
+    exams: 'exams',
+    questions: 'questions',
+    app_meta: 'app-meta',
+    tracker: 'tracker',
+    timer: 'timer'
   });
-  const STORE_TO_TABLE = Object.freeze(SQL_TABLES.reduce((map, table) => { map[TABLE_TO_STORE[table]] = table; return map; }, {}));
-  const TABLE_TO_COLLECTION = Object.freeze(SQL_TABLES.reduce((map, table) => { map[table] = 'masir_' + table; return map; }, {}));
+  const STORE_TO_TABLE = Object.freeze(SQL_TABLES.reduce((map, table) => {
+    map[TABLE_TO_STORE[table]] = table;
+    return map;
+  }, {}));
 
-  function localStoreForTable(table) { return TABLE_TO_STORE[String(table == null ? '' : table)] || ''; }
-  function tableForLocalStore(store) { return STORE_TO_TABLE[String(store == null ? '' : store)] || ''; }
+  function localStoreForTable(table) {
+    return TABLE_TO_STORE[String(table == null ? '' : table)] || '';
+  }
+  function tableForLocalStore(store) {
+    return STORE_TO_TABLE[String(store == null ? '' : store)] || '';
+  }
 
+  /* Only these fields cross the wire. Unknown legacy fields are dropped.
+     Keys are local field names; values are typed SQL column names. */
   const FIELD_MAPS = Object.freeze({
-    app_meta: Object.freeze({ value: 'value', localOrder: 'local_order' }),
-    subjects: Object.freeze({ name: 'name', color: 'color', type: 'type', field: 'field', config: 'config', sessionsCount: 'sessions_count', localOrder: 'local_order' }),
-    sessions: Object.freeze({ subject: 'subject', topic: 'topic', durMin: 'dur_min', date: 'date', startMin: 'start_min', done: 'done', doneAt: 'done_at', activityId: 'activity_id', examId: 'exam_id', ts: 'ts', localOrder: 'local_order' }),
-    activities: Object.freeze({ subject: 'subject', topic: 'topic', minutes: 'minutes', date: 'date', startMin: 'start_min', endMin: 'end_min', note: 'note', localOrder: 'local_order' }),
+    app_meta: Object.freeze({ value: 'value' }),
+    subjects: Object.freeze({ name: 'name', color: 'color', type: 'type', field: 'field', config: 'config', localOrder: 'local_order' }),
+    sessions: Object.freeze({
+      subject: 'subject', topic: 'topic', durMin: 'dur_min', date: 'date',
+      startMin: 'start_min', done: 'done', doneAt: 'done_at',
+      activityId: 'activity_id', examId: 'exam_id', ts: 'ts', localOrder: 'local_order'
+    }),
+    activities: Object.freeze({
+      subject: 'subject', topic: 'topic', minutes: 'minutes', date: 'date',
+      startMin: 'start_min', endMin: 'end_min', note: 'note',
+      done: 'done', localOrder: 'local_order'
+    }),
     classes: Object.freeze({ subject: 'subject', total: 'total', sessions: 'sessions', localOrder: 'local_order' }),
-    sleeps: Object.freeze({ date: 'date', endDate: 'end_date', startMin: 'start_min', endMin: 'end_min', nap: 'nap', localOrder: 'local_order' }),
-    phones: Object.freeze({ date: 'date', startMin: 'start_min', endMin: 'end_min', subject: 'subject', note: 'note', localOrder: 'local_order' }),
-    exams: Object.freeze({ name: 'name', date: 'date', hasResults: 'has_results', totalTaraz: 'total_taraz', subjects: 'subjects', questionsCount: 'questions_count', localOrder: 'local_order' }),
-    questions: Object.freeze({ examId: 'exam_id', number: 'number', subject: 'subject', topic: 'topic', status: 'status', note: 'note', questionText: 'question_text', answerText: 'answer_text', options: 'options', tags: 'tags', starred: 'starred', figureRef: 'figure_ref', noteHidden: 'note_hidden', ts: 'ts', localOrder: 'local_order' }),
+    sleeps: Object.freeze({
+      date: 'date', endDate: 'end_date', startMin: 'start_min',
+      endMin: 'end_min', nap: 'nap', localOrder: 'local_order'
+    }),
+    phones: Object.freeze({
+      date: 'date', startMin: 'start_min', endMin: 'end_min',
+      subject: 'subject', note: 'note', localOrder: 'local_order'
+    }),
+    exams: Object.freeze({
+      name: 'name', date: 'date', hasResults: 'has_results',
+      totalTaraz: 'total_taraz', subjects: 'subjects',
+      questionsCount: 'questions_count', localOrder: 'local_order'
+    }),
+    questions: Object.freeze({
+      examId: 'exam_id', number: 'number', subject: 'subject', topic: 'topic',
+      status: 'status', note: 'note', questionText: 'question_text',
+      answerText: 'answer_text', options: 'options', tags: 'tags',
+      starred: 'starred', figureRef: 'figure_ref', noteHidden: 'note_hidden',
+      ts: 'ts', localOrder: 'local_order'
+    }),
     tracker: Object.freeze({ correct: 'correct', wrong: 'wrong', blank: 'blank', coef: 'coef' }),
-    timer: Object.freeze({ running: 'running', startedAt: 'started_at', elapsedMs: 'elapsed_ms', mode: 'mode' })
+    timer: Object.freeze({
+      running: 'running', startedAt: 'started_at',
+      elapsedMs: 'elapsed_ms', mode: 'mode'
+    })
   });
 
-  const PERSIAN_DIGITS = /[?-??-?]/g;
+  const PERSIAN_DIGITS = /[۰-۹٠-٩]/g;
   function englishDigits(value) {
     return String(value).replace(PERSIAN_DIGITS, (digit) => {
       const code = digit.charCodeAt(0);
@@ -55,27 +104,38 @@
     });
   }
   function normalizePhone(phone) {
-    let value = englishDigits(phone == null ? '' : phone).replace(/[\s\-()+]/g, '');
-    if (/^09\d{9}$/.test(value)) value = '+98' + value.slice(1);
-    if (/^9\d{9}$/.test(value)) value = '+98' + value;
-    if (/^98\d{10}$/.test(value)) value = '+' + value;
-    if (!/^\+98\d{10}$/.test(value)) throw new Error('????? ?????? ??????? ???. ?????: 09123456789');
+    const value = englishDigits(phone == null ? '' : phone).replace(/[\s\-()+]/g, '');
+    if (!/^[0-9]{10,15}$/.test(value)) {
+      throw new Error('Invalid phone number. Enter 10 to 15 digits, for example 09123456789.');
+    }
     return value;
   }
-  function phoneUsername(phone) { return 'u' + normalizePhone(phone).replace(/^\+/, ''); }
   function normalizeCode(code) {
     const value = englishDigits(code == null ? '' : code).trim();
-    if (!/^[0-9]{4,8}$/.test(value)) throw new Error('?? ????? ??????? ???.');
+    if (!/^[0-9]{4,8}$/.test(value)) {
+      throw new Error('Invalid verification code. Enter the 4 to 8 digit code from the SMS.');
+    }
     return value;
   }
   function normalizePassword(password) {
     const value = String(password == null ? '' : password);
-    if (value.length < 8) throw new Error('??? ???? ???? ????? ? ??????? ????.');
+    if (value.length < 8) {
+      throw new Error('Password must be at least 8 characters long.');
+    }
+    return value;
+  }
+  function normalizePurpose(purpose) {
+    const value = String(purpose == null ? '' : purpose).trim().toLowerCase();
+    if (value !== 'signup' && value !== 'reset') {
+      throw new Error('Invalid OTP purpose.');
+    }
     return value;
   }
   function normalizeBaseUrl(url) {
     const value = String(url == null ? '' : url).trim().replace(/\/+$/, '');
-    if (!/^https?:\/\//i.test(value)) throw new Error('???? ???? ??????? ???.');
+    if (!/^https?:\/\//i.test(value)) {
+      throw new Error('Invalid server address. Use a full http:// or https:// URL.');
+    }
     return value;
   }
   function encodeQuery(params) {
@@ -87,27 +147,32 @@
   function statusMessage(status, detail) {
     let message;
     switch (status) {
-      case 400: message = '??????? ??????? (400).'; break;
-      case 401: message = '????? ???? ?????? (401). ?????? ???? ????.'; break;
-      case 403: message = '?????? ???? ???? (403).'; break;
-      case 404: message = '???? ??? (404).'; break;
-      case 409: message = '????? ???? (409).'; break;
-      default: message = status >= 500 ? `???? ???? (${status}).` : `??? (${status}).`;
+      case 400: message = 'The server rejected the request (HTTP 400).'; break;
+      case 401: message = 'Not signed in (HTTP 401). Sign in again to continue.'; break;
+      case 403: message = 'Access denied (HTTP 403). This account cannot perform that action.'; break;
+      case 404: message = 'Not found (HTTP 404). The requested record does not exist.'; break;
+      case 409: message = 'Conflict (HTTP 409). The record changed elsewhere; refresh and try again.'; break;
+      case 429: message = 'Too many requests (HTTP 429). Wait a moment and try again.'; break;
+      default:
+        message = status >= 500
+          ? 'Server error (HTTP ' + status + '). Try again in a moment.'
+          : 'Request failed (HTTP ' + status + ').';
     }
     if (detail && !/[<>]/.test(detail)) message += ' ' + detail;
     return message;
   }
-  async function responseError(response) {
+  function responseError(status, text) {
     let detail = '';
-    try {
-      const text = await response.text();
-      if (text) {
-        try { const parsed = JSON.parse(text); detail = String(parsed.message || parsed.error || '').slice(0, 200); }
-        catch (_) { detail = String(text).slice(0, 200); }
+    if (text) {
+      try {
+        const parsed = JSON.parse(text);
+        detail = String((parsed && (parsed.message || parsed.error || parsed.detail)) || '').slice(0, 200);
+      } catch (_) {
+        detail = String(text).slice(0, 200);
       }
-    } catch (_) {}
-    const error = new Error(statusMessage(response.status, detail));
-    error.status = response.status;
+    }
+    const error = new Error(statusMessage(status, detail));
+    error.status = status;
     return error;
   }
 
@@ -120,16 +185,27 @@
   }
   function sourceRecord(store, record) {
     if (!record || typeof record !== 'object' || Array.isArray(record)) return {};
+    /* app_meta stores its JSON payload directly in `value`; other stores
+       arrive as normalized records with the payload under `value`. */
     if (store === 'app_meta' || store === 'app-meta') return record;
     if (record.value && typeof record.value === 'object' && !Array.isArray(record.value)) return record.value;
     return record;
   }
-  function typedTableOf(store) { return tableForLocalStore(store) || String(store == null ? '' : store); }
+  function typedTableOf(store) {
+    return tableForLocalStore(store) || String(store == null ? '' : store);
+  }
 
+  /** Local record -> typed SQL row. Unknown fields are ignored. */
   function toTypedRow(store, record) {
     const table = typedTableOf(store);
     const out = envelopeOf(record);
     const source = sourceRecord(store, record);
+    if (table === 'app_meta') {
+      if (Object.prototype.hasOwnProperty.call(source, 'value')) out.value = source.value;
+      const order = record.localOrder !== undefined ? record.localOrder : record.order;
+      if (order !== undefined && order !== null) out.local_order = Number(order) || 0;
+      return out;
+    }
     const fields = FIELD_MAPS[table];
     if (!fields) return out;
     Object.keys(fields).forEach((localKey) => {
@@ -145,6 +221,8 @@
     if (table === 'tracker') out.coef = FIXED_TRACKER_COEF;
     return out;
   }
+
+  /** Typed SQL row -> local record. Unknown columns are ignored. */
   function fromTypedRow(table, row) {
     const name = String(table == null ? '' : table);
     const store = localStoreForTable(name) || name;
@@ -167,34 +245,57 @@
     if (store === 'tracker' || name === 'tracker') out.coef = FIXED_TRACKER_COEF;
     return out;
   }
+
+  /** A local pending mutation -> the typed change envelope accepted by /api/changes. */
   function normalizeChange(change) {
-    if (!change || typeof change !== 'object' || Array.isArray(change)) throw new Error('Invalid change.');
+    if (!change || typeof change !== 'object' || Array.isArray(change)) {
+      throw new Error('Invalid change. Expected a change object.');
+    }
     const table = change.table ? String(change.table) : tableForLocalStore(change.store || '');
-    if (!SQL_TABLES.includes(table)) throw new Error('Invalid change table.');
+    if (!SQL_TABLES.includes(table)) {
+      throw new Error('Invalid change. Unknown table or local store.');
+    }
     const rawOp = String(change.op || change.operation || 'upsert').toLowerCase();
     const op = rawOp === 'delete' || rawOp === 'remove' ? 'delete' : 'upsert';
     const rawId = change.id !== undefined && change.id !== null ? change.id : change.recordId;
-    if (rawId === undefined || rawId === null || String(rawId) === '') throw new Error('Invalid change id.');
-    const localUpdated = change.clientUpdated || change.updatedAt || change.changedAt || change.updated;
+    if (rawId === undefined || rawId === null || String(rawId) === '') {
+      throw new Error('Invalid change. Missing record id.');
+    }
     const payload = {
-      table, id: String(rawId), op,
-      clientUpdated: localUpdated ? new Date(localUpdated).toISOString() : new Date().toISOString(),
-      updated: change.updated ? String(change.updated) : new Date().toISOString()
+      table,
+      id: String(rawId),
+      op,
+      /* Optimistic timestamp: the server compares it with its stored `updated`. */
+      updated: change.updated !== undefined && change.updated !== null
+        ? String(change.updated)
+        : new Date().toISOString()
     };
     if (op === 'upsert') {
-      const source = change.data !== undefined && change.data !== null ? change.data : (change.record !== undefined && change.record !== null ? change.record : change);
+      const source = change.data !== undefined && change.data !== null
+        ? change.data
+        : (change.record !== undefined && change.record !== null ? change.record : change);
       payload.data = toTypedRow(change.store || localStoreForTable(table), source);
     }
     return payload;
   }
+
   function normalizeEvent(raw) {
     if (!raw) return null;
     let payload = raw;
-    if (typeof raw === 'string') { try { payload = JSON.parse(raw); } catch (_) { return null; } }
+    if (typeof raw === 'string') {
+      try { payload = JSON.parse(raw); } catch (_) { return null; }
+    }
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
-    const table = payload.table ? String(payload.table) : (payload.store ? tableForLocalStore(payload.store) : '');
+    const table = payload.table ? String(payload.table)
+      : (payload.store ? tableForLocalStore(payload.store) : '');
     if (!SQL_TABLES.includes(table)) return null;
-    return { table, id: payload.id == null ? '' : String(payload.id), op: payload.op ? String(payload.op) : 'upsert', updated: payload.updated == null ? '' : String(payload.updated), data: payload.data == null ? null : payload.data };
+    return {
+      table,
+      id: payload.id === undefined || payload.id === null ? '' : String(payload.id),
+      op: payload.op ? String(payload.op) : 'upsert',
+      updated: payload.updated === undefined || payload.updated === null ? '' : String(payload.updated),
+      data: payload.data === undefined || payload.data === null ? null : payload.data
+    };
   }
 
   class MasirSqlClient {
@@ -204,423 +305,274 @@
       this.getToken = typeof opts.getToken === 'function' ? opts.getToken : () => '';
       this.onEvent = typeof opts.onEvent === 'function' ? opts.onEvent : () => {};
       this.timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : DEFAULT_TIMEOUT_MS;
-      this._auth = null; // {token, record}
-      this._lastEventAt = 0;
-      this._collectionMeta = new Map();
-      this._usersCollection = '';
+
+      this.socket = null;
+      this.reconnectTimer = null;
+      this.reconnectAttempt = 0;
+      this.closedByUser = false;
+      this.generation = 0;
     }
 
     async _token(required) {
       let token = '';
-      try { token = String((await this.getToken()) == null ? '' : await this.getToken()).trim(); } catch (_) {}
-      if (required && !token) throw new Error('No access token. Sign in again to continue.');
+      try {
+        const supplied = await this.getToken();
+        token = String(supplied == null ? '' : supplied).trim();
+      } catch (_) {
+        throw new Error('Could not read the access token. Sign in again to continue.');
+      }
+      if (required && !token) {
+        throw new Error('No access token. Sign in again to continue.');
+      }
       return token;
     }
-    _authHeaders(token) {
-      const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
-      if (token) h['Authorization'] = 'Bearer ' + token;
-      return h;
-    }
+
     async _request(path, config) {
       const cfg = config || {};
+      if (typeof fetch !== 'function') {
+        throw new Error('Fetch is unavailable in this browser. Update the browser and try again.');
+      }
       const token = await this._token(cfg.auth !== false);
       const query = cfg.query ? '?' + encodeQuery(cfg.query) : '';
       const url = this.baseUrl + path + query;
       const controller = new AbortController();
       let timedOut = false;
       const timer = setTimeout(() => { timedOut = true; controller.abort(); }, this.timeoutMs);
+      const init = {
+        method: cfg.method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        signal: controller.signal
+      };
+      if (cfg.body !== undefined) init.body = JSON.stringify(cfg.body);
+
       try {
-        const init = { method: cfg.method || 'GET', headers: this._authHeaders(token), signal: controller.signal };
-        if (cfg.body !== undefined) init.body = JSON.stringify(cfg.body);
-        const response = await fetch(url, init);
-        if (!response.ok) throw await responseError(response);
-        const text = await response.text();
-        if (!text) return null;
-        try { return JSON.parse(text); } catch (_) { throw new Error('Invalid response from server.'); }
-      } catch (error) {
-        if (error && error.name === 'AbortError') throw new Error(timedOut ? 'Request timed out.' : 'Request cancelled.');
-        throw error;
-      } finally { clearTimeout(timer); }
-    }
-
-    _pbFilter(parts) { return parts.filter(Boolean).join(' && '); }
-    _escape(v) { return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
-
-    async _pbList(collection, params) {
-      return this._request(`/api/collections/${encodeURIComponent(collection)}/records`, { method: 'GET', query: params || {} });
-    }
-    async _pbFirst(collection, filter) {
-      const res = await this._pbList(collection, { page: 1, perPage: 1, filter, skipTotal: 1 });
-      const items = res && Array.isArray(res.items) ? res.items : [];
-      return items[0] || null;
-    }
-    async _pbCreate(collection, body) {
-      return this._request(`/api/collections/${encodeURIComponent(collection)}/records`, { method: 'POST', body });
-    }
-    async _pbUpdate(collection, id, body) {
-      return this._request(`/api/collections/${encodeURIComponent(collection)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
-    }
-
-    async _resolveDataCollection(table) {
-      const candidates = [TABLE_TO_COLLECTION[table], table].filter(Boolean);
-      for (const name of candidates) {
-        const meta = await this._collectionMetaFor(name);
-        if (meta) return name;
-      }
-      return TABLE_TO_COLLECTION[table] || table;
-    }
-
-    async _collectionMetaFor(name) {
-      const key = String(name || '');
-      if (!key) return null;
-      if (this._collectionMeta.has(key)) return this._collectionMeta.get(key);
-      try {
-        const info = await this._request(`/api/collections/${encodeURIComponent(key)}`, { method: 'GET' });
-        const fields = Array.isArray(info && (info.fields || info.schema)) ? (info.fields || info.schema) : [];
-        const meta = {
-          name: key,
-          fields: new Set(fields.map((f) => String(f && f.name || '')).filter(Boolean)),
-        };
-        meta.has = (field) => meta.fields.has(field);
-        meta.localIdField = meta.has('local_id') ? 'local_id' : (meta.has('localId') ? 'localId' : (meta.has('local_id') ? 'local_id' : 'local_id'));
-        meta.timeField = meta.has('updated') ? 'updated' : (meta.has('created') ? 'created' : '');
-        this._collectionMeta.set(key, meta);
-        return meta;
-      } catch (_) {
-        this._collectionMeta.set(key, null);
-        return null;
-      }
-    }
-
-    _localId(rec) {
-      return String(rec && (rec.local_id ?? rec.localId ?? rec.id ?? '') || '');
-    }
-
-    _timeValue(rec) {
-      return String(rec && (rec.updated || rec.created || new Date().toISOString()) || new Date().toISOString());
-    }
-
-    _filterForOwnerLocal(collectionMeta, ownerId, localId) {
-      const field = collectionMeta && collectionMeta.localIdField || 'local_id';
-      return `owner="${this._escape(ownerId)}" && ${field}="${this._escape(localId)}"`;
-    }
-
-    async _resolveUsersCollection() {
-      if (this._usersCollection) return this._usersCollection;
-      for (const name of ['users', 'masir_users']) {
-        try {
-          const res = await fetch(this.baseUrl + '/api/collections/' + encodeURIComponent(name) + '/auth-methods', { headers: { 'Accept': 'application/json' } });
-          if (res.ok) { this._usersCollection = name; return name; }
-        } catch (_) {}
-      }
-      this._usersCollection = 'users';
-      return this._usersCollection;
-    }
-
-    async _authRecordByToken(token) {
-      const col = await this._resolveUsersCollection();
-      const res = await fetch(this.baseUrl + '/api/collections/' + encodeURIComponent(col) + '/auth-refresh', {
-        method: 'POST', headers: this._authHeaders(token)
-      });
-      if (!res.ok) throw await responseError(res);
-      return res.json();
-    }
-
-    _userFromRecord(record) {
-      const r = record || {};
-      return {
-        id: String(r.id || ''),
-        phone: String(r.phone || ''),
-        role: String(r.role || 'student'),
-        displayName: String(r.display_name || r.name || r.displayName || ''),
-        firstName: String(r.first_name || r.firstName || ''),
-        lastName: String(r.last_name || r.lastName || ''),
-        field: String(r.field || ''),
-        grade: String(r.grade || ''),
-        createdAt: r.created || null,
-      };
-    }
-
-    async requestOtp() { throw new Error('OTP ??? ???? PocketBase ?????? ???? ????. ????? ?? ?????/??? ???? ????.'); }
-    async verifyOtp() { throw new Error('OTP ??? ???? PocketBase ?????? ???? ????.'); }
-    async completeSignup() { throw new Error('??????? OTP ??? ???? PocketBase ?????? ???? ????. ?? ????? PB ?? ????? ????? ??????? ????.'); }
-    async resetPassword() { throw new Error('??????? ??? OTP ??? ???? PocketBase ?????? ???? ????.'); }
-
-    async login(phone, password) {
-      const p = normalizePhone(phone);
-      const pass = normalizePassword(password);
-      const digits = englishDigits(phone == null ? '' : phone).replace(/[\s\-()+]/g, '');
-      const localDigits = digits.replace(/^0098/, '0').replace(/^98/, '0');
-      const identities = [
-        p,
-        phoneUsername(p),
-        digits,
-        localDigits,
-        `${localDigits}@masir.local`,
-        `${digits}@masir.local`,
-      ].filter(Boolean);
-      const col = await this._resolveUsersCollection();
-      let lastErr;
-      for (const identity of [...new Set(identities)]) {
-        try {
-          const res = await this._request(`/api/collections/${encodeURIComponent(col)}/auth-with-password`, { method: 'POST', auth: false, body: { identity, password: pass } });
-          const token = String(res && res.token || '');
-          const record = res && res.record || {};
-          if (!token || !record.id) throw new Error('???? ?????? ???.');
-          this._auth = { token, record };
-          return { token, user: this._userFromRecord(record) };
-        } catch (e) { lastErr = e; }
-      }
-      throw lastErr || new Error('???? ?????? ???.');
-    }
-
-    async changePassword(currentPassword, newPassword) {
-      const token = await this._token(true);
-      const auth = await this._authRecordByToken(token);
-      const rec = auth && auth.record || auth || {};
-      const id = rec.id;
-      if (!id) throw new Error('????? ??????? ???.');
-      const col = await this._resolveUsersCollection();
-      const body = {
-        oldPassword: String(currentPassword || ''),
-        password: normalizePassword(newPassword),
-        passwordConfirm: normalizePassword(newPassword)
-      };
-      await this._request(`/api/collections/${encodeURIComponent(col)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
-      return { ok: true };
-    }
-
-    async me() {
-      const token = await this._token(true);
-      const auth = await this._authRecordByToken(token);
-      const rec = auth && auth.record || {};
-      this._auth = { token: auth && auth.token ? String(auth.token) : token, record: rec };
-      return { user: this._userFromRecord(rec), expiresAt: null };
-    }
-
-    async updateProfile(profile) {
-      const token = await this._token(true);
-      const auth = await this._authRecordByToken(token);
-      const rec = auth && auth.record || {};
-      const id = rec.id;
-      const p = profile && typeof profile === 'object' ? profile : {};
-      const body = {
-        first_name: String(p.firstName == null ? '' : p.firstName),
-        last_name: String(p.lastName == null ? '' : p.lastName),
-        field: String(p.field == null ? '' : p.field),
-        grade: String(p.grade == null ? '' : p.grade),
-      };
-      body.display_name = [body.first_name, body.last_name].filter(Boolean).join(' ');
-      const col = await this._resolveUsersCollection();
-      const updated = await this._request(`/api/collections/${encodeURIComponent(col)}/records/${encodeURIComponent(id)}`, { method: 'PATCH', body });
-      return { ok: true, user: this._userFromRecord(updated) };
-    }
-
-    async deleteAccountData() {
-      await this._token(true);
-      const me = await this.me();
-      const ownerId = me.user.id;
-      const cleared = [];
-      for (const table of SQL_TABLES) {
-        const collection = await this._resolveDataCollection(table);
-        if (!collection) continue;
-        let page = 1; let rows = 0;
-        while (true) {
-          let res;
-          try {
-            res = await this._pbList(collection, { page, perPage: 200, filter: `owner="${this._escape(ownerId)}"`, skipTotal: 1 });
-          } catch (_) { break; }
-          const items = res && Array.isArray(res.items) ? res.items : [];
-          if (!items.length) break;
-          for (const rec of items) {
-            if (rec.deleted) continue;
-            const localId = this._localId(rec);
-            const body = { deleted: true };
-            const meta = await this._collectionMetaFor(collection);
-            if (!meta || meta.has('data')) body.data = { id: localId, deleted: true };
-            if (meta && meta.has('value') && !meta.has('data')) body.value = { id: localId, deleted: true };
-            await this._pbUpdate(collection, rec.id, body);
-            rows++;
+        if (cfg.signal) {
+          if (cfg.signal.aborted) controller.abort();
+          else if (typeof cfg.signal.addEventListener === 'function') {
+            cfg.signal.addEventListener('abort', () => controller.abort(), { once: true });
           }
-          if (items.length < 200) break;
-          page++;
         }
-        if (rows) cleared.push({ table, rows });
+        const response = await fetch(url, init);
+        const text = await response.text();
+        if (!response.ok) throw responseError(response.status, text);
+        if (!text) return null;
+        try { return JSON.parse(text); }
+        catch (_) { throw new Error('Invalid response from the server. Expected JSON.'); }
+      } catch (error) {
+        if (error && error.name === 'AbortError') {
+          if (timedOut) {
+            throw new Error('Request timed out after ' + this.timeoutMs + ' ms. Check your connection and try again.');
+          }
+          throw new Error('Request was cancelled before the server replied.');
+        }
+        throw error;
+      } finally {
+        clearTimeout(timer);
       }
-      return { ok: true, cleared };
     }
 
-    async listUsers() { return { users: [] }; }
-    async createUser() { throw new Error('???? ????? ?? ???? PB ?????? ?? ??? ????? PocketBase ????? ???.'); }
-    async resetUserPassword() { throw new Error('???? ??? ?? ???? PB ?????? ?? ??? ????? PocketBase ????? ???.'); }
-    async inviteAdvisor() { throw new Error('???? ????? ?? ???? PB ?????? ???? ????.'); }
-    async acceptAdvisor() { throw new Error('???? ????? ?? ???? PB ?????? ???? ????.'); }
-    async advisorLinks() { return { links: [] }; }
-    async assignStudent() { throw new Error('?????? ????? ?? ???? PB ?????? ???? ????.'); }
+    /** Public endpoint: SMS code for signup or password reset. */
+    requestOtp(phone, purpose) {
+      const body = { phone: normalizePhone(phone) };
+      if (purpose !== undefined && purpose !== null && String(purpose).trim()) {
+        body.purpose = normalizePurpose(purpose);
+      }
+      return this._request('/api/auth/request-otp', {
+        method: 'POST', auth: false, body
+      });
+    }
 
-    connect() { return Promise.resolve(); }
-    disconnect() {}
+    /** Public endpoint: exchange the SMS code for a short-lived purpose token. */
+    verifyOtp(phone, code, purpose) {
+      const body = { phone: normalizePhone(phone), code: normalizeCode(code) };
+      if (purpose !== undefined && purpose !== null && String(purpose).trim()) {
+        body.purpose = normalizePurpose(purpose);
+      }
+      return this._request('/api/auth/verify-otp', {
+        method: 'POST', auth: false, body
+      });
+    }
 
-    async snapshot(options) {
+    completeSignup(token, password, displayName) {
+      const body = { token: String(token == null ? '' : token).trim(), password: normalizePassword(password) };
+      if (displayName !== undefined && displayName !== null && String(displayName).trim()) {
+        body.displayName = String(displayName).trim();
+      }
+      if (!body.token) throw new Error('The signup code is missing. Request a new SMS code.');
+      return this._request('/api/auth/complete-signup', { method: 'POST', auth: false, body });
+    }
+
+    login(phone, password) {
+      return this._request('/api/auth/login', {
+        method: 'POST', auth: false,
+        body: { phone: normalizePhone(phone), password: normalizePassword(password) }
+      });
+    }
+
+    resetPassword(token, password) {
+      const value = String(token == null ? '' : token).trim();
+      if (!value) throw new Error('The reset code is missing. Request a new SMS code.');
+      return this._request('/api/auth/reset-password', {
+        method: 'POST', auth: false,
+        body: { token: value, password: normalizePassword(password) }
+      });
+    }
+
+    changePassword(currentPassword, newPassword) {
+      return this._request('/api/auth/change-password', {
+        method: 'POST',
+        body: {
+          currentPassword: String(currentPassword == null ? '' : currentPassword),
+          newPassword: normalizePassword(newPassword)
+        }
+      });
+    }
+
+    /** Remove every synced row belonging to the signed-in account. */
+    deleteAccountData() {
+      return this._request('/api/account/clear-data', { method: 'POST', body: {} });
+    }
+
+    createUser(phone, password, options) {
+      const opts = options || {};
+      const body = { phone: normalizePhone(phone), password: normalizePassword(password) };
+      if (opts.role) body.role = String(opts.role).trim();
+      if (opts.displayName) body.displayName = String(opts.displayName).trim();
+      return this._request('/api/admin/users', { method: 'POST', body });
+    }
+
+    resetUserPassword(phone, password) {
+      return this._request('/api/admin/users/reset-password', {
+        method: 'POST',
+        body: { phone: normalizePhone(phone), password: normalizePassword(password) }
+      });
+    }
+
+    me() {
+      return this._request('/api/me', { method: 'GET' });
+    }
+
+    snapshot(options) {
       const opts = options || {};
       const rawLimit = Number(opts.limit);
       const limit = rawLimit > 0 ? Math.min(5000, Math.floor(rawLimit)) : DEFAULT_SNAPSHOT_LIMIT;
-      const since = String(opts.since || opts.cursor || '').trim();
-      await this._token(true);
-      const me = await this.me();
-      const ownerId = me.user.id;
-      const changes = [];
-      for (const table of SQL_TABLES) {
-        const collection = await this._resolveDataCollection(table);
-        if (!collection) continue;
-        let page = 1;
-        while (true) {
-          const filterParts = [`owner="${this._escape(ownerId)}"`];
-          if (since) filterParts.push(`updated>"${this._escape(since)}"`);
-          let res;
-          try {
-            res = await this._pbList(collection, {
-              page, perPage: 200, skipTotal: 1, sort: 'updated',
-              filter: filterParts.join(' && ')
-            });
-          } catch (e) {
-            // Fallback for legacy/minimal schemas: no sort/filter quirks
-            res = await this._pbList(collection, { page, perPage: 200, skipTotal: 1, filter: `owner="${this._escape(ownerId)}"` });
-          }
-          const items = res && Array.isArray(res.items) ? res.items : [];
-          for (const rec of items) {
-            const updated = String(rec.updated || rec.created || new Date().toISOString());
-            if (since && updated <= since) continue;
-            changes.push({
-              table,
-              id: this._localId(rec),
-              op: rec.deleted ? 'delete' : 'upsert',
-              updated,
-              data: this._rowToData(table, rec)
-            });
-          }
-          if (items.length < 200) break;
-          page++;
-          if (changes.length >= limit * 4) break;
-        }
-      }
-      changes.sort((a,b)=> String(a.updated).localeCompare(String(b.updated)) || String(a.table).localeCompare(String(b.table)) || String(a.id).localeCompare(String(b.id)));
-      const sliced = changes.slice(0, limit);
-      const body = { serverTime: new Date().toISOString(), changes: sliced };
-      if (changes.length > limit) body.nextCursor = sliced[sliced.length - 1].updated;
-      return body;
-    }
-
-    _rowToData(table, rec) {
-      const localId = this._localId(rec);
-      const updated = this._timeValue(rec);
-      if (rec.deleted) return { id: localId, updated, deleted: true };
-
-      const raw = (rec.data && typeof rec.data === 'object' && !Array.isArray(rec.data))
-        ? rec.data
-        : ((rec.value && typeof rec.value === 'object' && !Array.isArray(rec.value)) ? rec.value : null);
-      if (raw) {
-        const out = Object.assign({ id: localId, updated }, raw);
-        if (out.localOrder === undefined && out.order !== undefined) out.localOrder = out.order;
-        if (table === 'tracker') out.coef = FIXED_TRACKER_COEF;
-        return out;
-      }
-
-      const out = { id: localId, updated };
-      const fields = FIELD_MAPS[table] || {};
-      Object.keys(fields).forEach((localKey) => {
-        const col = fields[localKey];
-        if (rec[col] !== undefined && rec[col] !== null && rec[col] !== '') out[localKey] = rec[col];
-        if (rec[localKey] !== undefined && out[localKey] === undefined) out[localKey] = rec[localKey];
+      return this._request('/api/snapshot', {
+        method: 'GET',
+        query: { since: opts.since == null ? '' : String(opts.since), limit }
       });
-      if (rec.order !== undefined && out.localOrder === undefined) out.localOrder = rec.order;
-      if (table === 'tracker') out.coef = FIXED_TRACKER_COEF;
-      return out;
     }
 
-    async sendChanges(changes) {
+    sendChanges(changes) {
       const payload = (Array.isArray(changes) ? changes : []).map(normalizeChange);
-      if (!payload.length) return { applied: [], conflicts: [] };
-      const me = await this.me();
-      const ownerId = me.user.id;
-      const applied = [];
-      const conflicts = [];
-      for (const ch of payload) {
-        try {
-          const res = await this._applyChange(ownerId, ch);
-          if (res.applied) applied.push(ch.id);
-          if (res.conflict) conflicts.push({ id: ch.id, table: ch.table, serverUpdated: res.serverUpdated || null });
-        } catch (e) {
-          conflicts.push({ id: ch.id, table: ch.table, error: 'rejected' });
-        }
-      }
-      return { applied, conflicts };
+      if (!payload.length) return Promise.resolve({ changes: [] });
+      return this._request('/api/changes', { method: 'POST', body: { changes: payload } });
     }
 
-    async _applyChange(ownerId, ch) {
-      const collection = await this._resolveDataCollection(ch.table);
-      const meta = await this._collectionMetaFor(collection);
-      const filter = this._filterForOwnerLocal(meta, ownerId, ch.id);
-      let existing = null;
-      try { existing = await this._pbFirst(collection, filter); } catch (_) { existing = null; }
-
-      if (existing) {
-        const existingUpdated = new Date(existing.updated || existing.created || 0).toISOString();
-        const clientUpdated = new Date(ch.clientUpdated || ch.updated || 0).toISOString();
-        if (clientUpdated < existingUpdated) {
-          return { conflict: true, serverUpdated: existingUpdated };
-        }
-      }
-
-      const body = this._bodyForChange(ownerId, ch, meta);
-      try {
-        if (existing) await this._pbUpdate(collection, existing.id, body);
-        else await this._pbCreate(collection, body);
-      } catch (e) {
-        // Legacy schema fallback: store full record in value/data with localId
-        const legacyBody = this._legacyBodyForChange(ownerId, ch, meta);
-        if (existing) await this._pbUpdate(collection, existing.id, legacyBody);
-        else await this._pbCreate(collection, legacyBody);
-      }
-      return { applied: true };
+    inviteAdvisor() {
+      return this._request('/api/advisors/invite', { method: 'POST', body: {} });
     }
 
-    _bodyForChange(ownerId, ch, meta) {
-      const data = ch.op === 'delete' ? { id: ch.id, deleted: true } : Object.assign({ id: ch.id }, ch.data || {});
-      const body = { owner: ownerId };
+    acceptAdvisor(code) {
+      const value = String(code == null ? '' : code).trim();
+      if (!value) throw new Error('Invalid advisor code. Enter the code shared by your advisor.');
+      return this._request('/api/advisors/accept', { method: 'POST', body: { code: value } });
+    }
 
-      const localField = meta && meta.localIdField || 'local_id';
-      body[localField] = ch.id;
+    advisorLinks() {
+      return this._request('/api/advisors/links', { method: 'GET' });
+    }
 
-      if (!meta || meta.has('deleted')) body.deleted = ch.op === 'delete';
-      if (!meta || meta.has('data')) body.data = data;
-      if ((!meta || meta.has('value')) && (!meta || !meta.has('data'))) body.value = data;
-
-      const fields = FIELD_MAPS[ch.table] || {};
-      Object.keys(fields).forEach((localKey) => {
-        const col = fields[localKey];
-        if (meta && !meta.has(col)) return;
-        if (ch.data && Object.prototype.hasOwnProperty.call(ch.data, col)) body[col] = ch.data[col];
-        else if (ch.data && Object.prototype.hasOwnProperty.call(ch.data, localKey)) body[col] = ch.data[localKey];
+    assignStudent(advisorPhone, studentPhone) {
+      return this._request('/api/admin/advisor-links', {
+        method: 'POST',
+        body: {
+          advisor: normalizePhone(advisorPhone),
+          student: normalizePhone(studentPhone)
+        }
       });
-      if (ch.table === 'tracker' && (!meta || meta.has('coef'))) body.coef = FIXED_TRACKER_COEF;
-      if (!meta || meta.has('local_order')) {
-        const lo = ch.data && (ch.data.local_order ?? ch.data.localOrder ?? ch.data.order);
-        if (lo !== undefined) body.local_order = lo;
-      }
-      return body;
     }
 
-    _legacyBodyForChange(ownerId, ch, meta) {
-      const data = ch.op === 'delete' ? { id: ch.id, deleted: true } : Object.assign({ id: ch.id }, ch.data || {});
-      const body = { owner: ownerId };
-      const localField = meta && meta.has('localId') ? 'localId' : (meta && meta.has('local_id') ? 'local_id' : 'localId');
-      body[localField] = ch.id;
-      if (!meta || meta.has('value')) body.value = data;
-      if (!meta || meta.has('data')) body.data = data;
-      if (!meta || meta.has('deleted')) body.deleted = ch.op === 'delete';
-      if (!meta || meta.has('order')) body.order = Number(data.localOrder ?? data.order ?? 0) || 0;
-      return body;
+    _socketUrl(token) {
+      const wsBase = this.baseUrl
+        .replace(/^http:\/\//i, 'ws://')
+        .replace(/^https:\/\//i, 'wss://');
+      return wsBase + '/api/ws?token=' + encodeURIComponent(token);
+    }
+
+    async connect() {
+      if (this.socket || this.reconnectTimer) return;
+      const token = await this._token(true);
+      this.closedByUser = false;
+      this._openSocket(token);
+    }
+
+    _openSocket(token) {
+      if (typeof WebSocket === 'undefined') {
+        throw new Error('WebSocket is unavailable in this browser. Live updates are disabled.');
+      }
+      const socket = new WebSocket(this._socketUrl(token));
+      this.socket = socket;
+      const generation = this.generation;
+
+      socket.onopen = () => {
+        if (generation !== this.generation) return;
+        this.reconnectAttempt = 0;
+      };
+      socket.onmessage = (message) => {
+        if (generation !== this.generation) return;
+        const event = normalizeEvent(message && message.data);
+        if (!event) return;
+        try { this.onEvent(event); }
+        catch (error) { console.warn('[SQL API] change event handler failed:', error); }
+      };
+      socket.onerror = () => {
+        if (generation !== this.generation) return;
+        /* Closing here makes onclose the single reconnect path. */
+        try { socket.close(); } catch (_) {}
+      };
+      socket.onclose = () => {
+        if (generation !== this.generation || this.closedByUser) return;
+        this.socket = null;
+        this._scheduleReconnect(token);
+      };
+    }
+
+    /* Reconnect with exponential backoff and a cap; a failed hint never
+       loses changes because the caller falls back to a full snapshot. */
+    _scheduleReconnect(token) {
+      const attempt = this.reconnectAttempt++;
+      const delay = Math.min(MAX_RECONNECT_DELAY_MS, BASE_RECONNECT_DELAY_MS * Math.pow(2, attempt));
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        if (this.closedByUser) return;
+        try { this._openSocket(token); }
+        catch (_) { this._scheduleReconnect(token); }
+      }, delay);
+    }
+
+    disconnect() {
+      this.closedByUser = true;
+      this.generation++;
+      if (this.reconnectTimer) {
+        clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      const socket = this.socket;
+      this.socket = null;
+      if (socket) {
+        try {
+          socket.onopen = null;
+          socket.onmessage = null;
+          socket.onerror = null;
+          socket.onclose = null;
+          socket.close();
+        } catch (_) {}
+      }
     }
   }
 

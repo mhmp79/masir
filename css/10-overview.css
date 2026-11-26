@@ -158,8 +158,10 @@
 .ov-table-general .ov-cell{height:58px;min-width:50px}
 .ov-table-general .ov-subj-count{color:#8b94ad}
 .ov-mobile-cards{display:none}
+
+/* انتخاب درس/پایه در نمای موبایل (همان طراحی نسخهٔ قبل) */
 .ov-subject-selector,.ov-grade-selector{
-  display:flex;gap:8px;overflow-x:auto;padding:10px 10px 0;
+  display:flex;justify-content:center;gap:8px;overflow-x:auto;padding:10px 10px 0;
   -webkit-overflow-scrolling:touch;scrollbar-width:none;
 }
 .ov-subject-selector::-webkit-scrollbar,.ov-grade-selector::-webkit-scrollbar{display:none}
@@ -176,51 +178,29 @@
 }
 .ov-subject-chip:active,.ov-grade-chip:active{transform:scale(.98)}
 .ov-grade-selector{padding-top:8px}
-#view-overview{
-  --ov-tabs-h:74px;
+/* دروس عمومی: همهٔ سلکتورها در یک صفحه و بدون اسکرول افقی */
+.ov-subject-selector[data-ov-kind="general"]{
+  flex-wrap:wrap;overflow:visible;padding-bottom:6px;
 }
-#view-overview > #overviewBody,
-#view-overview > #overviewClassPane{
-  padding-bottom:8px;
+.ov-subject-selector[data-ov-kind="general"] .ov-subject-chip{
+  flex:0 1 auto;min-width:0;max-width:100%;white-space:nowrap;
 }
+
 .overview-selector-wrap{
-  position:sticky;
-  bottom:calc(18px + 56px + env(safe-area-inset-bottom));
-  width:100%;max-width:452px;
-  display:flex;justify-content:stretch;align-items:center;
-  z-index:95;
-  margin:10px auto 0;
-  padding:0;
-  pointer-events:none;
+  display:flex;justify-content:center;align-items:center;
+  flex:0 0 auto;width:100%;min-width:0;
+  margin-bottom:var(--gap);
 }
 .overview-tabs{
-  width:100%;max-width:none;margin:0;
-  display:flex;gap:4px;padding:6px;
-  border-radius:18px;
-  background:rgba(11,16,34,.82);
-  border:1px solid rgba(255,255,255,.10);
-  box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
-  backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
-  pointer-events:auto;
-}
-.overview-tabs .seg-btn{
-  flex:1 1 0;min-width:0;padding:10px 6px;
-  border-radius:12px;font-size:11px;font-weight:800;
+  width:auto;max-width:100%;margin:0 auto;
 }
 
 @media (max-width:767px){
-  #view-overview.active{animation:ov-fade .18s ease}
-  @keyframes ov-fade{from{opacity:0}to{opacity:1}}
-  #view-overview .overview-selector-wrap{
-    position:fixed;
-    left:50%;transform:translateX(-50%) !important;
-    bottom:calc(22px + 56px + env(safe-area-inset-bottom));
-    width:calc(100% - 24px);max-width:452px;margin:0;z-index:120;
-    opacity:1 !important;animation:none !important;will-change:auto;
+  #view-overview .overview-selector-wrap{justify-content:stretch;margin-bottom:18px}
+  #view-overview .overview-tabs{
+    display:flex;width:100%;max-width:none;flex:1 1 auto;margin:0;
   }
-  #view-overview .overview-tabs{width:100%;max-width:none;flex:1 1 auto;margin:0}
-  #view-overview > #overviewBody,
-  #view-overview > #overviewClassPane{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  #view-overview .overview-tabs .seg-btn{flex:1 1 0;min-width:0;padding:10px 6px}
   .ov-subject-selector,.ov-grade-selector{
     position:sticky;top:0;z-index:20;
     background:linear-gradient(180deg,rgba(11,16,34,.96),rgba(11,16,34,.86));
@@ -228,6 +208,9 @@
     padding-bottom:8px;margin:0 -10px 2px;padding-left:10px;padding-right:10px;
   }
   .ov-grade-selector{top:46px;z-index:19;padding-top:0;margin-top:-2px;justify-content:center}
+  /* سلکتور عمومی چندردیف است؛ چسباندن آن باعث همپوشانی با پایه میشود. */
+  .ov-subject-selector[data-ov-kind="general"]{position:static;padding-bottom:6px}
+  .ov-grade-selector[data-ov-kind="general"]{top:0;z-index:20;padding-top:8px;margin-top:0}
   .ov-scroll{display:none}
   .ov-mobile-cards{
     display:flex;flex-direction:column;gap:10px;
@@ -238,12 +221,20 @@
     border-radius:12px;background:rgba(255,255,255,.025);overflow:hidden;
   }
   .ov-mobile-group>header{
-    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
     padding:8px 10px;background:rgba(255,255,255,.035);font-size:11px;
   }
-  .ov-mobile-group>header b{color:var(--ov-color)}
-  .ov-mobile-group>header span{font-size:9px;color:#8b94ad}
-  .ov-mobile-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;padding:7px}
+  .ov-mobile-group>header b{
+    grid-column:2;text-align:center;color:var(--ov-color);white-space:nowrap;
+  }
+  .ov-mobile-group>header span{
+    grid-column:3;justify-self:end;font-size:9px;color:#8b94ad;
+    border-inline-start:1px solid var(--stroke);padding-inline-start:8px;
+  }
+  .ov-mobile-grid{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:5px;padding:7px;
+  }
   .ov-mobile-topic{
     min-width:0;min-height:54px;padding:5px;border:1px solid rgba(255,255,255,.07);
     border-radius:8px;background:rgba(255,255,255,.025);cursor:pointer;overflow:hidden;
@@ -261,6 +252,10 @@
   }
   .ov-mobile-cards-specialized .ov-mobile-group{border-right:2px solid var(--ov-color)}
   .ov-mobile-cards-specialized .ov-mobile-group>header{background:transparent}
+  /* خط جداکنندهٔ پایه و درس حتی در هدر شفاف تخصصی هم دیده شود. */
+  .ov-mobile-cards-specialized .ov-mobile-group>header span{
+    color:#aab3c9;border-inline-start-color:rgba(255,255,255,.22);
+  }
   .ov-mobile-cards-specialized .ov-mobile-topic{border-bottom:1px solid rgba(255,255,255,.07)}
   .ov-mobile-cards-specialized .ov-mobile-topic .ov-cell-inner{background:transparent;border-color:transparent;box-shadow:none}
   .ov-mobile-cards-specialized .ov-mobile-topic.studied{

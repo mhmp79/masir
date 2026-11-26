@@ -40,4 +40,8 @@
     <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
     <meta-data android:name="android.appwidget.provider" android:resource="@xml/exam_tags_widget_info" />
 </receiver>
+<receiver android:name=".KonkurRoadmapWidgetProvider" android:exported="false" android:label="@string/widget_konkur_roadmap_label">
+    <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+    <meta-data android:name="android.appwidget.provider" android:resource="@xml/konkur_roadmap_widget_info" />
+</receiver>
 <!-- MASIR_WIDGETS_END -->

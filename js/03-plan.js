@@ -18,35 +18,12 @@ function itemTimeRange(item) {
   return { start, end: Math.max(start, end) };
 }
 
-/* Persian calendar helpers for the month timeline. j2d returns an absolute day
-   number, so subtracting two month starts gives the real month length. */
-function shiftPersianMonth(jy, jm, delta) {
-  const total = (+jy) * 12 + (+jm) - 1 + (+delta);
-  return { jy: Math.floor(total / 12), jm: ((total % 12) + 12) % 12 + 1 };
-}
-
-function monthKeysOf(jy, jm) {
-  const start = j2d(+jy, +jm, 1);
-  const next = shiftPersianMonth(jy, jm, 1);
-  const count = Math.max(1, j2d(next.jy, next.jm, 1) - start);
-  return Array.from({ length: count }, (_, i) => jKey(d2j(start + i)));
-}
-
 function timelineStepDays() {
   return tlMode === 'day' ? 1 : tlMode === '3day' ? 3 : 7;
 }
 
-/* Month navigation changes the calendar month instead of jumping a fixed number
-   of days, so the 29/30/31-day months always advance by exactly one screen. */
 function shiftTimelineAnchor(dir) {
   tlSelectedKey = null;
-  if (tlMode === 'month') {
-    const m = shiftPersianMonth(calYear, calMonth, dir);
-    calYear = m.jy;
-    calMonth = m.jm;
-    calSelected = jKey(d2j(j2d(m.jy, m.jm, 1)));
-    return calSelected;
-  }
   calSelected = jKey(d2j(jdnFromKey(calSelected) + dir * timelineStepDays()));
   const j = parseKey(calSelected);
   calYear = j.jy;
@@ -62,6 +39,8 @@ let calSelected = TODAY_KEY;
 /* The timeline anchor (calSelected) moves a whole day/week/3-day block at a time.
    Keep the highlighted day separate so navigation never paints a false selection. */
 let tlSelectedKey = TODAY_KEY;
+/* «حجمی» keeps its own selected day so the mobile agenda and desktop column agree. */
+let volumeSelectedKey = TODAY_KEY;
 let examSelectedId = null;
 let examTopicSetup = {};
 let dragState = null;
@@ -69,6 +48,8 @@ let createDragState = null;
 let resizeState = null;
 let dropTargetEl = null;
 let moveDragPreviewEl = null;
+let dragScrollDir = 0;
+let dragScrollTimer = null;
 let tlSwipe = null;
 const openPoolSubjects = new Set();
 
@@ -79,7 +60,6 @@ function syncCompat() {
 }
 
 function timelineContainsToday() {
-  if (tlMode === 'month') return calYear === TODAY_J.jy && calMonth === TODAY_J.jm;
   const jdn = jdnFromKey(calSelected);
   if (tlMode === 'day') return jdn === TODAY_JDN;
   if (tlMode === '3day') return jdn <= TODAY_JDN && TODAY_JDN <= jdn + 2;
@@ -246,6 +226,11 @@ function renderPool() {
     grouped[key].push(s);
   });
 
+  /* استخر تکردیف است؛ بازهها بر اساس ساعت شروع مرتب میشوند (بدونساعت آخر). */
+  Object.values(grouped).forEach(list => list.sort((a, b) =>
+    (a.startMin ?? 1440) - (b.startMin ?? 1440)
+    || (a.durMin || 0) - (b.durMin || 0)
+    || (a.ts || 0) - (b.ts || 0)));
   const subjectKeys = Object.keys(grouped).sort((a, b) => grouped[b].length - grouped[a].length);
 
   let chipsHtml = '<div class="pool-chip-bar">';
@@ -291,6 +276,42 @@ function renderPool() {
     };
   });
   bindCardsInContainer(box);
+  box.querySelectorAll('.pool-chip-bar, .pool-panel-grid, .pool-sessions-area').forEach(bindPoolScrollDrag);
+}
+
+/* کشیدن روی فضاهای خالی استخر هم اسکرول میکند (علاوه بر تاچ و چرخ ماوس). */
+function bindPoolScrollDrag(container) {
+  if (!container || container._scrollDragBound) return;
+  container._scrollDragBound = true;
+  let st = null;
+  container.addEventListener('pointerdown', (e) => {
+    /* تاچ روی فضاهای خالی را مرورگر اسکرول میکند؛ کشیدن دستی فقط برای ماوس/قلم است. */
+    if (e.pointerType === 'touch') return;
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.target.closest('[data-sid], input, button, label, a')) return;
+    const canX = container.scrollWidth > container.clientWidth + 2;
+    const canY = container.scrollHeight > container.clientHeight + 2;
+    if (!canX && !canY) return;
+    st = {
+      id: e.pointerId, x: e.clientX, y: e.clientY,
+      left: container.scrollLeft, top: container.scrollTop
+    };
+    try { container.setPointerCapture(e.pointerId); } catch (err) {}
+    container.classList.add('scroll-dragging');
+  });
+  container.addEventListener('pointermove', (e) => {
+    if (!st || e.pointerId !== st.id) return;
+    e.preventDefault();
+    container.scrollLeft = st.left - (e.clientX - st.x);
+    container.scrollTop = st.top - (e.clientY - st.y);
+  });
+  const end = (e) => {
+    if (!st || (e && e.pointerId !== st.id)) return;
+    st = null;
+    container.classList.remove('scroll-dragging');
+  };
+  container.addEventListener('pointerup', end);
+  container.addEventListener('pointercancel', end);
 }
 
 /* ============ EXAM PICKER ============ */
@@ -377,7 +398,7 @@ function renderTopicSetup() {
 
   if (!examSelectedId) {
     if (hint) hint.textContent = 'آزمون انتخاب کن';
-    box.innerHTML = `<div class="plan-hint compact">از سایدبار یک آزمون انتخاب کن</div>`;
+    box.innerHTML = `<div class="plan-hint compact">از همین تب یک آزمون انتخاب کن</div>`;
     return;
   }
 
@@ -513,6 +534,14 @@ function renderCalendar() {
     };
   }
 
+  const poolToggle = document.getElementById('planPoolToggle');
+  if (poolToggle) poolToggle.onclick = () => {
+    const section = poolToggle.closest('.plan-pool-section');
+    if (!section) return;
+    const open = section.classList.toggle('open');
+    poolToggle.setAttribute('aria-label', open ? 'بستن استخر بازهها' : 'نمایش استخر بازهها');
+  };
+
   const addBtn = document.getElementById('planAddBtn');
   if (addBtn) addBtn.onclick = () => openSessionEditor(null, { examId: examSelectedId });
 
@@ -534,6 +563,10 @@ document.addEventListener('touchmove', (e) => {
 function renderViewContent() {
   const box = document.getElementById('planMain');
   if (!box) return;
+  const viewEl = document.getElementById('view-plan');
+  if (viewEl) viewEl.dataset.planView = planView;
+  /* تب استخر محتوای خود را در #planPoolView نگه میدارد؛ بقیه نماها planMain را پر میکنند. */
+  if (planView === 'pool') { box.innerHTML = ''; return; }
   try {
     if (planView === 'timeline') renderTimeline(box);
     else if (planView === 'subjects') renderSubjects(box);
@@ -582,7 +615,7 @@ function bindCardsInContainer(container) {
       openSessionEditor(btn.dataset.edit);
     };
   });
-  const selector = '.sess-card[data-sid], .sess-pill[data-sid], .tl-block[data-sid], .wv-block[data-sid], .wv-res-chip[data-sid]';
+  const selector = '.sess-card[data-sid], .sess-pill[data-sid], .tl-block[data-sid], .wv-block[data-sid], .wv-res-chip[data-sid], .vp-card-main[data-sid], .vp-m-card-body[data-sid]';
   container.querySelectorAll(selector).forEach(el => {
     el.addEventListener('pointerdown', onSessionPointerDown);
   });
@@ -610,6 +643,18 @@ function bindCardsInContainer(container) {
 }
 
 /* ============ SESSION POINTER ============ */
+function stopDragAutoScroll() {
+  if (dragScrollTimer) { clearInterval(dragScrollTimer); dragScrollTimer = null; }
+  dragScrollDir = 0;
+}
+function updateDragAutoScroll(clientY) {
+  const edge = 90;
+  dragScrollDir = clientY < edge ? -1 : (clientY > window.innerHeight - edge ? 1 : 0);
+  if (!dragScrollDir) { stopDragAutoScroll(); return; }
+  if (dragScrollTimer) return;
+  dragScrollTimer = setInterval(() => window.scrollBy(0, dragScrollDir * 14), 16);
+}
+
 function onSessionPointerDown(e) {
   if (e.button !== undefined && e.button !== 0) return;
   if (e.target.closest('input, button, label.sc-check, .sc-more, .resize-handle')) return;
@@ -628,6 +673,15 @@ function onSessionPointerDown(e) {
   const isTouch = e.pointerType === 'touch';
   const startX = e.clientX, startY = e.clientY;
   const pointerId = e.pointerId;
+  /* در استخر، کشیدن سریع بازه اسکرول میکند؛ نگه داشتن طولانی همان جابهجایی است. */
+  const poolScroller = el.classList.contains('pool')
+    ? (el.closest('.pool-panel-grid') || el.closest('.pool-sessions-area'))
+    : null;
+  const canScrollX = !!poolScroller && poolScroller.scrollWidth > poolScroller.clientWidth + 2;
+  const canScrollY = !!poolScroller && poolScroller.scrollHeight > poolScroller.clientHeight + 2;
+  const scrollStartLeft = poolScroller ? poolScroller.scrollLeft : 0;
+  const scrollStartTop = poolScroller ? poolScroller.scrollTop : 0;
+  let scrollAxis = null;
   let dragActive = false;
   let timer = null;
 
@@ -651,9 +705,35 @@ function onSessionPointerDown(e) {
     document.removeEventListener('pointerup', onUp);
     document.removeEventListener('pointercancel', onCancel);
     if (timer) { clearTimeout(timer); timer = null; }
+    if (scrollAxis) { el.classList.remove('scroll-dragging'); scrollAxis = null; }
+    stopDragAutoScroll();
   };
   const onMove = (me) => {
-    const dist = Math.hypot(me.clientX - startX, me.clientY - startY);
+    const dx = me.clientX - startX, dy = me.clientY - startY;
+    const dist = Math.hypot(dx, dy);
+    if (!dragActive && !scrollAxis && poolScroller) {
+      if (isTouch && dist > 8) {
+        /* تاچ: حرکت سریع اسکرول میکند، نگه داشتن ۲۶۰ms جابهجایی میکند. */
+        if (canScrollX && (!canScrollY || Math.abs(dx) >= Math.abs(dy))) scrollAxis = 'x';
+        else if (canScrollY) scrollAxis = 'y';
+        if (scrollAxis) {
+          if (timer) { clearTimeout(timer); timer = null; }
+          try { el.setPointerCapture(pointerId); } catch (err) {}
+          el.classList.add('scroll-dragging');
+        }
+      } else if (!isTouch && canScrollX && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 6) {
+        /* ماوس: کشیدن افقی روی بازه استخر را پیمایش میکند. */
+        scrollAxis = 'x';
+        try { el.setPointerCapture(pointerId); } catch (err) {}
+        el.classList.add('scroll-dragging');
+      }
+    }
+    if (scrollAxis) {
+      me.preventDefault();
+      if (scrollAxis === 'x') poolScroller.scrollLeft = scrollStartLeft - dx;
+      else poolScroller.scrollTop = scrollStartTop - dy;
+      return;
+    }
     if (!dragActive) {
       if (isTouch) { if (dist > 8) { cleanup(); return; } }
       else { if (dist > 6) enterDragMode(me.clientX, me.clientY); }
@@ -664,6 +744,7 @@ function onSessionPointerDown(e) {
       dragState.ghost.style.top = me.clientY + 'px';
       if (!dragState.moved && dist > 6) dragState.moved = true;
       if (dragState.moved) {
+        updateDragAutoScroll(me.clientY);
         if (dropTargetEl) dropTargetEl.classList.remove('drop-hover');
         dropTargetEl = null;
         const hit = document.elementFromPoint(me.clientX, me.clientY);
@@ -676,7 +757,9 @@ function onSessionPointerDown(e) {
     }
   };
   const onUp = (ue) => {
+    const wasScrolling = !!scrollAxis;
     cleanup();
+    if (wasScrolling) return;
     if (!dragActive) { openSessionEditor(sid); return; }
     const st = dragState;
     dragState = null;
@@ -710,7 +793,7 @@ function onSessionPointerDown(e) {
     }
     if (dropTargetEl) { dropTargetEl.classList.remove('drop-hover'); dropTargetEl = null; }
   };
-  if (isTouch) timer = setTimeout(() => enterDragMode(startX, startY), 400);
+  if (isTouch) timer = setTimeout(() => enterDragMode(startX, startY), 260);
   document.addEventListener('pointermove', onMove, { passive: false });
   document.addEventListener('pointerup', onUp, { once: true });
   document.addEventListener('pointercancel', onCancel, { once: true });
@@ -1096,29 +1179,23 @@ function renderAdjacentTimelineHTML(targetDir) {
   const savedSelectedKey = tlSelectedKey;
   const savedYear = calYear;
   const savedMonth = calMonth;
-
   const savedMode = tlMode;
   tlSelectedKey = null;
   let html;
   try {
-    if (savedMode === 'month') {
-      shiftTimelineAnchor(targetDir);
-      html = renderTimelineMonth();
+    const step = timelineStepDays();
+    const targetJdn = jdnFromKey(calSelected) + targetDir * step;
+    calSelected = jKey(d2j(targetJdn));
+    const j = parseKey(calSelected);
+    calYear = j.jy;
+    calMonth = j.jm;
+    if (savedMode === 'day') {
+      html = renderTimelineDay(calSelected);
+    } else if (savedMode === '3day') {
+      const keys = Array.from({ length: 3 }, (_, i) => jKey(d2j(targetJdn + i)));
+      html = renderTimelineMulti(keys);
     } else {
-      const step = timelineStepDays();
-      const targetJdn = jdnFromKey(calSelected) + targetDir * step;
-      calSelected = jKey(d2j(targetJdn));
-      const j = parseKey(calSelected);
-      calYear = j.jy;
-      calMonth = j.jm;
-      if (savedMode === 'day') {
-        html = renderTimelineDay(calSelected);
-      } else if (savedMode === '3day') {
-        const keys = Array.from({ length: 3 }, (_, i) => jKey(d2j(targetJdn + i)));
-        html = renderTimelineMulti(keys);
-      } else {
-        html = renderTimelineMulti(weekKeysOf(targetJdn));
-      }
+      html = renderTimelineMulti(weekKeysOf(targetJdn));
     }
   } catch (err) {
     console.warn('[plan] adjacent render failed:', err);
@@ -1136,7 +1213,7 @@ function renderAdjacentTimelineHTML(targetDir) {
 /* ============ TIMELINE VIEW ============ */
 function renderTimeline(box) {
   computeRowHeight();
-  const onToday = timelineContainsToday();
+  const showToday = calSelected !== TODAY_KEY;
   box.innerHTML = `
     <div class="timeline-card">
       <div class="tl-mode-row">
@@ -1144,14 +1221,13 @@ function renderTimeline(box) {
           <button data-tlmode="day" class="${tlMode === 'day' ? 'active' : ''}">روز</button>
           <button data-tlmode="3day" class="${tlMode === '3day' ? 'active' : ''}">۳ روز</button>
           <button data-tlmode="week" class="${tlMode === 'week' ? 'active' : ''}">هفته</button>
-          <button data-tlmode="month" class="${tlMode === 'month' ? 'active' : ''}">ماه</button>
         </div>
       </div>
       <div class="grid-header">
         <div class="gh-title">${timelineTitle()}</div>
         <div class="wh-nav">
           <button class="tl-nav-btn" data-nav="-1" aria-label="قبلی">‹</button>
-          ${onToday ? '' : '<button class="tl-today-btn" id="tlTodayBtn">◉ امروز</button>'}
+          ${showToday ? '<button class="tl-today-btn" id="tlTodayBtn">◉ امروز</button>' : ''}
           <button class="tl-nav-btn" data-nav="1" aria-label="بعدی">›</button>
         </div>
       </div>
@@ -1178,7 +1254,6 @@ function renderTimeline(box) {
 }
 
 function timelineTitle() {
-  if (tlMode === 'month') return `${MONTHS[calMonth - 1]} ${fa(calYear)}`;
   if (tlMode === 'day') {
     const jdn = jdnFromKey(calSelected);
     const j = d2j(jdn);
@@ -1199,8 +1274,6 @@ function renderTimelineBody() {
   if (!body) return;
   if (tlMode === 'day') {
     body.innerHTML = renderTimelineDay(calSelected);
-  } else if (tlMode === 'month') {
-    body.innerHTML = renderTimelineMonth();
   } else {
     const keys = tlMode === '3day'
       ? Array.from({ length: 3 }, (_, i) => jKey(d2j(jdnFromKey(calSelected) + i)))
@@ -1208,19 +1281,6 @@ function renderTimelineBody() {
     body.innerHTML = renderTimelineMulti(keys);
   }
   bindCardsInContainer(body);
-  body.querySelectorAll('.mc-cell[data-key]').forEach(cell => {
-    cell.onclick = () => {
-      calSelected = cell.dataset.key;
-      tlSelectedKey = calSelected;
-      const j = parseKey(calSelected);
-      calYear = j.jy;
-      calMonth = j.jm;
-      tlMode = 'day';
-      syncCompat();
-      renderCalendar();
-      renderViewContent();
-    };
-  });
   body.querySelectorAll('.wv-day[data-key]').forEach(day => {
     day.onclick = () => {
       calSelected = day.dataset.key;
@@ -1423,11 +1483,14 @@ function renderTimelineDay(dayKey) {
     const it = idx.sess[g._ids[0]];
     const c = subjColor(g.subject);
     const top = (g.startMin - START_MIN) * PX_PER_MIN;
-    const h = Math.max(6, g.durMin * PX_PER_MIN - 3);
     const laneS = laneStyleDay(it ? it._lane : 0, laneCount);
     const multi = g._ids.length > 1;
-    const resize = !g.done && !multi ? '<div class="resize-handle"></div>' : '';
-    html += `<div class="tl-block tl-session${g.done ? ' done' : ''}" data-sid="${g._ids[0]}" data-sids="${g._ids.join(',')}"
+    const canResize = !g.done && !multi;
+    /* حداقل ارتفاعی تا هندل جدا از متن مبحث قابل کلیک بماند. */
+    const h = Math.max(canResize ? 32 : 6, g.durMin * PX_PER_MIN - 3);
+    const compact = canResize && h < 48;
+    const resize = canResize ? '<div class="resize-handle"></div>' : '';
+    html += `<div class="tl-block tl-session${g.done ? ' done' : ''}${canResize ? ' resizable' : ''}${compact ? ' compact' : ''}" data-sid="${g._ids[0]}" data-sids="${g._ids.join(',')}"
       style="top:${top}px;height:${h}px;${laneS}background:linear-gradient(135deg,${c},${c}a8)">
       <div class="tb-title">${esc(g.subject)}${g.done ? ' ✓' : ''}</div>
       <div class="tb-sub${g.topic ? '' : ' empty'}">${esc(g.topic || 'بدون مبحث')}</div>
@@ -1497,66 +1560,6 @@ function renderTimelineDay(dayKey) {
   return reservedBar + `<div class="timeline" data-drop-timeline="${dayKey}">${html}</div>`;
 }
 
-function monthDayItems(dayKey) {
-  const timed = timedOfDay(dayKey);
-  const linkedIds = new Set(timed.map(s => s.activityId).filter(Boolean));
-  const recorded = state.activities.filter(a =>
-    a.date === dayKey && a.startMin != null && a.endMin != null && !linkedIds.has(a.id)
-  );
-  const exams = state.settings.examsEnabled
-    ? state.exams.filter(e => e.date === dayKey && e.startMin != null)
-    : [];
-  return [
-    ...timed.map(s => ({ ...s, _monthKind: 'session' })),
-    ...recorded.map(a => ({ ...a, _monthKind: 'activity' })),
-    ...exams.map(e => ({ ...e, _monthKind: 'exam' }))
-  ].sort((a, b) => (+a.startMin || 0) - (+b.startMin || 0));
-}
-
-function renderTimelineMonth() {
-  const firstJdn = j2d(calYear, calMonth, 1);
-  const startCol = dowIndex(firstJdn);
-  const len = jMonthLength(calYear, calMonth);
-  const cellCount = Math.ceil((startCol + len) / 7) * 7;
-  let html = `<div class="month-cal" role="grid" aria-label="${MONTHS[calMonth - 1]} ${fa(calYear)}">
-    <div class="mc-weekdays">${DOW_SHORT.map(d => `<span>${d}</span>`).join('')}</div>
-    <div class="mc-grid">`;
-
-  for (let i = 0; i < cellCount; i++) {
-    const jdn = firstJdn - startCol + i;
-    const j = d2j(jdn);
-    const k = jKey(j);
-    const adjacent = i < startCol || j.jm !== calMonth || j.jy !== calYear;
-    const items = adjacent ? [] : monthDayItems(k);
-    const hasExam = !adjacent && state.settings.examsEnabled && state.exams.some(e => e.date === k);
-    const cls = ['mc-cell'];
-    if (adjacent) cls.push('adjacent');
-    if (k === TODAY_KEY) cls.push('today');
-    if (k === tlSelectedKey) cls.push('sel');
-
-    const chips = items.slice(0, 2).map(item => {
-      const label = item._monthKind === 'exam'
-        ? `📝 ${item.name || 'امتحان'}`
-        : item._monthKind === 'activity'
-          ? (item.topic || item.subject || 'فعالیت')
-          : (item.subject || 'مطالعه');
-      const range = itemTimeRange(item);
-      const time = range ? ` · ${minToStr(range.start)}–${minToStr(range.end)}` : '';
-      const color = item._monthKind === 'exam' ? '#eab308' : subjColor(item.subject);
-      return `<span class="mc-chip" style="--chip:${color}" title="${esc(label + time)}">${esc(label)}</span>`;
-    }).join('');
-    const more = items.length > 2 ? `<span class="mc-more">+${fa(items.length - 2)}</span>` : '';
-
-    html += `<div class="${cls.join(' ')}" data-key="${k}" role="gridcell" aria-label="${fa(j.jd)} ${MONTHS[j.jm - 1]}">
-      <div class="mc-day"><b>${fa(j.jd)}</b>${hasExam ? '<i class="mc-exam-dot"></i>' : ''}</div>
-      <div class="mc-events">${chips}${more}</div>
-    </div>`;
-  }
-
-  html += `</div><div class="mc-hint">برای دیدن تایم لاین روز، روی یک تاریخ کلیک کنید</div></div>`;
-  return html;
-}
-
 function renderTimelineMulti(keys) {
   const cols = keys.length;
   const wrapper = cols >= 7 ? 'week-view narrow' : 'week-view';
@@ -1593,7 +1596,11 @@ function renderTimelineMulti(keys) {
         if (vis) sleeps.push({ ...s, _type: 'sleep', startMin: vis.top, _end: vis.bottom, _vis: vis });
       });
     const allItems = [
-      ...merged.map(g => ({ ...g, _type: 'sess', _minH: 4, _inset: 2 })),
+      ...merged.map(g => ({
+        ...g, _type: 'sess', _minH: 4, _inset: 2,
+        /* هندل ۳روزه به فضای عمودی نیاز دارد تا با متن تداخل نکند. */
+        ...(cols === 3 && !g.done && g._ids.length === 1 ? { _minH: 26 } : {})
+      })),
       ...acts.map(a => ({ ...a, _type: 'act', _minH: 6, _inset: 2 })),
       ...exams.map(e => ({ ...e, _type: 'exam', _minH: 8, _inset: 2 })),
       ...sleeps.map(s => ({ ...s, _type: 'sleep', _minH: 6, _inset: 2 }))
@@ -1618,9 +1625,12 @@ function renderTimelineMulti(keys) {
       const it = idx.sess[g._ids[0]];
       const c = subjColor(g.subject);
       const top = (g.startMin - START_MIN) * PX_PER_MIN;
-      const h = Math.max(4, g.durMin * PX_PER_MIN - 2);
       const laneS = laneStyleMulti(it ? it._lane : 0, laneCount);
-      return `<div class="wv-block${g.done ? ' done' : ''}" data-sid="${g._ids[0]}" data-sids="${g._ids.join(',')}" style="top:${top}px;height:${h}px;${laneS}background:linear-gradient(135deg,${c},${c}a8)"><span>${esc(g.subject)}${g.done ? ' ✓' : ''}</span></div>`;
+      const canResize = cols === 3 && !g.done && g._ids.length === 1;
+      const h = Math.max(canResize ? 26 : 4, g.durMin * PX_PER_MIN - 2);
+      const compact = canResize && h < 36;
+      const resize = canResize ? '<div class="resize-handle"></div>' : '';
+      return `<div class="wv-block${g.done ? ' done' : ''}${canResize ? ' resizable' : ''}${compact ? ' compact' : ''}" data-sid="${g._ids[0]}" data-sids="${g._ids.join(',')}" style="top:${top}px;height:${h}px;${laneS}background:linear-gradient(135deg,${c},${c}a8)"><span>${esc(g.subject)}${g.done ? ' ✓' : ''}</span>${resize}</div>`;
     }).join('');
     const actsHTML = acts.map(a => {
       const it = idx.act[a.id];
@@ -1673,13 +1683,13 @@ function renderSubjects(box) {
   }
   /* «سایر» is a real column in the topic grid, always last. */
   subjects.push(...allSubjects.filter(s => s.name === OTHER_SUBJECT));
-  const onThisWeek = subjectsContainsThisWeek();
+  const showToday = calSelected !== TODAY_KEY;
   let html = `<div class="grid-card subjects-card">
     <div class="grid-header">
       <div class="gh-title">${weekTitle(st)}</div>
       <div class="wh-nav">
         <button class="tl-nav-btn" data-week-nav="-1" aria-label="هفته قبل">‹</button>
-        ${onThisWeek ? '' : '<button class="tl-today-btn" id="subjectsWeek">◉ این هفته</button>'}
+        ${showToday ? '<button class="tl-today-btn" id="subjectsWeek">◉ امروز</button>' : ''}
         <button class="tl-nav-btn" data-week-nav="1" aria-label="هفته بعد">›</button>
       </div>
     </div>
@@ -1762,54 +1772,315 @@ function phaseCellItems(dayKey,sessions,activities,phaseStart,phaseEnd){
   return [...planned,...recorded].sort((a,b)=>a.startMin-b.startMin||(a._kind==='session'?-1:1));
 }
 
+/* ============ VOLUME PLANNER (weekly) ============ */
+/* One day's planned blocks + recorded activities, reusing the phase splitter so
+   linked activities are never shown twice and ordering stays identical. */
+function volumeDayItems(k) {
+  const phaseStart = 0, phaseEnd = 1440;
+  const timed = phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd);
+  /* بازههای بدون ساعت هم در روز مربوطه دیده شوند (رزروها در جدول جداگانهاند). */
+  const linked = new Set(timedOfDay(k).map(s => s.activityId).filter(Boolean));
+  const untimed = (state.activities || [])
+    .filter(a => a.date === k && a.startMin == null && !linked.has(a.id))
+    .map(a => ({ ...a, _kind: 'activity' }));
+  return [...timed, ...untimed];
+}
+function volumeIsDone(item) {
+  /* ثبت شده یعنی انجام شده؛ تیک بلاکهای برنامه هم همان فعالیت را میسازد. */
+  if (item._kind === 'activity') return true;
+  if (item.done) return true;
+  if (item.activityId) {
+    const linked = state.activities.find(a => a.id === item.activityId);
+    return !!(linked && linked.done);
+  }
+  return false;
+}
+function volumeConflicts(items) {
+  const conflicts = new Set();
+  const timed = items.filter(i => itemTimeRange(i)).map(i => ({ id: i.id, ...itemTimeRange(i) }))
+    .sort((a, b) => a.start - b.start);
+  for (let i = 0; i < timed.length; i++) {
+    for (let j = i + 1; j < timed.length; j++) {
+      if (timed[j].start >= timed[i].end) break;
+      if (timed[j].id === timed[i].id) continue;
+      conflicts.add(timed[i].id);
+      conflicts.add(timed[j].id);
+    }
+  }
+  return conflicts;
+}
+function volumeTimeLabel(item) {
+  if (item.startMin == null) return 'بدون ساعت';
+  const range = itemTimeRange(item) || { start: +item.startMin || 0, end: +item.startMin || 0 };
+  return `${minToStr(range.start)}–${minToStr(range.end)}`;
+}
+/* رزروها بازههای بدون ساعتاند؛ با یک خط جداگانه از بلاکهای زماندار نمایش داده میشوند. */
+function volumeReserveHTML(s, mobile) {
+  const color = subjColor(s.subject);
+  const bodyCls = mobile ? 'vp-m-card-body' : 'vp-card-main';
+  const titleCls = mobile ? 'vp-m-card-title' : 'vp-card-title';
+  const subCls = mobile ? 'vp-m-card-sub' : 'vp-card-sub';
+  return `<div class="${mobile ? 'vp-mobile-card' : 'vp-card'} vp-reserve-card" style="border-inline-start:3px solid ${color}">
+    <span class="vp-kind" title="رزرو بدون ساعت">📌</span>
+    <div class="${bodyCls}" data-sid="${s.id}" data-drop-reserved="${s.date}">
+      <div class="${titleCls}">${esc(s.topic || s.subject || 'رزرو')}</div>
+      <div class="${subCls}">${esc(s.subject || 'بدون درس')} · بدون ساعت</div>
+    </div>
+  </div>`;
+}
+function volumeReserveBlockHTML(k, mobile) {
+  const reserved = reservedOfDay(k);
+  if (!reserved.length) return '';
+  return `<div class="vp-reserve-block" data-drop-reserved="${k}">
+    <div class="vp-reserve-divider"><span>رزروهای بدون ساعت</span></div>
+    ${reserved.map(s => volumeReserveHTML(s, mobile)).join('')}
+  </div>`;
+}
+function volumeCardHTML(item, conflicts, mobile) {
+  const isAct = item._kind === 'activity';
+  const title = isAct ? (item.topic || item.subject || 'فعالیت')
+    : (item.topic ? `${item.subject} — ${item.topic}` : (item.subject || 'تایم بلاک'));
+  const meta = item.subject || (isAct ? 'فعالیت' : 'تایم بلاک');
+  const color = subjColor(item.subject);
+  const done = volumeIsDone(item);
+  const conflict = conflicts.has(item.id);
+  const checkAttrs = isAct ? 'checked disabled' : `${done ? 'checked' : ''} data-done="${item.id}"`;
+  const openAttr = isAct ? `data-act-open="${item.id}"` : `data-sid="${item.id}"`;
+  const cls = mobile
+    ? `vp-mobile-card${done ? ' vp-done' : ''}${conflict ? ' vp-conflict' : ''}`
+    : `vp-card${isAct ? ' vp-card-activity' : ''}${done ? ' vp-done' : ''}${conflict ? ' vp-conflict' : ''}`;
+  const checkCls = mobile ? 'vp-circle-check' : 'vp-check';
+  const bodyCls = mobile ? 'vp-m-card-body' : 'vp-card-main';
+  const titleCls = mobile ? 'vp-m-card-title' : 'vp-card-title';
+  const subCls = mobile ? 'vp-m-card-sub' : 'vp-card-sub';
+  const timeCls = mobile ? 'vp-m-card-time' : 'vp-card-time';
+  return `<div class="${cls}" style="border-inline-start:3px solid ${color}" data-vid="${item.id}">
+    <input type="checkbox" class="${checkCls}" ${checkAttrs} aria-label="تکمیل">
+    <div class="${bodyCls}" ${openAttr}>
+      <div class="${titleCls}">${esc(title)}</div>
+      <div class="${subCls}">${esc(meta)}</div>
+      <span class="${timeCls}" dir="ltr">${esc(volumeTimeLabel(item))}</span>
+    </div>
+    <span class="vp-kind" title="${isAct ? 'فعالیت' : 'تایم بلاک'}">${isAct ? '📝' : '⏱'}</span>
+  </div>`;
+}
+function volumeWeekNavHTML(showToday, inlineTitle) {
+  return `<div class="vp-date-nav">
+    ${inlineTitle ? `<span class="vp-week-inline-title">${inlineTitle}</span>` : ''}
+    <button class="vp-nav-btn" data-week-nav="-1" aria-label="هفته قبل" type="button">‹</button>
+    ${showToday ? '<button class="vp-today-btn" data-vp-today type="button">◉ امروز</button>' : ''}
+    <button class="vp-nav-btn" data-week-nav="1" aria-label="هفته بعد" type="button">›</button>
+  </div>`;
+}
 function renderPhases(box) {
   const st = activeWeekStart();
   const days = Array.from({ length: 7 }, (_, i) => jKey(d2j(st + i)));
-  const onThisWeek = subjectsContainsThisWeek();
-  let html = `<div class="grid-card">
-    <div class="grid-header">
-      <div class="gh-title">${weekTitle(st)}</div>
-      <div class="wh-nav">
-        <button class="tl-nav-btn" data-week-nav="-1" aria-label="هفته قبل">‹</button>
-        ${onThisWeek ? '' : '<button class="tl-today-btn" id="phasesWeek">◉ این هفته</button>'}
-        <button class="tl-nav-btn" data-week-nav="1" aria-label="هفته بعد">›</button>
-      </div>
-    </div>
-    <div class="grid-scroll">
-      <table class="grid-table phases-table">
-        <thead><tr><th class="gt-corner">روز</th>`;
-  for (let p = 1; p <= PHASE_COUNT; p++) {
-    const startM = phaseStartMin(p);
-    const endM = startM + PHASE_SIZE;
-    const endLabel = endM >= 1440 ? '۲۴:۰۰' : minToStr(endM);
-    html += `<th><div class="ph-num">${fa(p)}</div><div class="ph-time">${minToStr(startM)}–${endLabel}</div></th>`;
-  }
-  html += `</tr></thead><tbody>`;
-
-  days.forEach(k => {
+  if (!days.includes(volumeSelectedKey)) volumeSelectedKey = days.includes(TODAY_KEY) ? TODAY_KEY : days[0];
+  const showToday = volumeSelectedKey !== TODAY_KEY;
+  const byDay = {};
+  days.forEach(k => { byDay[k] = volumeDayItems(k); });
+  const conflicts = {};
+  days.forEach(k => { conflicts[k] = volumeConflicts(byDay[k]); });
+  const head = `<div class="vp-head">
+    <div class="vp-head-title">${weekTitle(st)}</div>
+    ${volumeWeekNavHTML(showToday)}
+  </div>`;
+  const dayHead = (k) => {
     const jd = parseKey(k);
     const jdn = jdnFromKey(k);
-    const isToday = k === TODAY_KEY;
-    html += `<tr><td class="gt-row-label${isToday ? ' today' : ''}">${DOW[dowIndex(jdn)]}<br><span class="text-muted fs-9">${fa(jd.jd)} ${MONTHS[jd.jm - 1].slice(0, 4)}</span></td>`;
-    for (let p = 1; p <= PHASE_COUNT; p++) {
-      const phaseStart = phaseStartMin(p);
-      const phaseEnd = phaseStart + PHASE_SIZE;
-      const cellItems = phaseCellItems(k, timedOfDay(k), state.activities, phaseStart, phaseEnd);
-      html += `<td class="gt-cell phase-cell" data-drop-day="${k}" data-drop-phase="${p}">
-        ${cellItems.map(s => renderPhasePill(s, phaseStart, phaseEnd)).join('')}
-      </td>`;
-    }
-    html += `</tr>`;
-  });
-  html += `</tbody></table></div></div>`;
-  box.innerHTML = html;
+    const items = byDay[k];
+    const done = items.filter(volumeIsDone).length;
+    const pct = items.length ? Math.round(done / items.length * 100) : 0;
+    return `<button class="vp-day-head" data-vp-day="${k}" aria-label="${DOW[dowIndex(jdn)]} ${fa(jd.jd)}">
+      <div class="vp-day-name">${DOW_SHORT[dowIndex(jdn)]}</div>
+      <div class="vp-day-num">${fa(jd.jd)}</div>
+      <div class="vp-progress"><i style="width:${pct}%"></i></div>
+      <div class="vp-progress-label">${fa(done)}/${fa(items.length)}</div>
+    </button>`;
+  };
+  const dayColumn = (k) => {
+    const items = byDay[k];
+    const today = k === TODAY_KEY;
+    const selected = k === volumeSelectedKey;
+    return `<div class="vp-day-col${today ? ' vp-today' : ''}${selected ? ' vp-selected' : ''}" data-drop-day="${k}">
+      ${dayHead(k)}
+      <div class="vp-day-body">
+        ${volumeReserveBlockHTML(k, false)}
+        ${items.map(it => volumeCardHTML(it, conflicts[k], false)).join('')}
+        <button class="vp-add" data-vp-add="${k}" aria-label="افزودن فعالیت" type="button">+</button>
+      </div>
+    </div>`;
+  };
+  const selectedItems = byDay[volumeSelectedKey] || [];
+  const selJ = parseKey(volumeSelectedKey);
+  const desktop = `<div class="vp-desktop">${head}<div class="vp-week">${days.map(dayColumn).join('')}</div></div>`;
+  const mobile = `<div class="vp-mobile">
+    <div class="vp-mobile-nav">${volumeWeekNavHTML(showToday, weekTitle(st))}</div>
+    <div class="vp-date-strip">${days.map(k => {
+      const jd = parseKey(k);
+      const jdn = jdnFromKey(k);
+      return `<button class="vp-date-cell${k === TODAY_KEY ? ' vp-today' : ''}${k === volumeSelectedKey ? ' vp-selected' : ''}" data-vp-day="${k}" data-drop-day="${k}">
+        <span>${DOW_SHORT[dowIndex(jdn)]}</span><b>${fa(jd.jd)}</b>
+      </button>`;
+    }).join('')}</div>
+    <div class="vp-agenda-head">
+      <div><div class="vp-agenda-title">${DOW[dowIndex(jdnFromKey(volumeSelectedKey))]} ${fa(selJ.jd)} ${MONTHS[selJ.jm - 1]}</div>
+        <div class="vp-agenda-sub">${weekTitle(st)}</div></div>
+    </div>
+    <div class="vp-agenda" data-drop-day="${volumeSelectedKey}">
+      ${volumeReserveBlockHTML(volumeSelectedKey, true)}
+      ${selectedItems.map(it => volumeCardHTML(it, conflicts[volumeSelectedKey], true)).join('')}
+      <button class="vp-add" data-vp-add="${volumeSelectedKey}" aria-label="افزودن فعالیت" type="button">+</button>
+    </div>
+  </div>`;
+  box.innerHTML = `<div class="vp">${desktop}${mobile}</div>`;
 
   bindCardsInContainer(box);
-  bindDayHover(box);
-  bindEmptyCellClick(box);
-  box.querySelectorAll('[data-week-nav]').forEach(btn => btn.onclick = () => navigateWeek(+btn.dataset.weekNav));
-  const todayBtn = document.getElementById('phasesWeek');
-  if (todayBtn) todayBtn.onclick = () => gotoToday();
+  box.querySelectorAll('[data-vp-day]').forEach(el => el.onclick = () => {
+    volumeSelectedKey = el.dataset.vpDay;
+    calSelected = volumeSelectedKey;
+    renderCalendar();
+    renderViewContent();
+  });
+  box.querySelectorAll('[data-act-open]').forEach(el => el.onclick = (e) => {
+    e.stopPropagation();
+    if (typeof window.openActivityInfo === 'function') window.openActivityInfo(el.dataset.actOpen);
+    else if (typeof openActivityInfo === 'function') openActivityInfo(el.dataset.actOpen);
+  });
+  box.querySelectorAll('[data-vp-add]').forEach(el => el.onclick = () => openVolumeActivityModal(el.dataset.vpAdd));
+  box.querySelectorAll('[data-week-nav]').forEach(btn => btn.onclick = () => {
+    const dir = +btn.dataset.weekNav;
+    navigateWeek(dir);
+    volumeSelectedKey = calSelected;
+    renderViewContent();
+  });
+  box.querySelectorAll('[data-vp-today]').forEach(btn => btn.onclick = () => {
+    gotoToday(); volumeSelectedKey = TODAY_KEY; renderViewContent();
+  });
+}
+
+function openVolumeActivityModal(dayKey, draft) {
+  draft = draft || null;
+  const subjects = allSubjectsForSelect();
+  const chosenDay = draft?.day || dayKey || TODAY_KEY;
+  const noTime = draft ? !!draft.noTime : false;
+  const chips = subjects.map(s =>
+    `<button type="button" class="chip" data-subj="${esc(s.name)}" style="--c:${subjColor(s.name)}">${esc(s.name)}</button>`).join('');
+
+  openModal(`<div class="modal-head">
+      <div class="card-title">➕ فعالیت جدید</div>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <div class="vp-form">
+      <label class="lbl mt-0" for="vpActTitle">نام فعالیت</label>
+      <input class="input" id="vpActTitle" maxlength="80" placeholder="مثلاً: آزمون شیمی فصل ۳" value="${esc(draft?.title || '')}">
+      <label class="lbl mt-12">درس / دسته</label>
+      <div class="chips" id="vpSubjChips">${chips}</div>
+      <label class="lbl mt-12" for="vpActDateBtn">روز</label>
+      <div class="date-row"><button class="input date-btn" id="vpActDateBtn" type="button">${esc(keyLabel(chosenDay))} 📅</button></div>
+      <label class="vp-check-line mt-12">
+        <input type="checkbox" id="vpActNoTime" ${noTime ? 'checked' : ''}>
+        <span>بدون ساعت (رزرو)</span>
+      </label>
+      ${noTime ? `
+        <label class="lbl mt-6" for="vpActDur">مدت (دقیقه)</label>
+        <input class="input num-input" id="vpActDur" dir="ltr" inputmode="numeric" value="${draft?.dur || 60}">
+      ` : `
+        <div class="grid2 mt-12">
+          <div><label class="lbl">شروع</label><div class="time-pair" id="vpActStartWrap"></div></div>
+          <div><label class="lbl">پایان</label><div class="time-pair" id="vpActEndWrap"></div></div>
+        </div>
+        <div class="quick-chips" id="vpQuickTimes">
+          <button type="button" class="quick-chip" data-mins="30">۳۰ دقیقه</button>
+          <button type="button" class="quick-chip" data-mins="60">۱ ساعت</button>
+          <button type="button" class="quick-chip" data-mins="120">۲ ساعت</button>
+        </div>
+        <div class="muted fs-11 mt-6" id="vpDuration">مدت: ۰۱:۰۰</div>
+      `}
+      <button type="button" class="btn primary vp-save" id="vpActSave">ذخیره فعالیت</button>
+      <div class="vp-hint">پس از ذخیره، فعالیت در تقویم هفتگی و لیست روزانه بهروز میشود.</div>
+    </div>`);
+
+  let subject = draft?.subject || (subjects.find(s => s.name !== OTHER_SUBJECT)?.name || subjects[0]?.name || '');
+  const chipsBox = document.getElementById('vpSubjChips');
+  const markChips = () => chipsBox.querySelectorAll('[data-subj]').forEach(b => b.classList.toggle('active', b.dataset.subj === subject));
+  markChips();
+  chipsBox.onclick = (e) => {
+    const b = e.target.closest('[data-subj]');
+    if (!b) return;
+    subject = b.dataset.subj;
+    markChips();
+  };
+
+  let startTp = null, endTp = null;
+  const collectDraft = () => ({
+    title: document.getElementById('vpActTitle').value,
+    subject,
+    day: chosenDay,
+    noTime: document.getElementById('vpActNoTime').checked,
+    dur: document.getElementById('vpActDur') ? parseInt(document.getElementById('vpActDur').value, 10) || 60 : null,
+    start: startTp ? startTp.get() : null,
+    end: endTp ? endTp.get() : null
+  });
+
+  document.getElementById('vpActDateBtn').onclick = () => {
+    openJalaliDatePicker({
+      title: 'تاریخ فعالیت',
+      initialKey: chosenDay,
+      onPick: (key) => openVolumeActivityModal(key, collectDraft())
+    });
+  };
+  document.getElementById('vpActNoTime').onchange = () => openVolumeActivityModal(chosenDay, collectDraft());
+
+  if (!noTime) {
+    startTp = mountTimePair('vpActStart', document.getElementById('vpActStartWrap'), { value: draft?.start != null ? draft.start : 8 * 60 });
+    endTp = mountTimePair('vpActEnd', document.getElementById('vpActEndWrap'), { value: draft?.end != null ? draft.end : 9 * 60 });
+    const durationEl = document.getElementById('vpDuration');
+    const updateDuration = () => {
+      const s = startTp.get(), e = endTp.get();
+      durationEl.textContent = (s != null && e != null && e > s) ? `مدت: ${hmTotalStr(e - s)}` : 'مدت: —';
+    };
+    [startTp, endTp].forEach(tp => {
+      ['change', 'input'].forEach(evt => tp.getHourEl().addEventListener(evt, updateDuration));
+      ['change', 'input'].forEach(evt => tp.getMinuteEl().addEventListener(evt, updateDuration));
+    });
+    document.getElementById('vpQuickTimes').onclick = (e) => {
+      const b = e.target.closest('[data-mins]');
+      if (!b) return;
+      const s = startTp.get();
+      if (s == null) { toast('اول ساعت شروع را مشخص کن'); return; }
+      endTp.set(Math.min(1440, s + (+b.dataset.mins || 60)));
+      updateDuration();
+    };
+    updateDuration();
+  }
+
+  document.getElementById('vpActSave').onclick = () => {
+    const title = document.getElementById('vpActTitle').value.trim();
+    if (!title) { toast('نام فعالیت را وارد کن'); return; }
+    let s = null, e = null, minutes = 60;
+    if (document.getElementById('vpActNoTime').checked) {
+      minutes = Math.max(15, Math.min(720, parseInt(document.getElementById('vpActDur').value, 10) || 60));
+    } else {
+      s = startTp.get(); e = endTp.get();
+      if (s == null || e == null || e <= s) { toast('ساعت شروع و پایان معتبر نیستند'); return; }
+      minutes = e - s;
+    }
+    const a = {
+      id: uid(), date: chosenDay,
+      subject: subject || OTHER_SUBJECT, topic: title, startMin: s, endMin: e,
+      minutes, tests: null, ts: Date.now(), done: false
+    };
+    state.activities.push(a);
+    save();
+    closeModal();
+    const conflicts = volumeConflicts(volumeDayItems(a.date));
+    toast(conflicts.has(a.id) ? 'ذخیره شد؛ با فعالیت دیگری تداخل دارد' : 'فعالیت اضافه شد ✓');
+    if (typeof renderActivityList === 'function') renderActivityList();
+    if (typeof renderDashboard === 'function') renderDashboard();
+    const main = document.getElementById('planMain');
+    if (main) renderPhases(main);
+  };
 }
 
 function phasePillTimeLabel(sStart, sEnd) {
@@ -1919,7 +2190,8 @@ function onResizeMove(e) {
   let newDur = snapMin(resizeState.origDur + dy / PX_PER_MIN);
   newDur = Math.max(SNAP, Math.min(720, newDur));
   s.durMin = newDur;
-  resizeState.blockEl.style.height = Math.max(4, newDur * PX_PER_MIN - 3) + 'px';
+  const isMulti = resizeState.blockEl.classList.contains('wv-block');
+  resizeState.blockEl.style.height = Math.max(isMulti ? 26 : 32, newDur * PX_PER_MIN - (isMulti ? 2 : 3)) + 'px';
   const timeEl = resizeState.blockEl.querySelector('.tb-time');
   if (timeEl) timeEl.textContent = `${minToStr(s.startMin)} — ${minToStr(s.startMin + s.durMin)}`;
 }
@@ -1935,7 +2207,7 @@ function onResizeEnd() {
 document.addEventListener('pointerdown', (e) => {
   const handle = e.target.closest('.resize-handle');
   if (!handle) return;
-  const blockEl = handle.closest('.tl-session');
+  const blockEl = handle.closest('.tl-session, .wv-block');
   if (blockEl) startResize(e, blockEl);
 }, true);
 
@@ -2086,7 +2358,8 @@ function openPlanImagePicker() {
     const label = `${fa(a.jd)} ${MONTHS[a.jm - 1]} تا ${fa(b.jd)} ${MONTHS[b.jm - 1]} ${fa(b.jy)}`;
     const weeksLeft = Math.round((KONKUR_JDN - ws) / 7);
     const wl = weeksLeft > 0 ? `هفته ${fa(weeksLeft)} تا کنکور` : (weeksLeft === 0 ? 'هفته کنکور' : `هفته ${fa(Math.abs(weeksLeft))} بعد`);
-    const canGoNext = ws < weekStartJdn(TODAY_JDN);
+    /* خروجی تصویری محدود به هفته جاری نیست؛ هفتههای آینده هم قابل مشاهدهاند. */
+    const canGoNext = true;
     const isCurrentWeek = ws === weekStartJdn(TODAY_JDN);
     openModal(`
       <div class="modal-head report-modal-head">

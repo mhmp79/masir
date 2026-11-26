@@ -61,10 +61,6 @@ const SUPPLEMENTAL_MIGRATIONS = [
     name: '003_password_auth.sql',
     path: path.resolve(__dirname, '..', 'sql', '003_password_auth.sql'),
   },
-  {
-    name: '004_user_profile.sql',
-    path: path.resolve(__dirname, '..', 'sql', '004_user_profile.sql'),
-  },
 ];
 
 async function applyMigrationFile(name, filePath) {

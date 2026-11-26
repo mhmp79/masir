@@ -1,0 +1,583 @@
+/* ============================================================
+   VOLUME PLANNER — همان زبان طراحی برنامه (کارت شیشهای تیره)
+   تمام استایلها اسکوپشده به .vp هستند تا تم بقیهٔ برنامه تغییر نکند.
+   ============================================================ */
+#view-plan .vp{color:var(--txt)}
+#view-plan .vp button,
+#view-plan .vp input,
+#view-plan .vp select{font-family:inherit;color:inherit}
+
+/* ---------- آیکونهای شیشهای دکمههای شناور ---------- */
+.exam-sidebar-fab svg,.ga-filter-fab svg{
+  width:18px;height:18px;fill:none;stroke:currentColor;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+
+/* ---------- تب استخر: آزمونها و موضوعات آزمون ---------- */
+#planPoolView{display:none;flex-direction:column;gap:10px;min-width:0}
+#view-plan[data-plan-view="pool"] #planPoolView{display:flex}
+#view-plan[data-plan-view="pool"] #planMain{display:none}
+#planPoolView > .card{margin-bottom:0}
+
+/* ---------- هدر هفته: فقط عنوان + جلو/عقب ---------- */
+#view-plan .vp-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--card);border:1px solid var(--stroke);border-radius:var(--r);
+  padding:10px 14px;margin-bottom:12px;backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+#view-plan .vp-head-title{
+  font-weight:800;font-size:13.5px;display:flex;align-items:center;gap:9px;
+}
+#view-plan .vp-head-title::before{
+  content:'';width:5px;height:16px;border-radius:4px;flex:0 0 auto;
+  background:linear-gradient(180deg,#7c5cff,#22d3ee);
+}
+#view-plan .vp-date-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#view-plan .vp-nav-btn{
+  min-width:34px;height:34px;padding:0 10px;border-radius:11px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.06);
+  color:var(--txt);font-size:12px;font-weight:700;cursor:pointer;transition:.2s;
+}
+#view-plan .vp-nav-btn:hover{background:rgba(124,92,255,.18);border-color:rgba(124,92,255,.42)}
+#view-plan .vp-nav-btn:active{transform:scale(.96)}
+#view-plan .vp-today-btn{
+  height:34px;padding:0 12px;border-radius:11px;
+  border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.10);
+  color:#4de2f5;font-size:11px;font-weight:800;cursor:pointer;transition:.2s;
+}
+#view-plan .vp-today-btn:active{transform:scale(.96)}
+#view-plan .vp-week-inline-title{
+  font-size:11px;font-weight:800;color:var(--muted);white-space:nowrap;
+  padding-inline-end:2px;
+}
+
+/* همان طراحی سلکتور هفته در سایر نماهای بخش برنامه (زمانی و مبحثی) */
+#view-plan .grid-header{
+  background:var(--card);border:1px solid var(--stroke);border-radius:var(--r);
+  padding:10px 14px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+#view-plan .gh-title{
+  display:flex;align-items:center;gap:9px;
+  font-weight:800;font-size:13.5px;color:var(--txt);
+}
+#view-plan .gh-title::before{
+  content:'';width:5px;height:16px;border-radius:4px;flex:0 0 auto;
+  background:linear-gradient(180deg,#7c5cff,#22d3ee);
+}
+#view-plan .wh-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#view-plan .tl-nav-btn{
+  width:auto;min-width:34px;height:34px;padding:0 10px;border-radius:11px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.06);
+  color:var(--txt);font-size:12px;font-weight:700;
+}
+#view-plan .tl-nav-btn:hover{background:rgba(124,92,255,.18);border-color:rgba(124,92,255,.42)}
+#view-plan .tl-today-btn{
+  height:34px;padding:0 12px;border-radius:11px;
+  border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.10);
+  color:#4de2f5;font-size:11px;font-weight:800;
+}
+
+/* ---------- ستونهای هفته (دسکتاپ) ---------- */
+#view-plan .vp-desktop{display:none}
+#view-plan .vp-mobile{display:none}
+#view-plan .vp-week{
+  display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;
+}
+#view-plan .vp-day-col{
+  min-width:0;padding:9px 7px 11px;border-radius:16px;
+  background:var(--card);border:1px solid var(--stroke);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  transition:border-color .2s,background .2s;
+}
+#view-plan .vp-day-col.vp-today{background:rgba(124,92,255,.10);border-color:rgba(124,92,255,.40)}
+#view-plan .vp-day-col.vp-selected{box-shadow:inset 0 0 0 1px rgba(124,92,255,.55)}
+#view-plan .vp-day-head{
+  width:100%;border:0;background:transparent;color:inherit;cursor:pointer;
+  text-align:center;padding:3px 1px 9px;border-bottom:1px solid var(--stroke);
+  margin-bottom:9px;font-family:inherit;
+}
+#view-plan .vp-day-name{font-size:10px;color:var(--muted);font-weight:700}
+#view-plan .vp-day-num{
+  width:30px;height:30px;margin:4px auto 5px;border-radius:50%;
+  display:grid;place-items:center;font-size:13px;font-weight:800;transition:.2s;
+}
+#view-plan .vp-today .vp-day-num{color:#c7bfff;box-shadow:inset 0 0 0 2px rgba(124,92,255,.6)}
+#view-plan .vp-selected .vp-day-num{background:linear-gradient(135deg,#7c5cff,#5b8bff);color:#fff}
+#view-plan .vp-progress{
+  height:4px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;
+}
+#view-plan .vp-progress > i{
+  display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#10b981,#22d3ee);
+}
+#view-plan .vp-progress-label{font-size:9px;color:var(--muted);margin-top:3px}
+#view-plan .vp-day-body{display:flex;flex-direction:column;gap:7px;min-height:280px}
+
+/* ---------- کارتهای فعالیت/بازه ---------- */
+#view-plan .vp-card{
+  position:relative;border:1px solid var(--stroke);border-radius:13px;
+  background:rgba(255,255,255,.055);padding:8px 9px;line-height:1.45;
+}
+#view-plan .vp-card.vp-done{opacity:.55}
+#view-plan .vp-card.vp-done .vp-card-title{text-decoration:line-through}
+#view-plan .vp-card.vp-conflict{border-color:rgba(245,158,11,.65)}
+#view-plan .vp-card-top{display:flex;align-items:flex-start;gap:6px}
+#view-plan .vp-check{
+  appearance:none;flex:0 0 15px;width:15px;height:15px;border-radius:50%;
+  border:2px solid var(--acc);background:transparent;cursor:pointer;margin:2px 0 0;
+}
+#view-plan .vp-check:checked{background:var(--acc);box-shadow:inset 0 0 0 3px #0b1022}
+#view-plan .vp-check:disabled,
+#view-plan .vp-circle-check:disabled{opacity:1;cursor:default}
+#view-plan .vp-card-main{flex:1;min-width:0;cursor:pointer;touch-action:none}
+#view-plan .vp-card-title{font-size:11px;font-weight:800;overflow-wrap:anywhere}
+#view-plan .vp-card-sub{font-size:9px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+#view-plan .vp-card-time{
+  font-size:9px;font-weight:700;color:#c7bfff;direction:ltr;display:inline-block;margin-top:4px;
+}
+#view-plan .vp-kind{flex:0 0 auto;font-size:12px;opacity:.85}
+
+/* ---------- رزروها: جدا از بلاکهای زماندار ---------- */
+#view-plan .vp-reserve-block{
+  border-radius:13px;padding:7px 8px 8px;
+  background:rgba(255,255,255,.025);border:1px solid var(--stroke);
+}
+#view-plan .vp-reserve-block.drop-hover{border-color:rgba(34,211,238,.55);background:rgba(34,211,238,.08)}
+#view-plan .vp-reserve-divider{
+  display:flex;align-items:center;gap:7px;margin:1px 0 8px;
+  color:var(--muted);font-size:9px;font-weight:800;white-space:nowrap;
+}
+#view-plan .vp-reserve-divider::before,
+#view-plan .vp-reserve-divider::after{content:'';height:1px;flex:1;background:var(--stroke)}
+#view-plan .vp-reserve-card{margin-bottom:6px}
+#view-plan .vp-reserve-card:last-child{margin-bottom:0}
+
+/* ---------- دکمهٔ اضافه (همیشه، حتی وقتی فعالیت هست) ---------- */
+#view-plan .vp-add{
+  width:100%;min-height:38px;border-radius:12px;
+  border:1px dashed rgba(124,92,255,.45);
+  background:rgba(124,92,255,.08);color:#c7bfff;
+  font-size:18px;font-weight:600;line-height:1;cursor:pointer;transition:.2s;
+}
+#view-plan .vp-add:hover{background:rgba(124,92,255,.18)}
+#view-plan .vp-add:active{transform:scale(.97)}
+
+/* ---------- موبایل ---------- */
+@media (max-width:767px){
+  /* سلکتورهای اصلی هر بخش پایین صفحه، بالای ناوبری و همانند آن */
+  #view-plan.active,
+  #view-activity.active,
+  #view-exam.active,
+  #view-overview.active{animation:none}
+  #view-plan,
+  #view-activity,
+  #view-exam,
+  #view-overview{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  #view-plan > #planViewSeg,
+  #view-activity #activityModeSeg,
+  #view-exam #examModeSeg,
+  #view-overview .overview-tabs{
+    position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));left:50%;
+    transform:translateX(-50%);width:calc(100% - 28px);max-width:452px;
+    z-index:99;margin:0;padding:6px;gap:4px;
+    display:flex;align-items:stretch;
+    background:rgba(11,16,34,.86);
+    backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+    border:1px solid rgba(255,255,255,.10);border-radius:18px;
+    box-shadow:0 12px 32px -20px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.08);
+  }
+  #view-plan > #planViewSeg .seg-btn,
+  #view-activity #activityModeSeg .seg-btn,
+  #view-exam #examModeSeg .seg-btn,
+  #view-overview .overview-tabs .seg-btn{
+    flex:1;min-width:0;padding:10px 2px;border-radius:12px;
+    border:1px solid transparent;background:transparent;color:#9099b2;
+    font-family:inherit;font-size:10.5px;font-weight:700;line-height:1.2;
+    white-space:nowrap;cursor:pointer;transition:color .22s,background .22s,border-color .22s;
+  }
+  #view-plan > #planViewSeg .seg-btn.active,
+  #view-activity #activityModeSeg .seg-btn.active,
+  #view-exam #examModeSeg .seg-btn.active,
+  #view-overview .overview-tabs .seg-btn.active{
+    background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.12);
+    color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+  }
+  #view-overview .overview-selector-wrap{height:0;margin:0}
+  #planPoolView{order:2}
+  #view-plan .vp{padding-bottom:0}
+  #view-plan .vp-desktop{display:none}
+  #view-plan .vp-mobile{display:block}
+  #view-plan .vp-mobile-nav{
+    display:flex;justify-content:center;align-items:center;
+    background:var(--card);border:1px solid var(--stroke);border-radius:16px;
+    padding:7px;margin-bottom:10px;backdrop-filter:blur(16px);
+  }
+  #view-plan .vp-mobile-nav .vp-date-nav{justify-content:center}
+  #view-plan .vp-week-inline-title{font-size:10.5px}
+  #view-plan .vp-date-strip{
+    display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;
+    background:var(--card);border:1px solid var(--stroke);border-radius:16px;
+    padding:7px 5px;margin-bottom:12px;backdrop-filter:blur(16px);
+  }
+  #view-plan .vp-date-cell{
+    border:0;background:transparent;border-radius:12px;padding:6px 1px;cursor:pointer;
+    text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;
+    color:inherit;font-family:inherit;transition:.2s;
+  }
+  #view-plan .vp-date-cell span:first-child{font-size:9px;color:var(--muted);font-weight:700}
+  #view-plan .vp-date-cell b{
+    width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+    font-size:12px;font-weight:800;transition:.2s;
+  }
+  #view-plan .vp-date-cell.vp-today b{box-shadow:inset 0 0 0 2px rgba(124,92,255,.6);color:#c7bfff}
+  #view-plan .vp-date-cell.vp-selected b{background:linear-gradient(135deg,#7c5cff,#5b8bff);color:#fff}
+  #view-plan .vp-date-cell.drop-hover{background:rgba(34,211,238,.16);box-shadow:inset 0 0 0 1px rgba(34,211,238,.55)}
+  #view-plan .vp-agenda-head{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 10px;
+  }
+  #view-plan .vp-agenda-title{font-size:13px;font-weight:800}
+  #view-plan .vp-agenda-sub{font-size:10px;color:var(--muted)}
+  #view-plan .vp-agenda{display:flex;flex-direction:column;gap:8px;min-height:90px;border-radius:16px;transition:background .2s,box-shadow .2s}
+  #view-plan .vp-agenda.drop-hover{background:rgba(34,211,238,.08);box-shadow:inset 0 0 0 1px rgba(34,211,238,.45)}
+  #view-plan .vp-mobile-card{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card);border:1px solid var(--stroke);border-radius:16px;
+    padding:10px 11px;backdrop-filter:blur(16px);cursor:pointer;transition:.2s;
+  }
+  #view-plan .vp-mobile-card.vp-done{opacity:.55}
+  #view-plan .vp-mobile-card.vp-done .vp-m-card-title{text-decoration:line-through}
+  #view-plan .vp-mobile-card.vp-conflict{border-color:rgba(245,158,11,.65)}
+  #view-plan .vp-circle-check{
+    appearance:none;flex:0 0 21px;width:21px;height:21px;border-radius:50%;
+    border:2px solid var(--acc);background:transparent;cursor:pointer;
+  }
+  #view-plan .vp-circle-check:checked{background:var(--acc);box-shadow:inset 0 0 0 4px #0b1022}
+  #view-plan .vp-m-card-body{flex:1;min-width:0;touch-action:none}
+  #view-plan .vp-m-card-title{font-size:12px;font-weight:800;overflow-wrap:anywhere}
+  #view-plan .vp-m-card-sub{font-size:10px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+  #view-plan .vp-m-card-time{font-size:9px;font-weight:700;color:#c7bfff;direction:ltr;display:block;margin-top:3px}
+}
+@media (min-width:768px){
+  #view-plan .vp-desktop{display:block}
+  /* اسکرول با صفحه انجام میشود تا انتهای لیست همیشه قابل رسیدن باشد */
+  #view-plan .vp-day-col{display:flex;flex-direction:column}
+  #view-plan .vp-day-body{min-height:90px}
+  #view-plan .vp-day-col.drop-hover{border-color:rgba(34,211,238,.55);background:rgba(34,211,238,.08)}
+}
+@media (min-width:768px) and (max-width:1023px){
+  #view-plan .vp-week{overflow-x:auto;grid-template-columns:repeat(7,minmax(110px,1fr))}
+  #planPoolView{grid-column:1;grid-row:1}
+}
+@media (min-width:1024px){
+  #planPoolView{grid-column:1;grid-row:2}
+  /* هر روز با بازههای زیاد داخل همان ستون اسکرول میخورد؛ سرستون ثابت میماند. */
+  #view-plan .vp{height:100%;min-height:0}
+  #view-plan .vp-desktop{height:100%;min-height:0;display:flex;flex-direction:column}
+  #view-plan .vp-head{flex:0 0 auto}
+  #view-plan .vp-week{flex:1;min-height:0;align-items:stretch}
+  #view-plan .vp-day-col{height:100%;min-height:0;overflow:hidden}
+  #view-plan .vp-day-body{
+    flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
+    overscroll-behavior:contain;touch-action:pan-y;
+    padding-inline-end:3px;scrollbar-width:thin;
+  }
+  #view-plan .vp-day-body .vp-card-main{touch-action:pan-y}
+  body.creating-block #view-plan .vp-day-body,
+  body.creating-block #view-plan .vp-day-body .vp-card-main{touch-action:none}
+}
+
+/* ---------- مودال ساخت فعالیت: فقط از کلاسهای خود برنامه استفاده میکند ---------- */
+#modalContent .vp-form .lbl{color:var(--muted)}
+#modalContent .vp-form .input{font-family:inherit}
+#modalContent .vp-form .chip{cursor:pointer;user-select:none;touch-action:manipulation}
+#modalContent .vp-form .chip.active{
+  background:rgba(124,92,255,.24);border-color:rgba(124,92,255,.6);color:#fff;
+}
+#modalContent .vp-form .time-pair{min-height:44px}
+#modalContent .vp-form .vp-check-line{
+  display:flex;align-items:center;gap:9px;cursor:pointer;
+  font-size:12px;font-weight:700;color:var(--txt);
+}
+#modalContent .vp-form .vp-check-line input{
+  appearance:none;flex:0 0 18px;width:18px;height:18px;border-radius:6px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.05);cursor:pointer;
+}
+#modalContent .vp-form .vp-check-line input:checked{
+  background:linear-gradient(135deg,#7c5cff,#5b8bff);border-color:transparent;
+  box-shadow:inset 0 0 0 3px #0b1022;
+}
+#modalContent .vp-form .vp-save{margin-top:14px}
+#modalContent .vp-form .vp-hint{font-size:10px;color:var(--muted);margin-top:7px}
+
+/* ---------- مودال راهنمای نصب ---------- */
+#modalContent .install-steps{margin:0;padding-inline-start:20px;color:var(--txt);font-size:12px;line-height:1.9}
+#modalContent .install-steps li{margin-bottom:5px}
+
+/* ---------- مسیر بصری تا کنکور: در آزمونها و داشبورد مشترک است ---------- */
+.exam-roadmap{
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);
+  border-radius:16px;padding:12px 14px;backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+.er-head{display:flex;align-items:center;gap:8px}
+.er-icon{font-size:15px;display:grid;place-items:center;color:#4de2f5}
+.er-icon svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.er-title{font-size:12.5px;font-weight:800;color:var(--txt)}
+.er-count{margin-inline-start:auto;font-size:10.5px;font-weight:800;color:#4de2f5}
+.er-add-exam{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:5px 9px;border-radius:9px;
+  border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.10);
+  color:#7ff0ff;font-family:inherit;font-size:10px;font-weight:800;line-height:1.2;
+  cursor:pointer;transition:background .18s,border-color .18s,transform .18s;
+}
+.er-add-exam:hover{background:rgba(34,211,238,.18);border-color:rgba(34,211,238,.55)}
+.er-add-exam:active{transform:scale(.97)}
+.er-track{position:relative;height:124px;margin:12px 12px 2px}
+.er-track::before{
+  content:'';position:absolute;left:0;right:0;top:68px;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,rgba(34,211,238,.65),rgba(124,92,255,.7),rgba(234,179,8,.8));
+}
+.er-dot{
+  position:absolute;top:61px;width:14px;height:14px;border-radius:50%;
+  border:2px solid rgba(11,16,34,.85);transform:translateX(-50%);
+  background:var(--dot,#7c5cff);box-shadow:0 0 0 5px rgba(124,92,255,.14),0 4px 12px -4px #000;
+}
+.er-today{background:#22d3ee;box-shadow:0 0 0 6px rgba(34,211,238,.14);animation:er-pulse 2.6s ease-in-out infinite}
+.er-konkur{background:#eab308;box-shadow:0 0 0 6px rgba(234,179,8,.14)}
+.er-exam-dot{padding:0;font-family:inherit;cursor:pointer;z-index:2}
+.er-exam-dot.nearest{z-index:4;box-shadow:0 0 0 7px rgba(167,139,250,.20),0 0 18px rgba(167,139,250,.45)}
+.er-label{
+  position:absolute;bottom:22px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  white-space:nowrap;pointer-events:none;
+}
+.er-label b{font-size:9.5px;font-weight:800;color:var(--txt)}
+.er-label small{font-size:8.5px;font-weight:700;color:#4de2f5}
+.er-exam-dot .er-label{display:none}
+.er-exam-dot.nearest .er-label{display:flex}
+.er-konkur .er-label{left:auto;right:-2px;transform:none;align-items:flex-end}
+.er-konkur .er-label small{color:#fcd34d}
+.er-today .er-label{
+  bottom:auto;top:19px;display:block;font-size:9px;font-weight:800;color:var(--muted);
+}
+#view-dashboard .dash-roadmap-card{margin-bottom:14px}
+#view-dashboard .dash-roadmap-card .er-track{height:110px;margin-top:8px}
+#view-dashboard .dash-roadmap-card .er-track::before{top:58px}
+#view-dashboard .dash-roadmap-card .er-dot{top:51px}
+#view-dashboard .dash-roadmap-card .er-today .er-label{top:15px}
+@media (min-width:1024px){
+  /* فاصلهٔ گrid دسکتاپ کافی است؛ مارجین اضافی کارت مسیر را حذف میکند. */
+  #view-dashboard .dash-roadmap-card{margin-bottom:0}
+}
+#view-exam .exam-list-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+#view-exam #pastExamsBtn.active{
+  background:rgba(34,211,238,.16);border-color:rgba(34,211,238,.42);color:#4de2f5;
+}
+
+@keyframes er-pulse{
+  0%,100%{box-shadow:0 0 0 6px rgba(34,211,238,.12)}
+  50%{box-shadow:0 0 0 10px rgba(34,211,238,.03)}
+}
+
+@media (max-width:767px){
+  /* فیلتر تحلیل: پیشفرض جمعشده، همان زبان طراحی سربرگ استخر بازهها */
+  #view-exam .ga-filter-details{
+    background:rgba(255,255,255,.04);border:1px solid var(--stroke);
+    border-radius:12px;padding:10px 12px;
+  }
+  #view-exam .ga-filter-summary{
+    display:flex;align-items:center;justify-content:space-between;gap:6px;
+    padding:0;background:transparent;border:0;border-radius:0;
+    color:var(--muted);font-size:11.5px;font-weight:800;
+  }
+  #view-exam .ga-filter-summary > span:first-child{color:var(--txt)}
+  #view-exam .ga-filter-chevron{color:var(--muted);font-size:13px}
+  #view-exam .ga-filter-details:not([open]) > .ga-filter-sidebar{display:none}
+  #view-exam .ga-filter-details[open] > .ga-filter-sidebar{margin-top:8px}
+}
+
+/* ---------- ثبت فعالیت: همان زبان طراحی تیره و شیشهای برنامه ---------- */
+#view-activity .card{
+  background:linear-gradient(155deg,rgba(255,255,255,.055),rgba(255,255,255,.02));
+  border:1px solid var(--stroke);
+  border-radius:18px;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+#view-activity .card-title{color:var(--txt);font-size:12.5px;font-weight:800}
+#view-activity .lbl{color:var(--muted);font-size:11px;font-weight:700}
+#view-activity .muted,#view-activity .fs-11{color:var(--muted)}
+#view-activity .input,#view-activity .num-input{
+  background:rgba(255,255,255,.045);border:1px solid var(--stroke);
+  border-radius:12px;color:var(--txt);
+}
+#view-activity .input::placeholder{color:rgba(255,255,255,.32)}
+#view-activity .chip,#view-activity .quick-chip{
+  border:1px solid var(--stroke);background:rgba(255,255,255,.045);
+  color:var(--muted);border-radius:11px;min-height:34px;
+}
+#view-activity .chip.active,#view-activity .quick-chip.active{
+  background:linear-gradient(135deg,rgba(124,92,255,.32),rgba(91,139,255,.22));
+  border-color:rgba(124,92,255,.58);color:var(--txt);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+}
+#view-activity .toggle-card{
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);
+  border-radius:14px;padding:12px 14px;
+}
+#view-activity .cal-head{
+  background:rgba(11,16,34,.72);border:1px solid var(--stroke);
+  border-radius:16px;padding:9px 12px;margin-bottom:12px;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+#view-activity .cal-head-nav{gap:10px}
+#view-activity .cal-head-nav button,
+#view-activity #actPrevDay,
+#view-activity #actNextDay{
+  width:32px;height:32px;border-radius:10px;
+  border:1px solid var(--stroke);background:rgba(255,255,255,.05);
+  color:var(--txt);font-family:inherit;
+}
+#view-activity #actDateTitle{font-size:12.5px;font-weight:800;color:var(--txt)}
+#view-activity .cal-today-icon{
+  border:1px solid rgba(34,211,238,.32);background:rgba(34,211,238,.12);
+  color:#4de2f5;border-radius:10px;width:32px;height:32px;
+  display:grid;place-items:center;
+}
+#view-activity .head-icon-btn{
+  border-radius:11px;background:rgba(255,255,255,.045);
+  border:1px solid var(--stroke);color:var(--muted);
+}
+#view-activity .head-icon-btn svg{
+  width:17px;height:17px;fill:none;stroke:currentColor;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+#view-activity .head-icon-btn.sleep{color:#a5b4fc;border-color:rgba(99,102,241,.32);background:rgba(99,102,241,.12)}
+#view-activity .head-icon-btn.phone{color:#fca5a5;border-color:rgba(244,63,94,.30);background:rgba(244,63,94,.10)}
+#view-activity .activity-recent-card .card-title{
+  padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--stroke);
+}
+#view-activity .day-nav-mini{
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);
+  border-radius:14px;padding:10px 12px;
+}
+#view-activity .day-nav-mini .title{font-size:12.5px;color:var(--txt)}
+#view-activity .entry-row{
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);
+  border-radius:13px;padding:10px 11px;
+}
+#view-activity .entry-row .er-title{color:var(--txt);font-size:11.5px}
+#view-activity .entry-row .er-sub{font-size:10px;color:var(--muted)}
+#view-activity .agenda-group-head{border-color:var(--stroke)}
+#view-activity .agenda-group-head > span:first-child{color:var(--txt)}
+#view-activity .act-agenda-card{
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);border-radius:14px;
+}
+#view-activity .act-agenda-title{color:var(--txt);font-size:12.5px;font-weight:800}
+#view-activity .act-toggle{
+  background:rgba(124,92,255,.14);border-color:rgba(124,92,255,.38);
+  color:#c7bfff;border-radius:999px;
+}
+#view-activity .act-more-chip{
+  background:rgba(124,92,255,.10);border-color:rgba(124,92,255,.34);
+  color:#c7bfff;border-radius:12px;
+}
+#view-activity .sleep-range{
+  background:rgba(99,102,241,.10);border-color:rgba(99,102,241,.30);
+  border-radius:14px;
+}
+#view-activity .sleep-preview.show{
+  background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.38);
+  border-radius:14px;
+}
+#view-activity .sleep-range-info.ok{
+  background:rgba(16,185,129,.10);border-color:rgba(16,185,129,.28);
+}
+#view-activity .unified-tools-card{
+  background:linear-gradient(155deg,rgba(124,92,255,.10),rgba(34,211,238,.035));
+  border-color:rgba(124,92,255,.30);border-radius:20px;
+}
+#view-activity .timer-block,
+#view-activity .test-block,
+#view-activity .unified-save-wrap{
+  background:rgba(255,255,255,.035);border:1px solid var(--stroke);
+  border-radius:16px;
+}
+#view-activity .timer-mode-tabs{
+  background:rgba(255,255,255,.045);border:1px solid var(--stroke);
+  border-radius:12px;padding:4px;
+}
+#view-activity .timer-mode-tabs button{
+  color:var(--muted);border-radius:9px;font-size:11px;font-weight:700;
+}
+#view-activity .timer-mode-tabs button.active{
+  background:linear-gradient(135deg,rgba(124,92,255,.36),rgba(91,139,255,.26));
+  border:1px solid rgba(124,92,255,.46);color:var(--txt);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);
+}
+#view-activity .timer-phase-label{color:var(--muted);font-size:11.5px}
+#view-activity .timer-display{
+  color:var(--txt);font-size:40px;letter-spacing:1.5px;
+  text-shadow:none;font-weight:800;
+}
+#view-activity .timer-display.work{color:#c7bfff;text-shadow:0 0 24px rgba(124,92,255,.28)}
+#view-activity .timer-display.break{color:#6ee7b7;text-shadow:0 0 24px rgba(16,185,129,.24)}
+#view-activity .timer-progress-track{background:rgba(255,255,255,.08)}
+#view-activity .timer-progress-fill{
+  background:linear-gradient(90deg,#7c5cff,#22d3ee);border-radius:999px;
+}
+#view-activity .timer-controls .btn{
+  border-radius:11px;font-weight:800;
+}
+#view-activity .section-label{color:var(--txt);font-size:12px}
+#view-activity .section-label::before{
+  background:linear-gradient(180deg,#22d3ee,#7c5cff);border-radius:999px;
+}
+#view-activity .trk-field{
+  background:rgba(255,255,255,.04);border:1px solid var(--stroke);
+  border-radius:14px;padding:9px 7px;
+}
+#view-activity .trk-btn{
+  background:rgba(255,255,255,.05);border-color:var(--stroke);
+  color:var(--txt);border-radius:10px;
+}
+#view-activity .trk-input{
+  background:rgba(255,255,255,.04);border-color:var(--stroke);
+  color:var(--txt);border-radius:10px;
+}
+#view-activity .trk-summary{
+  background:rgba(255,255,255,.04);border-color:var(--stroke);
+  border-radius:13px;
+}
+#view-activity .trk-summary b{color:var(--txt)}
+#view-activity .trk-fixed-coef{
+  background:rgba(255,255,255,.04);border-color:var(--stroke);
+  color:var(--muted);border-radius:11px;
+}
+#view-activity .trk-clear-sm{
+  background:rgba(244,63,94,.10);border-color:rgba(244,63,94,.28);
+  color:#ff8ba3;border-radius:11px;
+}
+#view-activity .unified-save-btn{
+  border-radius:12px;font-weight:800;
+  background:linear-gradient(135deg,#7c5cff,#5b8bff);
+  box-shadow:0 10px 24px -14px #7c5cff;
+}
+#view-activity .usb-summary{
+  background:rgba(255,255,255,.04);border-color:var(--stroke);
+  color:var(--muted);border-radius:11px;font-size:11px;
+}
+#view-activity .btn.ghost{
+  background:rgba(255,255,255,.045);border-color:var(--stroke);
+  color:var(--txt);border-radius:11px;
+}
+
+@media (max-width:767px){
+  #view-activity .unified-tools-card{padding:14px;border-radius:16px}
+  #view-activity .timer-block,
+  #view-activity .test-block,
+  #view-activity .unified-save-wrap{border-radius:14px}
+  #view-activity .timer-display{font-size:34px}
+}

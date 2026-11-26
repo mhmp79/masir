@@ -459,18 +459,15 @@
   #activityLogPane { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--gap); }
   #activityLogPane .card { margin-bottom: 0; }
   #activityWeeklyPane { flex: 1; min-height: 0; overflow: auto; }
-  #activityTimerPane { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; padding: 4px; }
+  #activityTimerPane { flex: 1; min-height: 0; overflow-y: auto; display: flex; justify-content: center; padding: 0; }
   #activityTimerPane > .unified-tools-card {
     width: 100%; max-width: 100%; margin: 0; padding: 20px;
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-    grid-template-rows: auto auto auto;
-    grid-template-areas: "title title" "timer test" "save save";
-    gap: 18px;
-  }
-  #activityTimerPane .unified-tools-card > .card-title {
-    grid-area: title; margin-bottom: 0; font-size: 14.5px;
-    padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,.08);
+    grid-template-rows: auto auto;
+    grid-template-areas: "timer test" "save save";
+    column-gap: 0;
+    row-gap: 10px;
   }
   #activityTimerPane .unified-tools-card > .timer-block {
     grid-area: timer; padding: 16px;

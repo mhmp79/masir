@@ -22,8 +22,6 @@
   let errorText = '';
   let advisorCode = '';
   let advisorLinks = [];
-  let adminUsers = [];
-  let adminUsersLoaded = false;
 
   function sync() {
     return window.sqlSync || window.masirSqlSync || null;
@@ -107,7 +105,6 @@
       advisorCode = '';
       advisorLinks = [];
     }
-    if (mode !== 'admin') { adminUsers = []; adminUsersLoaded = false; }
     const box = overlay();
     if (!box) return;
     box.hidden = false;
@@ -116,9 +113,6 @@
     render();
     if (mode === 'advisor-code') {
       refreshAdvisorData();
-    }
-    if (mode === 'admin' && adminTab === 'users') {
-      refreshAdminUsers();
     }
   }
 
@@ -375,9 +369,8 @@
         <button type="button" role="tab" class="auth-tab ${createTab ? 'active' : ''}" data-auth-admin-tab="create">ایجاد کاربر</button>
         <button type="button" role="tab" class="auth-tab ${adminTab === 'reset' ? 'active' : ''}" data-auth-admin-tab="reset">بازنشانی رمز</button>
         <button type="button" role="tab" class="auth-tab ${adminTab === 'link' ? 'active' : ''}" data-auth-admin-tab="link">اتصال مشاور</button>
-        <button type="button" role="tab" class="auth-tab ${adminTab === 'users' ? 'active' : ''}" data-auth-admin-tab="users">لیست کاربران</button>
       </div>
-      ${createTab ? renderAdminCreate() : adminTab === 'reset' ? renderAdminReset() : adminTab === 'link' ? renderAdminLink() : renderAdminUsers()}
+      ${createTab ? renderAdminCreate() : (adminTab === 'reset' ? renderAdminReset() : renderAdminLink())}
       ${feedback()}
       <div class="auth-actions">
         <button type="button" class="auth-link" data-auth-action="close">بستن</button>
@@ -425,26 +418,6 @@
       <button type="button" class="btn primary auth-submit" data-auth-action="admin-link" ${busy ? 'disabled' : ''}>
         ${busy ? 'در حال اتصال…' : 'اتصال مشاور به دانشآموز'}
       </button>`;
-  }
-
-  function renderAdminUsers() {
-    const roleLabel = { student: 'دانشآموز', advisor: 'مشاور', admin: 'مدیر' };
-    const rows = adminUsersLoaded
-      ? (adminUsers.length
-        ? adminUsers.map(u => {
-            const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.displayName || '—';
-            return `<div class="auth-link-row">
-              <span dir="ltr">${escapeHtml(u.phone || '')}</span>
-              <b>${escapeHtml(name)}</b>
-              <small>${escapeHtml(roleLabel[u.role] || u.role || '')}${u.field ? ' · ' + escapeHtml(u.field) : ''}${u.grade ? ' · ' + escapeHtml(u.grade) : ''}</small>
-            </div>`;
-          }).join('')
-        : '<div class="auth-hint">کاربری ثبت نشده است.</div>')
-      : '<div class="auth-hint">در حال دریافت لیست…</div>';
-    return `
-      <div class="auth-section-title">کاربران ثبتشده</div>
-      <div class="admin-users-list">${rows}</div>
-      <button type="button" class="btn ghost auth-submit" data-auth-action="admin-users-refresh" ${busy ? 'disabled' : ''}>بهروزرسانی لیست</button>`;
   }
 
   function renderAdvisorCode(role) {
@@ -718,22 +691,6 @@
     }
   }
 
-  async function refreshAdminUsers() {
-    const client = sync();
-    if (!client || !client.listUsers || !client.isLoggedIn()) return;
-    if (client.getLoggedInRole && client.getLoggedInRole() !== 'admin') return;
-    try {
-      const result = await client.listUsers(200);
-      adminUsers = Array.isArray(result) ? result : (result && result.users) || [];
-      adminUsersLoaded = true;
-      if (isOpen() && mode === 'admin' && adminTab === 'users') render();
-    } catch (error) {
-      adminUsersLoaded = true;
-      setResult('', friendlyError(error));
-      if (isOpen() && mode === 'admin' && adminTab === 'users') render();
-    }
-  }
-
   async function inviteAdvisor() {
     const client = sync();
     if (!client || !client.inviteAdvisor) return;
@@ -834,7 +791,6 @@
     if (action === 'admin-create') return void doAdminCreate();
     if (action === 'admin-reset') return void doAdminReset();
     if (action === 'admin-link') return void doAdminLink();
-    if (action === 'admin-users-refresh') return void refreshAdminUsers();
     if (action === 'invite-advisor') return void inviteAdvisor();
     if (action === 'accept-advisor') return void acceptAdvisor();
   }

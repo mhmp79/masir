@@ -16,6 +16,7 @@ UPDATE otp_codes SET purpose = 'signup' WHERE purpose IS NULL;
 ALTER TABLE subjects    ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE sessions    ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE activities  ADD COLUMN IF NOT EXISTS local_order int;
+ALTER TABLE activities  ADD COLUMN IF NOT EXISTS done boolean NOT NULL DEFAULT false;
 ALTER TABLE classes     ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE sleeps      ADD COLUMN IF NOT EXISTS local_order int;
 ALTER TABLE phones      ADD COLUMN IF NOT EXISTS local_order int;

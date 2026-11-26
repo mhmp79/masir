@@ -2,10 +2,10 @@
 
 /* ============================================================
    EXAM — با تگ reviewSolvable، بخش‌بندی سه‌گانه، کارت‌های قابل ادیت
-   نسخه ۱.۱.۰ — collapsible calendar + top seg + analysis mode
+   نسخه ۱.۲.۰ — roadmap + top seg + analysis mode
    ============================================================ */
 
-let examCalYear=TODAY_J.jy,examCalMonth=TODAY_J.jm;
+let examShowPast=false;
 let examMainTab='results';
 let examAnswerMode=false;
 let examKeyboardMode=false;
@@ -103,8 +103,6 @@ function applyExamViewMode(){
   analysisPane.classList.toggle('hidden',!isAnalysis);
   if(calendarSide)calendarSide.hidden=isAnalysis;
   if(filterSide)filterSide.hidden=!isAnalysis;
-  const filterDetails=document.getElementById('gaFilterDetails');
-  if(filterDetails&&isAnalysis)filterDetails.open=true;
 
   document.querySelectorAll('#examModeSeg .seg-btn').forEach(b=>{
     b.classList.toggle('active',b.dataset.emode===examViewMode);
@@ -118,21 +116,6 @@ function applyExamViewMode(){
   if(filterToggle)filterToggle.hidden=!isAnalysis;
 
   if(isAnalysis)renderGlobalAnalysis();
-}
-
-/* ⭐ خلاصه‌ی تاریخ بالای تقویم آزمون */
-function updateExamCalendarSummary(){
-  const el=document.getElementById('examCalendarSummaryDate');
-  if(!el)return;
-  const monthExams=state.exams.filter(e=>{
-    const j=parseKey(e.date);
-    return j.jy===examCalYear && j.jm===examCalMonth;
-  }).length;
-  const totalExams=state.exams.length;
-  const parts=[`${MONTHS[examCalMonth-1]} ${fa(examCalYear)}`];
-  if(monthExams>0) parts.push(`${fa(monthExams)} آزمون`);
-  else if(totalExams>0) parts.push(`کل: ${fa(totalExams)} آزمون`);
-  el.textContent=parts.join(' • ');
 }
 
 function examNoteInfoClass(question){
@@ -295,54 +278,51 @@ function examResultMismatchHTML(exam,results=exam.subjects){
 }
 
 function renderExamSection(){
-  renderExamCalendar();
+  renderExamRoadmap();
   renderExamsList();
   renderExamTagStats();
   applyExamViewMode();
 }
 
-function renderExamCalendar(){
-  const el=document.getElementById('examCalTitle');
-  if(el)el.textContent=`${MONTHS[examCalMonth-1]} ${fa(examCalYear)}`;
-  const grid=document.getElementById('examCalGrid');
-  if(!grid)return;
-  const firstJdn=j2d(examCalYear,examCalMonth,1);
-  const startCol=dowIndex(firstJdn);
-  const len=jMonthLength(examCalYear,examCalMonth);
-  let html='';
-  const cell=(k,dayNum,adj)=>{
-    const hasExam=examForDay(k).length>0;
-    const cls=['cal-cell'];
-    if(adj)cls.push('adjacent');
-    if(k===TODAY_KEY)cls.push('today');
-    if(hasExam)cls.push('exam-day');
-    return`<div class="${cls.join(' ')}" data-key="${k}">${fa(dayNum)}${hasExam?'<i class="exam-dot"></i>':''}</div>`;
-  };
-  for(let i=0;i<startCol;i++){
-    const jdn=firstJdn-startCol+i;
-    const j=d2j(jdn);
-    html+=cell(jKey(j),j.jd,true);
+/* مسیر بصری از امروز تا کنکور: هر آزمون آینده یک توپ در جایگاه خودش است. */
+function renderExamRoadmap(){
+  const track=document.getElementById('examRoadmapTrack');
+  if(!track)return;
+  const countEl=document.getElementById('examRoadmapCount');
+  const span=Math.max(1,KONKUR_JDN-TODAY_JDN);
+  const konkurDays=Math.max(0,KONKUR_JDN-TODAY_JDN);
+  if(countEl){
+    countEl.innerHTML='<button type="button" class="er-add-exam" id="roadmapAddExamBtn">+ افزودن آزمون</button>';
+    const addBtn=countEl.querySelector('#roadmapAddExamBtn');
+    if(addBtn)addBtn.onclick=()=>{
+      if(typeof openNewExamModal==='function')openNewExamModal();
+    };
   }
-  for(let d=1;d<=len;d++)html+=cell(keyOf(examCalYear,examCalMonth,d),d,false);
-  const totalCells=startCol+len;
-  const trailing=(7-(totalCells%7))%7;
-  for(let i=1;i<=trailing;i++){
-    const jdn=firstJdn+len-1+i;
-    const j=d2j(jdn);
-    html+=cell(jKey(j),j.jd,true);
-  }
-  grid.innerHTML=html;
-  grid.querySelectorAll('.cal-cell[data-key]').forEach(c=>c.onclick=()=>{
-    const k=c.dataset.key;
-    const exams=examForDay(k);
-    if(exams.length)openExamDetail(exams[0].id);
-    else openNewExamModal(k);
+  const colors=['#a78bfa','#22d3ee','#34d399','#fbbf24','#fb7185','#60a5fa'];
+  const upcoming=state.exams
+    .map(e=>({...e,jdn:jdnFromKey(e.date)}))
+    .filter(e=>e.jdn>=TODAY_JDN)
+    .sort((a,b)=>a.jdn-b.jdn);
+  let prev=5;
+  const dots=upcoming.map((e,i)=>{
+    const ratio=Math.min(1,Math.max(0,(e.jdn-TODAY_JDN)/span));
+    /* فاصلهٔ منطقی بین توپها حتی وقتی دو آزمون نزدیک به هم باشند. */
+    const pos=Math.min(88,Math.max(prev+8,ratio*88));
+    prev=pos;
+    const days=Math.max(0,e.jdn-TODAY_JDN);
+    const nearest=i===0;
+    return`<button type="button" class="er-dot er-exam-dot${nearest?' nearest':''}" style="left:${pos}%;--dot:${colors[i%colors.length]}" data-exam-id="${e.id}" title="${esc(e.name)} — ${fa(days)} روز">
+      <span class="er-label"><b>${esc(e.name)}</b><small>${fa(days)} روز تا آزمون</small></span>
+    </button>`;
+  }).join('');
+  track.innerHTML=`
+    <div class="er-dot er-today" style="left:0%"><span class="er-label">امروز</span></div>
+    ${dots}
+    <div class="er-dot er-konkur" style="left:100%"><span class="er-label"><b>کنکور</b><small>${fa(konkurDays)} روز</small></span></div>`;
+  track.querySelectorAll('.er-exam-dot').forEach(btn=>{
+    btn.onclick=()=>openExamDetail(btn.dataset.examId);
   });
-  updateExamCalendarSummary();
 }
-document.getElementById('examCalPrev').onclick=()=>{examCalMonth--;if(examCalMonth<1){examCalMonth=12;examCalYear--;}renderExamCalendar();};
-document.getElementById('examCalNext').onclick=()=>{examCalMonth++;if(examCalMonth>12){examCalMonth=1;examCalYear++;}renderExamCalendar();};
-document.getElementById('examCalToday').onclick=()=>{examCalYear=TODAY_J.jy;examCalMonth=TODAY_J.jm;renderExamCalendar();};
 const _examSidebarToggle=document.getElementById('examSidebarToggle');
 if(_examSidebarToggle)_examSidebarToggle.onclick=()=>{
   const view=document.getElementById('view-exam');
@@ -357,24 +337,10 @@ if(_gaFilterToggle)_gaFilterToggle.onclick=()=>{
 };
 const _gaFilterBackdrop=document.getElementById('gaFilterBackdrop');
 if(_gaFilterBackdrop)_gaFilterBackdrop.onclick=()=>setAnalysisFilterOpen(false);
-
-/* ⭐ NEW: روی موبایل بعد از کلیک روی روز، تقویم بسته بشه */
-const _examCalGrid=document.getElementById('examCalGrid');
-if(_examCalGrid){
-  _examCalGrid.addEventListener('click',()=>{
-    if(window.innerWidth<1024){
-      const details=document.getElementById('examCalendarDetails');
-      if(details)details.open=false;
-      setExamSidebarOpen(false);
-    }
-  });
-}
-
-/* ⭐ NEW: روی دسکتاپ تقویم اجباراً باز، روی موبایل بسته */
-(function initExamCalendarState(){
-  const isDesktop=window.innerWidth>=1024;
-  const d=document.getElementById('examCalendarDetails');
-  if(d)d.open=isDesktop;
+/* دسکتاپ فیلترها باز و موبایل پیشفرض جمعشده است. */
+(function initAnalysisFilterState(){
+  const d=document.getElementById('gaFilterDetails');
+  if(d)d.open=window.innerWidth>=768;
 })();
 
 function examCardHTML(e){
@@ -399,12 +365,22 @@ function examCardHTML(e){
 }
 function renderExamsList(){
   const box=document.getElementById('examsList');
-  if(!state.exams.length){box.innerHTML='<div class="exam-empty"><b>هنوز آزمونی ثبت نکردی</b>با دکمه «آزمون جدید» شروع کن.</div>';return;}
-  const sorted=state.exams.slice().sort((a,b)=>jdnFromKey(b.date)-jdnFromKey(a.date));
-  const recentExams=sorted.slice(0,3);
-  const olderExams=sorted.slice(3);
-  box.innerHTML=recentExams.map(examCardHTML).join('')+
-    (olderExams.length?`<details class="exam-older-list"><summary>آزمون‌های قدیمی‌تر (${fa(olderExams.length)})</summary><div class="exam-older-list-items">${olderExams.map(examCardHTML).join('')}</div></details>`:'');
+  if(!box)return;
+  const upcoming=state.exams.filter(e=>jdnFromKey(e.date)>=TODAY_JDN)
+    .sort((a,b)=>jdnFromKey(a.date)-jdnFromKey(b.date));
+  const past=state.exams.filter(e=>jdnFromKey(e.date)<TODAY_JDN)
+    .sort((a,b)=>jdnFromKey(b.date)-jdnFromKey(a.date));
+  const pastBtn=document.getElementById('pastExamsBtn');
+  if(pastBtn){
+    pastBtn.textContent=examShowPast?'آزمون‌های پیشرو':`آزمون‌های داده شده (${fa(past.length)})`;
+    pastBtn.classList.toggle('active',examShowPast);
+  }
+  const list=examShowPast?past:upcoming;
+  if(!list.length){
+    box.innerHTML=`<div class="exam-empty"><b>${examShowPast?'آزمون دادهشدهای نیست':'آزمون پیشرویی نیست'}</b>${examShowPast?'پس از برگزاری آزمونها اینجا دیده میشوند.':'با دکمه «آزمون جدید» شروع کن.'}</div>`;
+    return;
+  }
+  box.innerHTML=list.map(examCardHTML).join('');
   box.querySelectorAll('.exam-card').forEach(c=>c.onclick=()=>openExamDetail(c.dataset.id));
 }
 function renderExamTagStats(){
@@ -493,6 +469,8 @@ function renderExamInsights(){
 }
 
 document.getElementById('newExamBtn').onclick=()=>openNewExamModal();
+const _pastExamsBtn=document.getElementById('pastExamsBtn');
+if(_pastExamsBtn)_pastExamsBtn.onclick=()=>{examShowPast=!examShowPast;renderExamsList();};
 
 /* ============ NEW EXAM MODAL ============ */
 function openNewExamModal(presetDate,draft){

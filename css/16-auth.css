@@ -27,15 +27,13 @@
 /* ---------- desktop: branded header + overlapping content card ---------- */
 .auth-shell{
   width:100%;max-width:1020px;margin-inline:auto;direction:ltr;
-  display:grid;grid-template-columns:1.08fr .92fr;align-items:stretch;
+  display:grid;grid-template-columns:.92fr 1.08fr;align-items:stretch;
 }
 .auth-hero,.auth-panel{direction:rtl}
-.auth-panel{order:1;margin-left:0;margin-right:-46px}
 .auth-hero{
-  order:2;
   position:relative;isolation:isolate;overflow:hidden;
   display:flex;flex-direction:column;justify-content:space-between;gap:34px;
-  padding:42px 34px 42px 80px;border-radius:34px;
+  padding:42px 80px 42px 34px;border-radius:34px;
   border:1px solid rgba(255,255,255,.10);
   color:#fff;
   background:linear-gradient(155deg,rgba(124,92,255,.24),rgba(11,16,34,.95) 58%),#0b1022;
@@ -246,12 +244,12 @@
 .auth-link-row small{grid-column:1/-1;color:#69748e;font-size:9.5px;font-weight:700}
 
 @media(min-width:1025px){
-  .auth-shell{grid-template-columns:1.08fr .92fr}
-  .auth-panel{margin-left:0;margin-right:-30px}
+  .auth-shell{grid-template-columns:.92fr 1.08fr}
+  .auth-panel{margin-left:-30px}
   .auth-card{padding:34px 38px 30px}
   /* Keep every line of hero copy well clear of the overlapping card. */
-  .auth-hero{padding:44px 38px 44px 92px}
-  .auth-hero-copy,.auth-hero-features{padding-left:12px;padding-right:0}
+  .auth-hero{padding:44px 92px 44px 38px}
+  .auth-hero-copy,.auth-hero-features{padding-right:12px}
 }
 
 /* ---------- tablet: stacked header with the card overlapping its base ---------- */

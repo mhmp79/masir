@@ -114,13 +114,13 @@ function timerTick(){
           timerState.accumulated = dur;
           timerState.startedAt = null;
           saveTimerState(); timerBeep();
-          try{ toast('🎉 همه دوره‌ها تمام شد'); }catch(e){}
+          try{ toast('همه دوره‌ها تمام شد'); }catch(e){}
         }else{
           timerState.pomPhase = 'break';
           timerState.accumulated = 0;
           timerState.startedAt = now;
           saveTimerState(); timerBeep();
-          try{ toast('☕ وقت استراحت'); }catch(e){}
+          try{ toast('وقت استراحت'); }catch(e){}
         }
         break;
       }else{
@@ -129,7 +129,7 @@ function timerTick(){
         timerState.accumulated = 0;
         timerState.startedAt = now;
         saveTimerState(); timerBeep();
-        try{ toast('📚 وقت مطالعه — دوره ' + fa(timerState.pomCurrentRep)); }catch(e){}
+        try{ toast('وقت مطالعه — دوره ' + fa(timerState.pomCurrentRep)); }catch(e){}
         break;
       }
     }else if(timerState.mode === 'flow' && timerState.flowPhase === 'break'){
@@ -138,7 +138,7 @@ function timerTick(){
       timerState.accumulated = 0;
       timerState.startedAt = now;
       saveTimerState(); timerBeep();
-      try{ toast('📚 استراحت تمام شد'); }catch(e){}
+      try{ toast('استراحت تمام شد'); }catch(e){}
       break;
     }else{ break; }
   }
@@ -164,10 +164,10 @@ function updateTimerDisplay(){
     const el = getElapsedMs();
     disp.textContent = fmtHMS(el);
     disp.className = 'timer-display ' + (el > 0 ? 'work' : 'idle');
-    phaseEl.textContent = timerState.isRunning ? '⏱ در حال مطالعه' : (el > 0 ? '⏸ متوقف' : 'آماده');
+    phaseEl.textContent = timerState.isRunning ? 'در حال مطالعه' : (el > 0 ? 'متوقف' : 'آماده');
     wrap.classList.add('hidden');
     if(phaseBtn) phaseBtn.classList.add('hidden');
-    if(toggleBtn) toggleBtn.textContent = timerState.isRunning ? '⏸ توقف' : (el > 0 ? '▶ ادامه' : '▶ شروع');
+    if(toggleBtn) toggleBtn.textContent = timerState.isRunning ? 'توقف' : (el > 0 ? 'ادامه' : 'شروع');
     updateUnifiedSaveState();
     return;
   }
@@ -176,11 +176,11 @@ function updateTimerDisplay(){
     if(timerState.pomPhase === 'done'){
       disp.textContent = fmtHMS(0);
       disp.className = 'timer-display idle';
-      phaseEl.textContent = '🎉 تمام شد';
+      phaseEl.textContent = 'تمام شد';
       fill.style.width = '100%';
       fill.style.background = 'linear-gradient(90deg,#10b981,#22d3ee)';
       meta.textContent = `${fa(timerState.pomReps)} دوره کامل شد`;
-      if(toggleBtn) toggleBtn.textContent = '🔄 شروع مجدد';
+      if(toggleBtn) toggleBtn.textContent = 'شروع مجدد';
       if(phaseBtn) phaseBtn.classList.add('hidden');
       wrap.classList.remove('hidden');
       updateUnifiedSaveState();
@@ -190,7 +190,7 @@ function updateTimerDisplay(){
     const el = getElapsedMs();
     disp.textContent = fmtHMS(Math.max(0, dur - el));
     disp.className = 'timer-display ' + (timerState.pomPhase === 'work' ? 'work' : 'break');
-    const pName = timerState.pomPhase === 'work' ? '📚 مطالعه' : '☕ استراحت';
+    const pName = timerState.pomPhase === 'work' ? 'مطالعه' : 'استراحت';
     phaseEl.textContent = `${pName} — دوره ${fa(timerState.pomCurrentRep)} از ${fa(timerState.pomReps)}`;
     const pct = Math.min(100, (el / dur) * 100);
     fill.style.width = pct + '%';
@@ -199,7 +199,7 @@ function updateTimerDisplay(){
       : 'linear-gradient(90deg,#10b981,#34d399)';
     meta.textContent = `${fmtHMS(el)} / ${fmtHMS(dur)}`;
     wrap.classList.remove('hidden');
-    if(toggleBtn) toggleBtn.textContent = timerState.isRunning ? '⏸ توقف' : (el > 0 ? '▶ ادامه' : '▶ شروع');
+    if(toggleBtn) toggleBtn.textContent = timerState.isRunning ? 'توقف' : (el > 0 ? 'ادامه' : 'شروع');
     if(phaseBtn){
       if(timerState.isRunning){ phaseBtn.classList.remove('hidden'); phaseBtn.textContent = '⏭ رد کردن'; }
       else phaseBtn.classList.add('hidden');
@@ -214,25 +214,25 @@ function updateTimerDisplay(){
       disp.textContent = fmtHMS(el);
       disp.className = 'timer-display work';
       const earned = Math.floor((el / 60000) * (timerState.flowBreak / timerState.flowStudy));
-      phaseEl.textContent = `📚 مطالعه — استراحت کسب‌شده: ${fa(earned)} دقیقه`;
+      phaseEl.textContent = `مطالعه — استراحت کسب‌شده: ${fa(earned)} دقیقه`;
       wrap.classList.add('hidden');
       if(phaseBtn){
-        if(timerState.isRunning && earned >= 1){ phaseBtn.classList.remove('hidden'); phaseBtn.textContent = '☕ شروع استراحت'; }
+        if(timerState.isRunning && earned >= 1){ phaseBtn.classList.remove('hidden'); phaseBtn.textContent = 'شروع استراحت'; }
         else phaseBtn.classList.add('hidden');
       }
     }else{
       const rem = Math.max(0, timerState.flowBreakDuration - el);
       disp.textContent = fmtHMS(rem);
       disp.className = 'timer-display break';
-      phaseEl.textContent = '☕ استراحت';
+      phaseEl.textContent = 'استراحت';
       const pct = Math.min(100, (el / timerState.flowBreakDuration) * 100);
       fill.style.width = pct + '%';
       fill.style.background = 'linear-gradient(90deg,#10b981,#34d399)';
       meta.textContent = `${fmtHMS(el)} / ${fmtHMS(timerState.flowBreakDuration)}`;
       wrap.classList.remove('hidden');
-      if(phaseBtn){ phaseBtn.classList.remove('hidden'); phaseBtn.textContent = '📚 بازگشت به مطالعه'; }
+      if(phaseBtn){ phaseBtn.classList.remove('hidden'); phaseBtn.textContent = 'بازگشت به مطالعه'; }
     }
-    if(toggleBtn) toggleBtn.textContent = timerState.isRunning ? '⏸ توقف' : (el > 0 ? '▶ ادامه' : '▶ شروع');
+    if(toggleBtn) toggleBtn.textContent = timerState.isRunning ? 'توقف' : (el > 0 ? 'ادامه' : 'شروع');
     updateUnifiedSaveState();
   }
 }
@@ -251,7 +251,7 @@ function updateUnifiedSaveState(){
   const hasTime = minutes > 0;
   const hasTests = testTotal > 0;
 
-  const timePart = hasTime ? `⏱ ${hmString(minutes)}` : `⏱ بدون زمان`;
+  const timePart = hasTime ? `${hmString(minutes)}` : `بدون زمان`;
   const testPart = hasTests ? `📝 ${fa(testTotal)} تست` : `📝 تست نزدم`;
 
   summary.textContent = `${timePart}   •   ${testPart}`;
@@ -389,7 +389,7 @@ function openUnifiedSaveModal(){
       <input class="input" id="umTopic" placeholder="مبحث (اختیاری)">
 
       <div class="unified-modal-section">
-        <div class="unified-modal-section-title">⏱ زمان</div>
+        <div class="unified-modal-section-title">زمان</div>
         <div class="grid2">
           <div><label class="lbl mt-0">شروع</label><div id="umStartWrap" class="time-pair"></div></div>
           <div><label class="lbl mt-0">پایان</label><div id="umEndWrap" class="time-pair"></div></div>
@@ -427,7 +427,7 @@ function openUnifiedSaveModal(){
 
     const hint = document.getElementById('umTimeHint');
     if(minutes > 0){
-      hint.innerHTML = `⏱ پیش‌فرض از تایمر: <b class="text-cyan">${hmString(minutes)}</b> — قابل ویرایش • عبور از نیمه‌شب در دو روز جدا ثبت می‌شود`;
+      hint.innerHTML = `پیش‌فرض از تایمر: <b class="text-cyan">${hmString(minutes)}</b> — قابل ویرایش • عبور از نیمه‌شب در دو روز جدا ثبت می‌شود`;
       hint.style.color = '';
     }else{
       hint.innerHTML = `⚠️ تایمری ثبت نشده — زمان را دستی وارد کن`;

@@ -224,10 +224,6 @@ async function userColumns() {
     phone: await requireColumn('users', ['phone'], 'phone'),
     role: await requireColumn('users', ['role'], 'role'),
     displayName: await columnFor('users', ['display_name', 'displayName']),
-    firstName: await columnFor('users', ['first_name']),
-    lastName: await columnFor('users', ['last_name']),
-    field: await columnFor('users', ['field']),
-    grade: await columnFor('users', ['grade']),
     passwordHash: await columnFor('users', ['password_hash']),
     passwordUpdatedAt: await columnFor('users', ['password_updated_at']),
   };
@@ -239,10 +235,6 @@ function publicUser(row, columns) {
     phone: row[columns.phone],
     role: row[columns.role],
     displayName: (columns.displayName && row[columns.displayName]) || '',
-    firstName: (columns.firstName && row[columns.firstName]) || '',
-    lastName: (columns.lastName && row[columns.lastName]) || '',
-    field: (columns.field && row[columns.field]) || '',
-    grade: (columns.grade && row[columns.grade]) || '',
   };
 }
 
@@ -255,10 +247,6 @@ function assertPasswordColumn(columns) {
 function userFieldsFor(columns) {
   const fields = [columns.id, columns.phone, columns.role];
   if (columns.displayName) fields.push(columns.displayName);
-  if (columns.firstName) fields.push(columns.firstName);
-  if (columns.lastName) fields.push(columns.lastName);
-  if (columns.field) fields.push(columns.field);
-  if (columns.grade) fields.push(columns.grade);
   if (columns.passwordHash) fields.push(columns.passwordHash);
   if (columns.passwordUpdatedAt) fields.push(columns.passwordUpdatedAt);
   return fields;
@@ -292,27 +280,6 @@ async function setUserPassword(client, columns, id, passwordHash) {
     `UPDATE users SET ${assignments.join(', ')} WHERE ${columns.id} = $${params.length + 1}`,
     [...params, String(id)],
   );
-}
-
-function safeProfileText(value, maxLength) {
-  return String(value == null ? '' : value).trim().slice(0, maxLength);
-}
-function normalizeProfileField(value) {
-  const v = safeProfileText(value, 20);
-  return ['تجربی', 'ریاضی', 'انسانی'].includes(v) ? v : '';
-}
-function normalizeProfileGrade(value) {
-  const v = safeProfileText(value, 20);
-  return ['دهم', 'یازدهم', 'دوازدهم'].includes(v) ? v : '';
-}
-function safeProfilePatch(body) {
-  const src = body && typeof body === 'object' ? body : {};
-  return {
-    firstName: safeProfileText(src.firstName, 40),
-    lastName: safeProfileText(src.lastName, 40),
-    field: normalizeProfileField(src.field),
-    grade: normalizeProfileGrade(src.grade),
-  };
 }
 
 /** Creates OTP-only users without ever overwriting an existing password hash. */
@@ -795,46 +762,6 @@ router.get('/api/me', authenticate, (req, res) => {
     user: req.user,
     expiresAt: req.token && req.token.exp ? new Date(req.token.exp * 1000).toISOString() : null,
   });
-});
-
-router.put('/api/account/profile', authenticate, async (req, res, next) => {
-  try {
-    const patch = safeProfilePatch(req.body);
-    const columns = await userColumns();
-    const assignments = [];
-    const params = [];
-    const add = (column, value) => { params.push(value); assignments.push(`${column} = $${params.length}`); };
-    if (columns.firstName) add(columns.firstName, patch.firstName);
-    if (columns.lastName) add(columns.lastName, patch.lastName);
-    if (columns.field) add(columns.field, patch.field);
-    if (columns.grade) add(columns.grade, patch.grade);
-    if (columns.displayName) add(columns.displayName, [patch.firstName, patch.lastName].filter(Boolean).join(' '));
-    if (!assignments.length) return res.status(400).json({ ok: false, error: 'profile fields are not available' });
-    params.push(String(req.user.id));
-    const { rows } = await query(
-      `UPDATE users SET ${assignments.join(', ')} WHERE ${columns.id} = $${params.length}
-       RETURNING ${userFieldsFor(columns).join(', ')}`,
-      params,
-    );
-    if (!rows.length) return res.status(404).json({ ok: false, error: 'user not found' });
-    return res.json({ ok: true, user: publicUser(rows[0], columns) });
-  } catch (error) {
-    return next(error);
-  }
-});
-
-router.get('/api/admin/users', authenticate, requireRole('admin'), async (req, res, next) => {
-  try {
-    const columns = await userColumns();
-    const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 100, 1), 500);
-    const { rows } = await query(
-      `SELECT ${userFieldsFor(columns).join(', ')} FROM users ORDER BY ${columns.phone} ASC LIMIT $1`,
-      [limit],
-    );
-    return res.json({ users: rows.map((row) => publicUser(row, columns)) });
-  } catch (error) {
-    return next(error);
-  }
 });
 
 module.exports = {

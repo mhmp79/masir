@@ -8,48 +8,66 @@
 
 /* ============ PAGED NAVIGATION ============ */
 let settingsPage = 'home';
+
+/* ============ PWA INSTALL ============ */
 let deferredInstallPrompt = null;
-function isAppInstalled(){
+function isStandaloneMode(){
   try{
     if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
     if(window.navigator && window.navigator.standalone) return true;
   }catch(e){}
   return false;
 }
+function isIOSDevice(){
+  const ua=String(navigator.userAgent||'');
+  return /iphone|ipad|ipod/i.test(ua) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+}
+function installHelpModal(isiOS){
+  const steps = isiOS
+    ? `<li>اپلیکیشن را در <b>Safari</b> باز کن (Chrome روی آیفون نصب PWA را نمیدهد).</li>
+       <li>روی دکمهٔ <b>Share</b> (مربع با پیکان رو به بالا) بزن.</li>
+       <li><b>Add to Home Screen</b> را انتخاب کن.</li>
+       <li>نام «مسیر» را تأیید و روی <b>Add</b> بزن؛ آیکون به صفحهٔ اصلی اضافه میشود.</li>
+       <li>برای اجرای آفلاین، یک بار با اینترنت برنامه را باز کن تا فایلها ذخیره شوند.</li>`
+    : `<li>در Chrome/Edge دسکتاپ روی آیکون <b>Install</b> کنار نوار آدرس بزن.</li>
+       <li>اگر آیکون نیست، از منوی مرورگر (<b>⋮</b>) گزینهٔ <b>Cast, save, and share</b> ← <b>Install page as app</b> را بزن.</li>
+       <li>در اندروید: منوی Chrome ← <b>Add to Home screen</b> یا <b>Install app</b> را بزن.</li>
+       <li>پس از نصب، برنامه از آیکون خودش اجرا میشود و بهصورت آفلاین هم کار میکند.</li>`;
+  openModal(`<div class="modal-head">
+      <div class="card-title">📲 نصب برنامهٔ مسیر</div>
+      <button class="icon-btn" data-close>✕</button>
+    </div>
+    <div class="muted fs-11h mb-12 lh-185">${isiOS?'روی آیفون نصب از طریق Safari انجام میشود:':'برای نصب روی کامپیوتر یا اندروید مراحل زیر را دنبال کن:'}</div>
+    <ol class="install-steps">${steps}</ol>
+    <div class="row mt-14"><button class="btn primary" data-close>متوجه شدم</button></div>`);
+}
 function renderInstallAppButton(){
-  const btn = document.getElementById('installAppBtn');
-  const sub = document.getElementById('installAppSub');
+  const btn=document.getElementById('installAppBtn');
+  const sub=document.getElementById('installAppSub');
   if(!btn) return;
-  const installed = isAppInstalled();
-  const canPrompt = !!deferredInstallPrompt;
-  const isiOS = /iphone|ipad|ipod/i.test(String(navigator.userAgent||''));
-  btn.hidden = installed || (!canPrompt && !isiOS);
-  btn.disabled = false;
-  if(sub){
-    sub.textContent = canPrompt
-      ? 'افزودن مسیر به صفحه اصلی'
-      : (isiOS ? 'در Safari: Share سپس Add to Home Screen' : 'افزودن مسیر به صفحه اصلی');
-  }
-  btn.onclick = async () => {
-    if(!deferredInstallPrompt){
-      if(isiOS) toast('برای نصب: در Safari دکمه Share را بزنید و Add to Home Screen را انتخاب کنید.');
+  const isiOS=isIOSDevice();
+  btn.hidden=isStandaloneMode();
+  if(sub) sub.textContent=isiOS?'راهنمای نصب روی آیفون':(deferredInstallPrompt?'نصب مستقیم روی دستگاه':'راهنمای نصب در مرورگر');
+  btn.onclick=async()=>{
+    if(!isiOS && deferredInstallPrompt){
+      try{
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+      }catch(e){}
+      deferredInstallPrompt=null;
+      renderInstallAppButton();
       return;
     }
-    try{
-      deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
-    }catch(e){}
-    deferredInstallPrompt = null;
-    renderInstallAppButton();
+    installHelpModal(isiOS);
   };
 }
-window.addEventListener('beforeinstallprompt', (e)=>{
+window.addEventListener('beforeinstallprompt',(e)=>{
   e.preventDefault();
-  deferredInstallPrompt = e;
+  deferredInstallPrompt=e;
   renderInstallAppButton();
 });
-window.addEventListener('appinstalled', ()=>{
-  deferredInstallPrompt = null;
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
   renderInstallAppButton();
 });
 function setSettingsPage(page){
@@ -84,42 +102,20 @@ function renderProfileSection(){
   const heroNameEl = document.getElementById('profileHeroName');
   const heroAvatarEl = document.getElementById('profileHeroAvatar');
   const badgeEl = document.getElementById('accountProfileBadge');
-  const editBtn = document.getElementById('editProfileBtn');
   const displayFieldEl = document.getElementById('profileDisplayField');
   const displayGradeEl = document.getElementById('profileDisplayGrade');
   const fnEl = document.getElementById('setFirstName');
   const lnEl = document.getElementById('setLastName');
   const fEl = document.getElementById('setField');
   const gEl = document.getElementById('setGrade');
-  const client = window.sqlSync || window.masirSqlSync || null;
-  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
-  const user = loggedIn && client && typeof client.getUser === 'function' ? (client.getUser() || {}) : {};
-  const phone = loggedIn && client && typeof client.getLoggedInPhone === 'function'
-    ? String(client.getLoggedInPhone() || '') : '';
   const fullName = [p.firstName,p.lastName].filter(Boolean).join(' ');
-  const profileMetaEl = document.getElementById('profileSummaryMeta');
-  if(displayNameEl) displayNameEl.textContent = loggedIn ? (fullName || 'نام ثبت نشده') : 'حساب کاربری';
+  if(displayNameEl) displayNameEl.textContent = fullName || 'نام ثبت نشده';
   if(heroNameEl) heroNameEl.textContent = fullName || 'نام ثبت نشده';
   if(heroAvatarEl) heroAvatarEl.textContent = String(p.firstName || p.displayName || 'M').trim().charAt(0) || 'M';
-  if(profileMetaEl) profileMetaEl.hidden = !loggedIn;
-  if(editBtn){
-    editBtn.textContent = loggedIn ? 'ویرایش حساب' : 'ورود به حساب';
-    editBtn.title = editBtn.textContent;
-    editBtn.setAttribute('aria-label', editBtn.textContent);
-    editBtn.classList.toggle('profile-login-btn', !loggedIn);
-  }
-  if(loggedIn && user){
-    if(typeof user.firstName === 'string') p.firstName = user.firstName.slice(0,40);
-    if(typeof user.lastName === 'string') p.lastName = user.lastName.slice(0,40);
-    if(['تجربی','ریاضی','انسانی'].includes(user.field)) p.field = user.field;
-    if(['دهم','یازدهم','دوازدهم'].includes(user.grade)) p.grade = user.grade;
-    if(state && state.profile){
-      state.profile.firstName = p.firstName;
-      state.profile.lastName = p.lastName;
-      state.profile.field = p.field || state.profile.field;
-      state.profile.grade = p.grade || state.profile.grade;
-    }
-  }
+  const client = window.sqlSync || window.masirSqlSync || null;
+  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
+  const phone = loggedIn && client && typeof client.getLoggedInPhone === 'function'
+    ? String(client.getLoggedInPhone() || '') : '';
   const phoneEl = document.getElementById('profileHeroPhone');
   if(phoneEl){
     phoneEl.textContent = phone || 'شماره متصل نشده';
@@ -140,15 +136,7 @@ function renderProfileSection(){
 }
 
 const _editProfileBtn = document.getElementById('editProfileBtn');
-if(_editProfileBtn) _editProfileBtn.onclick = () => {
-  const client = window.sqlSync || window.masirSqlSync || null;
-  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
-  if(!loggedIn){
-    try{ if(window.masirAuth && typeof window.masirAuth.show === 'function') window.masirAuth.show('login'); }catch(e){}
-    return;
-  }
-  setSettingsPage('account');
-};
+if(_editProfileBtn) _editProfileBtn.onclick = () => setSettingsPage('account');
 
 const _cancelProfileEditBtn = document.getElementById('cancelProfileEditBtn');
 if(_cancelProfileEditBtn) _cancelProfileEditBtn.onclick = renderProfileSection;
@@ -181,15 +169,14 @@ const _setGradeEl = document.getElementById('setGrade');
 if(_setGradeEl) _setGradeEl.onchange = updateProfileHint;
 
 const _saveProfileBtn = document.getElementById('saveProfileBtn');
-if(_saveProfileBtn) _saveProfileBtn.onclick = async () => {
-  const btn = _saveProfileBtn;
+if(_saveProfileBtn) _saveProfileBtn.onclick = () => {
   const firstName = (document.getElementById('setFirstName').value || '').trim().slice(0, 40);
   const lastName  = (document.getElementById('setLastName').value || '').trim().slice(0, 40);
   const field     = document.getElementById('setField').value;
   const grade     = document.getElementById('setGrade').value;
   const currentField = (state.profile && state.profile.field) || 'تجربی';
   const currentGrade = (state.profile && state.profile.grade) || 'دوازدهم';
-
+  
   if(field !== currentField){
     const currentSpecials = state.subjects.filter(s => s.type === 'specialized').map(s => s.name);
     const newSpecials = fieldSpecializedSubjects(field,grade);
@@ -201,26 +188,8 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = async () => {
       if(!confirm(msg)) return;
     }
   }
-
-  const client = window.sqlSync || window.masirSqlSync || null;
-  const loggedIn = !!(client && typeof client.isLoggedIn === 'function' && client.isLoggedIn());
-  const prevLabel = btn.textContent;
-  if(loggedIn && client && typeof client.updateProfile === 'function'){
-    btn.disabled = true;
-    btn.textContent = 'در حال ذخیره…';
-    try {
-      await client.updateProfile({ firstName, lastName, field, grade });
-    } catch (error) {
-      console.error('[profile] server save failed:', error);
-      toast('ذخیره در سرور ناموفق بود: ' + (error && error.message ? error.message : 'خطا'));
-      btn.disabled = false;
-      btn.textContent = prevLabel;
-      return;
-    }
-    btn.disabled = false;
-    btn.textContent = prevLabel;
-  }
-
+  
+  // Keep the local profile identity; accounts use phone numbers, not e-mail.
   state.profile = {
     id: state.profile.id || '',
     role:'student',
@@ -231,7 +200,7 @@ if(_saveProfileBtn) _saveProfileBtn.onclick = async () => {
   } else {
     save();
   }
-  toast(loggedIn ? 'پروفایل ذخیره و همگام شد ✓' : 'پروفایل ذخیره شد ✓');
+  toast('پروفایل ذخیره شد ✓');
   renderProfileSection();
   try{ renderSubjectManager(); }catch(e){}
   try{ renderSettingsPanel(); }catch(e){}
@@ -901,12 +870,25 @@ const _examNameEl = document.getElementById('setExamName');
 if(_examNameEl) _examNameEl.onchange=(ev)=>{state.settings.examName=ev.target.value.trim()||'آزمایشی';save();};
 
 /* ============ OPEN OVERLAY ============ */
+let settingsActiveNavBeforeOpen=null;
 function setSettingsChrome(open){
   const app=document.querySelector('.app');
   const logo=document.getElementById('appLogo');
   const brandTitle=document.getElementById('brandTitle');
   const settingsTitle=document.getElementById('settingsTitle');
   const backBtn=document.getElementById('settingsBackBtn');
+  const wasOpen=!!(app&&app.classList.contains('settings-open'));
+  if(open&&!wasOpen){
+    const activeNav=document.querySelector('.nav-btn.active');
+    settingsActiveNavBeforeOpen=activeNav?activeNav.dataset.view:null;
+    document.querySelectorAll('.nav-btn').forEach(btn=>btn.classList.remove('active'));
+  }else if(!open){
+    if(settingsActiveNavBeforeOpen){
+      const restoreBtn=document.querySelector('.nav-btn[data-view="'+settingsActiveNavBeforeOpen+'"]');
+      if(restoreBtn)restoreBtn.classList.add('active');
+    }
+    settingsActiveNavBeforeOpen=null;
+  }
   if(app) app.classList.toggle('settings-open',open);
   if(logo) logo.classList.toggle('hidden',open);
   if(brandTitle) brandTitle.classList.toggle('hidden',open);
@@ -919,7 +901,6 @@ function openSettingsOverlay(){
   setSettingsPage('home');
   overlay.classList.add('show');document.body.style.overflow='hidden';
   setSettingsChrome(true);
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   try{renderProfileSection();}catch(e){console.error(e);}
   try{renderInstallAppButton();}catch(e){console.error(e);}
   try{renderSubjectManager();}catch(e){console.error(e);}
@@ -942,9 +923,6 @@ function closeSettingsOverlay(force){
   renderProfileSection();
   overlay.classList.remove('show');
   setSettingsChrome(false);
-  const activeView=document.querySelector('.view.active');
-  const viewName=activeView ? String(activeView.id||'').replace(/^view-/,'') : '';
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',!!viewName && b.dataset.view===viewName));
   document.body.style.overflow='';
 }
 document.getElementById('settingsBtn').onclick=openSettingsOverlay;

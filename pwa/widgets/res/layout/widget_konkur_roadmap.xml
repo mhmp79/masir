@@ -1,0 +1,7 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/widget_card" android:padding="12dp">
+  <TextView android:id="@+id/widget_app" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="12sp" android:textStyle="bold" android:textColor="@color/widget_primary" android:text="مسیر" />
+  <TextView android:id="@+id/widget_roadmap_days" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="19sp" android:textStyle="bold" android:textColor="@color/widget_warm" android:layout_marginTop="5dp" />
+  <TextView android:id="@+id/widget_roadmap_line" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="16sp" android:textColor="@color/widget_accent" android:gravity="center" android:layout_marginTop="7dp" />
+  <TextView android:id="@+id/widget_roadmap_exam" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="11sp" android:textColor="@color/widget_text" android:layout_marginTop="7dp" />
+  <TextView android:id="@+id/widget_roadmap_count" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="10sp" android:textColor="@color/widget_muted" android:layout_marginTop="2dp" />
+</LinearLayout>
